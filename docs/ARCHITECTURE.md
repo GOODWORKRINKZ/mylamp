@@ -1,45 +1,103 @@
 # Architecture
 
-## Device target
+Этот документ описывает верхнеуровневую архитектуру `mylamp`: из каких слоёв состоит проект, как устроена логическая поверхность лампы и в каком направлении развивается runtime.
+
+## Целевое устройство
 
 - MCU: ESP32-C3 Super Mini
 - LEDs: 2x WS2812B 16x16
-- Topology: cylinder assembled from two logical halves
-- Sensors: AHT30 over I2C
-- Connectivity: WiFi only
+- Топология: цилиндр из двух логических половин
+- Датчик: AHT30 по I2C
+- Сеть: только Wi-Fi
 
-## Rendering model
+## Архитектурная идея
 
-The lamp uses a logical 32x16 canvas. Effects render against this logical space and do not need to know about physical panel boundaries.
+У лампы есть логическая поверхность `32x16`. Эффекты работают именно с этим пространством и не должны знать о физических границах конкретных матриц.
 
-Responsibilities by layer:
-- `MatrixLayout`: maps logical coordinates to physical LED indices
-- future `FrameBuffer`: stores logical pixel state
-- future `EffectEngine`: renders animations into the frame buffer
-- future `OverlayRenderer`: draws time and sensor data on top of the active effect
+Это даёт две вещи:
 
-## Current mapping assumptions
+- эффекты проще писать и переносить;
+- аппаратные особенности можно править в одном месте, а не размазывать по каждому эффекту.
 
-- panel 0 occupies logical X range `0..15`
-- panel 1 occupies logical X range `16..31`
-- both panels currently assume serpentine rows
-- `wrapX()` makes cylinder-friendly horizontal addressing possible
+## Основные слои
 
-These assumptions are intentionally centralized in `MatrixLayout`, so hardware inversion or panel rotation can be corrected without rewriting effects.
+### `MatrixLayout`
 
-## Planned runtime services
+Отвечает за отображение логических координат в физические индексы светодиодов.
 
-- WiFi manager with AP fallback
-- settings storage backed by Preferences/NVS
-- web control surface for effect parameters and telemetry
-- NTP time synchronization for clock overlays
-- sensor polling service for AHT30
-- OTA updater with stable/dev channels
+Именно здесь должны жить:
 
-## Release engineering direction
+- ориентация панелей;
+- serpentine mapping;
+- склейка двух половин в общий цилиндр;
+- возможные аппаратные перевороты и отражения.
 
-This project will mirror the generic firmware delivery approach used in microbbox:
-- GitHub Releases as OTA source
-- separate `stable` and `dev` channels
-- draft release first, publish only after assets are attached
-- version/channel embedded into firmware via build flags
+### `FrameBuffer`
+
+Промежуточный слой для хранения логического состояния пикселей перед отправкой на матрицы.
+
+Его задача:
+
+- принимать результат рендеринга эффектов;
+- хранить итоговый кадр;
+- давать основу для последующих overlay-сценариев.
+
+### `EffectEngine`
+
+Исполняет активный эффект и рендерит его в логический framebuffer.
+
+Сюда относится:
+
+- базовая анимация;
+- обновление по времени;
+- работа с параметрами эффекта;
+- дальнейшая интеграция DSL runtime.
+
+### `OverlayRenderer`
+
+Поверх активного эффекта должен накладывать служебные или пользовательские слои, например:
+
+- часы;
+- индикаторы статуса;
+- данные сенсоров.
+
+## Текущие предположения по mapping
+
+- panel 0 занимает логический диапазон `X=0..15`;
+- panel 1 занимает логический диапазон `X=16..31`;
+- обе панели сейчас предполагаются serpentine по строкам;
+- `wrapX()` используется для цилиндрического горизонтального адреса.
+
+Эти предположения сознательно централизованы в `MatrixLayout`, чтобы изменения в железе не ломали эффекты и DSL-контракт.
+
+## Runtime services
+
+Проект постепенно собирается вокруг набора отдельных сервисов:
+
+- Wi-Fi manager с fallback в AP режим;
+- storage для настроек через Preferences/NVS;
+- web control surface для настройки, диагностики и контента;
+- NTP-синхронизация для clock- и status-сценариев;
+- polling AHT30;
+- OTA updater с разделением по каналам.
+
+## Frontend и runtime contract
+
+Сейчас web UI, mock backend и firmware развиваются как один контракт:
+
+- frontend задаёт UX и формат данных;
+- mock backend позволяет проверять поток работы без железа;
+- firmware постепенно доводит этот контракт до исполнения на устройстве.
+
+Именно поэтому часть live-coding сценариев уже хорошо выглядит в dev-режиме, даже если device-side реализация ещё не доведена до конца.
+
+## Release и OTA direction
+
+Направление release engineering вдохновлено схемой из `microbbox`:
+
+- GitHub Releases как источник OTA-артефактов;
+- отдельные каналы `stable` и `dev`;
+- сначала сборка и публикация артефактов, потом выпуск релиза;
+- вшитые в build flags версия и канал.
+
+Полный production-grade OTA pipeline ещё не собран end-to-end, но архитектурный вектор уже определён.
