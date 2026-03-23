@@ -6,6 +6,7 @@
 #include "MatrixLayout.h"
 #include "network/NetworkPlanner.h"
 #include "settings/AppSettings.h"
+#include "time/TimePlanner.h"
 #include "effects/AlternatingColumnsEffect.h"
 #include "effects/EffectContext.h"
 #include "effects/EffectRegistry.h"
@@ -22,6 +23,8 @@ lamp::effects::EffectRegistry g_effectRegistry;
 lamp::settings::AppSettings g_settings;
 lamp::network::NetworkPlanner g_networkPlanner;
 lamp::network::PlannedNetworkState g_networkState;
+lamp::time::TimePlanner g_timePlanner;
+lamp::time::PlannedTimeState g_timeState;
 unsigned long g_lastHeartbeatMs = 0;
 bool g_usePatternEffect = false;
 
@@ -59,6 +62,8 @@ void printBootBanner() {
   Serial.println(g_networkState.statusLine.c_str());
   Serial.print("time sync: ");
   Serial.println(g_networkState.timeSyncAllowed ? "enabled" : "disabled");
+  Serial.print("clock state: ");
+  Serial.println(g_timeState.statusLine.c_str());
 }
 
 }  // namespace
@@ -68,6 +73,7 @@ void setup() {
   delay(200);
   g_settings.network.preferredMode = lamp::network::NetworkMode::kAccessPoint;
   g_networkState = g_networkPlanner.planStartup(g_settings.network, false, false, "");
+  g_timeState = g_timePlanner.plan(g_settings.clock, g_networkState, false);
   g_effectRegistry.add(g_bootEffect);
   g_effectRegistry.add(g_patternEffect);
   lamp::effects::EffectContext context{0, g_frameBuffer};
@@ -91,5 +97,7 @@ void loop() {
     }
     Serial.print("network status: ");
     Serial.println(g_networkState.statusLine.c_str());
+    Serial.print("clock state: ");
+    Serial.println(g_timeState.statusLine.c_str());
   }
 }
