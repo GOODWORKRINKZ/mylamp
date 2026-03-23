@@ -36,15 +36,18 @@ void LampWebServer::registerRoutes() {
 }
 
 void LampWebServer::handleRoot() {
-  sendEmbeddedAsset(indexHtml, indexHtml_len, "text/html; charset=utf-8");
+  sendEmbeddedAsset(
+      makeCompressedTextAsset(indexHtml, indexHtml_len, "text/html; charset=utf-8"));
 }
 
 void LampWebServer::handleScript() {
-  sendEmbeddedAsset(scriptJs, scriptJs_len, "application/javascript; charset=utf-8");
+  sendEmbeddedAsset(
+      makeCompressedTextAsset(scriptJs, scriptJs_len, "application/javascript; charset=utf-8"));
 }
 
 void LampWebServer::handleStyles() {
-  sendEmbeddedAsset(stylesCss, stylesCss_len, "text/css; charset=utf-8");
+  sendEmbeddedAsset(
+      makeCompressedTextAsset(stylesCss, stylesCss_len, "text/css; charset=utf-8"));
 }
 
 void LampWebServer::handleStatus() {
@@ -79,9 +82,12 @@ void LampWebServer::handleUpdateNetworkSettings() {
   server_.send(200, "application/json", buildNetworkSettingsJson(settings).c_str());
 }
 
-void LampWebServer::sendEmbeddedAsset(const uint8_t* data, size_t length,
-                                      const char* contentType) {
-  server_.send_P(200, contentType, reinterpret_cast<PGM_P>(data), length);
+void LampWebServer::sendEmbeddedAsset(const EmbeddedAsset& asset) {
+  if (isCompressedAsset(asset)) {
+    server_.sendHeader("Content-Encoding", asset.contentEncoding);
+  }
+
+  server_.send_P(200, asset.contentType, reinterpret_cast<PGM_P>(asset.data), asset.length);
 }
 
 }  // namespace lamp::web

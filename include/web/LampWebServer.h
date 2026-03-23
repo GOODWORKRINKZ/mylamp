@@ -5,6 +5,7 @@
 #include <WebServer.h>
 
 #include "settings/AppSettings.h"
+#include "web/EmbeddedAsset.h"
 #include "web/NetworkSettingsJson.h"
 #include "web/StatusJsonBuilder.h"
 
@@ -30,7 +31,7 @@ class LampWebServer {
   void handleStatus();
   void handleGetNetworkSettings();
   void handleUpdateNetworkSettings();
-  void sendEmbeddedAsset(const uint8_t* data, size_t length, const char* contentType);
+  void sendEmbeddedAsset(const EmbeddedAsset& asset);
 
   WebServer server_;
   StatusSnapshot snapshot_;

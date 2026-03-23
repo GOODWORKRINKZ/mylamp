@@ -1,3 +1,4 @@
+import gzip
 import os
 import subprocess
 from pathlib import Path
@@ -45,6 +46,15 @@ def to_header_array(binary_content):
     return ", ".join(f"0x{byte:02x}" for byte in binary_content)
 
 
+def transform_resource_content(resource_path, binary_content, placeholders):
+    if resource_path.suffix not in {".html", ".js", ".css"}:
+        return binary_content
+
+    text_content = binary_content.decode("utf-8")
+    substituted = substitute_placeholders(text_content, placeholders).encode("utf-8")
+    return gzip.compress(substituted, mtime=0)
+
+
 def write_header(output_file, dist_dir, placeholders):
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -56,10 +66,7 @@ def write_header(output_file, dist_dir, placeholders):
         for resource_name, variable_name in RESOURCE_NAMES.items():
             resource_path = dist_dir / resource_name
             binary_content = resource_path.read_bytes()
-
-            if resource_path.suffix in {".html", ".js", ".css"}:
-                text_content = binary_content.decode("utf-8")
-                binary_content = substitute_placeholders(text_content, placeholders).encode("utf-8")
+            binary_content = transform_resource_content(resource_path, binary_content, placeholders)
 
             header.write(f"const uint8_t {variable_name}[] PROGMEM = {{{to_header_array(binary_content)}}};\n")
             header.write(f"const size_t {variable_name}_len = {len(binary_content)};\n\n")
