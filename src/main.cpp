@@ -25,6 +25,7 @@
 #include "settings/PreferencesSettingsBackend.h"
 #include "storage/ContentPaths.h"
 #include "storage/LittleFsFileStore.h"
+#include "storage/StorageBootstrap.h"
 #include "time/ArduinoNtpTimeSource.h"
 #include "time/ITimeSource.h"
 #include "time/TimePlanner.h"
@@ -95,6 +96,12 @@ void initializeFileSystem() {
   g_fileSystemReady = LittleFS.begin(true);
   if (!g_fileSystemReady) {
     Serial.println("filesystem: mount failed");
+    return;
+  }
+
+  if (!lamp::storage::ensureContentDirectories(LittleFS)) {
+    Serial.println("filesystem: failed to prepare content directories");
+    g_fileSystemReady = false;
     return;
   }
 

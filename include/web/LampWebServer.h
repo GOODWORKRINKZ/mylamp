@@ -41,6 +41,7 @@ class LampWebServer {
   void registerRoutes();
   void handleNotFound();
   void handleRoot();
+  void handleFavicon();
   void handleScript();
   void handleStyles();
   void handleStatus();
@@ -49,6 +50,7 @@ class LampWebServer {
   void handleLiveValidate();
   void handleLiveRun();
   void handleListPresets();
+  void handlePutPreset();
   void handlePresetByPath();
   void handlePlaylistByPath();
   void sendEmbeddedAsset(const EmbeddedAsset& asset);

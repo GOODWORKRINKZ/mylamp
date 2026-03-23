@@ -301,6 +301,41 @@ async function handleApi(req, res) {
     return true;
   }
 
+  if (pathname === "/api/presets" && method === "PUT") {
+    const presetId = url.searchParams.get("id") || "";
+    if (!presetId) {
+      sendJson(res, 400, { error: "preset id is required" });
+      return true;
+    }
+
+    const payload = parseJson(await readBody(req));
+    if (!payload || !payload.name || !payload.source) {
+      sendJson(res, 400, { error: "invalid preset payload" });
+      return true;
+    }
+    const brightnessCap =
+      payload.options && typeof payload.options.brightnessCap === "number"
+        ? payload.options.brightnessCap
+        : 0.35;
+    const preset = {
+      id: presetId,
+      name: payload.name,
+      source: payload.source,
+      createdAt: payload.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      tags: payload.tags || [],
+      options: { brightnessCap },
+    };
+    const existingIndex = state.presets.findIndex((item) => item.id === presetId);
+    if (existingIndex >= 0) {
+      state.presets[existingIndex] = preset;
+    } else {
+      state.presets.push(preset);
+    }
+    sendJson(res, 200, preset);
+    return true;
+  }
+
   if (pathname.startsWith("/api/presets/")) {
     const suffix = pathname.slice("/api/presets/".length);
     if (suffix.endsWith("/activate") && method === "POST") {

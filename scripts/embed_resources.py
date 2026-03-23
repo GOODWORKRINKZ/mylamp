@@ -9,6 +9,7 @@ Import("env")
 
 
 RESOURCE_NAMES = {
+    "favicon.svg": "faviconSvg",
     "index.html": "indexHtml",
     "script.js": "scriptJs",
     "styles.css": "stylesCss",
@@ -47,7 +48,7 @@ def to_header_array(binary_content):
 
 
 def transform_resource_content(resource_path, binary_content, placeholders):
-    if resource_path.suffix not in {".html", ".js", ".css"}:
+    if resource_path.suffix not in {".html", ".js", ".css", ".svg"}:
         return binary_content
 
     text_content = binary_content.decode("utf-8")

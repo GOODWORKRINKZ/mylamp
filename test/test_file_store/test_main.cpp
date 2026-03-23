@@ -5,6 +5,7 @@
 
 #include "storage/ContentPaths.h"
 #include "storage/IFileStore.h"
+#include "storage/StorageBootstrap.h"
 
 namespace {
 
@@ -64,6 +65,46 @@ class MemoryFileStore : public lamp::storage::IFileStore {
   std::vector<Entry> files_;
 };
 
+class FakeFileSystem {
+ public:
+  bool exists(const char* path) const {
+    for (const std::string& directory : directories_) {
+      if (directory == path) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  bool mkdir(const char* path) {
+    mkdirCalls_.push_back(path);
+    if (failOnMkdir_) {
+      return false;
+    }
+
+    directories_.push_back(path);
+    return true;
+  }
+
+  void addDirectory(const char* path) {
+    directories_.push_back(path);
+  }
+
+  void setFailOnMkdir(bool failOnMkdir) {
+    failOnMkdir_ = failOnMkdir;
+  }
+
+  const std::vector<std::string>& mkdirCalls() const {
+    return mkdirCalls_;
+  }
+
+ private:
+  std::vector<std::string> directories_;
+  std::vector<std::string> mkdirCalls_;
+  bool failOnMkdir_ = false;
+};
+
 void test_content_paths_build_expected_locations() {
   TEST_ASSERT_EQUAL_STRING("/presets/warm-waves.json",
                            lamp::storage::presetPath("warm-waves").c_str());
@@ -89,6 +130,33 @@ void test_file_store_contract_supports_write_read_list_and_remove() {
   TEST_ASSERT_FALSE(fileStore.readText("/presets/fire.json", content));
 }
 
+void test_storage_bootstrap_creates_missing_content_directories() {
+  FakeFileSystem filesystem;
+
+  TEST_ASSERT_TRUE(lamp::storage::ensureContentDirectories(filesystem));
+  TEST_ASSERT_EQUAL_UINT32(2U, static_cast<uint32_t>(filesystem.mkdirCalls().size()));
+  TEST_ASSERT_EQUAL_STRING("/presets", filesystem.mkdirCalls()[0].c_str());
+  TEST_ASSERT_EQUAL_STRING("/playlists", filesystem.mkdirCalls()[1].c_str());
+}
+
+void test_storage_bootstrap_is_noop_when_content_directories_already_exist() {
+  FakeFileSystem filesystem;
+  filesystem.addDirectory("/presets");
+  filesystem.addDirectory("/playlists");
+
+  TEST_ASSERT_TRUE(lamp::storage::ensureContentDirectories(filesystem));
+  TEST_ASSERT_EQUAL_UINT32(0U, static_cast<uint32_t>(filesystem.mkdirCalls().size()));
+}
+
+void test_storage_bootstrap_reports_directory_creation_failures() {
+  FakeFileSystem filesystem;
+  filesystem.setFailOnMkdir(true);
+
+  TEST_ASSERT_FALSE(lamp::storage::ensureContentDirectories(filesystem));
+  TEST_ASSERT_EQUAL_UINT32(1U, static_cast<uint32_t>(filesystem.mkdirCalls().size()));
+  TEST_ASSERT_EQUAL_STRING("/presets", filesystem.mkdirCalls()[0].c_str());
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -97,5 +165,8 @@ int main(int argc, char** argv) {
   UNITY_BEGIN();
   RUN_TEST(test_content_paths_build_expected_locations);
   RUN_TEST(test_file_store_contract_supports_write_read_list_and_remove);
+  RUN_TEST(test_storage_bootstrap_creates_missing_content_directories);
+  RUN_TEST(test_storage_bootstrap_is_noop_when_content_directories_already_exist);
+  RUN_TEST(test_storage_bootstrap_reports_directory_creation_failures);
   return UNITY_END();
 }

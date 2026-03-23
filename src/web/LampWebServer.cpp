@@ -85,6 +85,7 @@ void LampWebServer::setPlaylistServices(live::PlaylistRepository* playlistReposi
 
 void LampWebServer::registerRoutes() {
   server_.on("/", [this]() { handleRoot(); });
+  server_.on("/favicon.svg", [this]() { handleFavicon(); });
   server_.on("/script.js", [this]() { handleScript(); });
   server_.on("/styles.css", [this]() { handleStyles(); });
   server_.on("/api/status", [this]() { handleStatus(); });
@@ -93,6 +94,7 @@ void LampWebServer::registerRoutes() {
   server_.on("/api/live/validate", HTTP_POST, [this]() { handleLiveValidate(); });
   server_.on("/api/live/run", HTTP_POST, [this]() { handleLiveRun(); });
   server_.on("/api/presets", HTTP_GET, [this]() { handleListPresets(); });
+  server_.on("/api/presets", HTTP_PUT, [this]() { handlePutPreset(); });
   server_.on("/api/playlists/stop", HTTP_POST, [this]() { handlePlaylistByPath(); });
   server_.onNotFound([this]() { handleNotFound(); });
 }
@@ -114,6 +116,10 @@ void LampWebServer::handleNotFound() {
 void LampWebServer::handleRoot() {
   sendEmbeddedAsset(
       makeCompressedTextAsset(indexHtml, indexHtml_len, "text/html; charset=utf-8"));
+}
+
+void LampWebServer::handleFavicon() {
+  sendEmbeddedAsset(makeCompressedTextAsset(faviconSvg, faviconSvg_len, "image/svg+xml"));
 }
 
 void LampWebServer::handleScript() {
@@ -193,6 +199,23 @@ void LampWebServer::handleListPresets() {
   }
 
   sendPresetApiResponse(server_, handleListPresetsRequest(*presetRepository_));
+}
+
+void LampWebServer::handlePutPreset() {
+  if (presetRepository_ == nullptr) {
+    server_.send(500, "application/json", "{\"error\":\"preset repository unavailable\"}");
+    return;
+  }
+
+  const std::string presetId = server_.arg("id").c_str();
+  if (presetId.empty()) {
+    server_.send(400, "application/json", "{\"error\":\"preset id is required\"}");
+    return;
+  }
+
+  sendPresetApiResponse(server_,
+                        handlePutPresetRequest(*presetRepository_, presetId,
+                                               server_.arg("plain").c_str()));
 }
 
 void LampWebServer::handlePresetByPath() {

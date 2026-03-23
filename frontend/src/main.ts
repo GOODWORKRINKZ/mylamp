@@ -190,7 +190,7 @@ async function savePreset(): Promise<void> {
   setText("editor-status", "Сохраняем эффект...");
 
   try {
-    const response = await fetch(`/api/presets/${encodeURIComponent(presetId)}`, {
+    const response = await fetch(`/api/presets?id=${encodeURIComponent(presetId)}`, {
       method: "PUT",
       headers: buildJsonHeaders(),
       body: JSON.stringify({
