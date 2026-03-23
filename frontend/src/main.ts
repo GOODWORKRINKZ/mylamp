@@ -2,7 +2,14 @@ import "./styles/app.css";
 import { editorHelpSections } from "./editor/help";
 import { starterSnippets, type StarterSnippet } from "./editor/snippets";
 import { defaultScenarioId, isScenarioId, scenarioDefinitions } from "./dev/mockScenarios";
-import type { LiveDiagnosticResponse, ScenarioId, StatusPayload } from "./dev/mockTypes";
+import type {
+  LiveDiagnosticResponse,
+  ScenarioId,
+  StatusPayload,
+  UpdateCheckPayload,
+  UpdateCurrentPayload,
+  UpdateInstallPayload,
+} from "./dev/mockTypes";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -31,6 +38,9 @@ function getSelectedScenario(): ScenarioId {
 }
 
 let selectedScenario: ScenarioId = getSelectedScenario();
+let currentUpdateSnapshot: UpdateCurrentPayload | null = null;
+let updateBusyAction: "" | "check" | "install" | "settings" = "";
+let updateRebootPending = false;
 
 const blankEffectTemplate = `effect "new_effect"
 
@@ -104,6 +114,23 @@ function buildJsonHeaders(): Record<string, string> {
     ...buildApiHeaders(),
     "Content-Type": "application/json",
   };
+}
+
+function buildFormHeaders(): Record<string, string> {
+  return {
+    ...buildApiHeaders(),
+    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+  };
+}
+
+function buildFormBody(values: Record<string, string>): string {
+  const params = new URLSearchParams();
+
+  Object.entries(values).forEach(([key, value]) => {
+    params.set(key, value);
+  });
+
+  return params.toString();
 }
 
 function formatDiagnostics(response: LiveDiagnosticResponse): string {
@@ -251,6 +278,237 @@ function bindActionButtons(): void {
   });
 }
 
+function describeUpdateState(state: UpdateCurrentPayload["updateState"]): string {
+  switch (state) {
+    case "checking":
+      return "Проверяем релизы";
+    case "up-to-date":
+      return "Свежая версия уже стоит";
+    case "available":
+      return "Есть новая прошивка";
+    case "installing":
+      return "Ставим обновление";
+    case "completed":
+      return "Обновление завершено";
+    case "error":
+      return "Ошибка обновления";
+    case "idle":
+    default:
+      return "Ждём ручную проверку";
+  }
+}
+
+function setElementDisabled(id: string, disabled: boolean): void {
+  const node = document.getElementById(id) as HTMLButtonElement | HTMLSelectElement | null;
+  if (node) {
+    node.disabled = disabled;
+  }
+}
+
+function setInputValue(id: string, value: string): void {
+  const node = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
+  if (node) {
+    node.value = value;
+  }
+}
+
+function syncUpdateControls(): void {
+  const busy = updateBusyAction !== "";
+  setElementDisabled("update-channel-select", busy || updateBusyAction === "install");
+  setElementDisabled("update-check-button", busy);
+  setElementDisabled(
+    "update-install-button",
+    busy || !currentUpdateSnapshot || currentUpdateSnapshot.updateState !== "available" || !currentUpdateSnapshot.availableVersion,
+  );
+}
+
+function renderUpdateState(snapshot: UpdateCurrentPayload): void {
+  currentUpdateSnapshot = snapshot;
+  if (snapshot.updateState !== "completed") {
+    updateRebootPending = false;
+  }
+
+  const summary = snapshot.updateError
+    ? `OTA сообщает об ошибке: ${snapshot.updateError}`
+    : snapshot.updateState === "completed"
+      ? "Прошивка записана. Устройство уходит в перезапуск, браузер может временно потерять связь."
+      : snapshot.updateState === "available" && snapshot.availableVersion
+        ? `Найдена версия ${snapshot.availableVersion}. Можно установить прямо из браузера.`
+        : snapshot.updateState === "up-to-date"
+          ? "На выбранном канале уже стоит актуальная версия."
+          : "Пока всё спокойно. Канал можно переключить и проверить релизы вручную.";
+
+  const errorText = snapshot.updateError
+    ? snapshot.updateError
+    : snapshot.updateState === "completed"
+      ? "Это ожидаемое состояние после успешной OTA установки."
+      : snapshot.updateState === "available"
+        ? "Можно ставить вручную."
+        : "Ошибок нет.";
+
+  setText("update-version", snapshot.version || "-");
+  setText("update-channel", snapshot.updateChannel || snapshot.channel || "-");
+  setText("update-runtime-state", describeUpdateState(snapshot.updateState));
+  setText("update-available-version", snapshot.availableVersion || "Обновлений нет");
+  setText("update-error", errorText);
+  setText("update-summary", summary);
+  setText("update-status-note", describeUpdateState(snapshot.updateState));
+  setInputValue("update-channel-select", snapshot.updateChannel || snapshot.channel || "stable");
+  syncUpdateControls();
+}
+
+async function refreshUpdateState(): Promise<void> {
+  try {
+    const response = await fetch("/api/update/current", { headers: buildApiHeaders() });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const payload = (await response.json()) as UpdateCurrentPayload;
+    renderUpdateState(payload);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown error";
+    if (updateRebootPending) {
+      setText("update-summary", "Лампа перезагружается после установки. Короткая потеря связи здесь ожидаема.");
+      setText("update-status-note", "Ждём устройство после reboot");
+      setText("update-error", "Связь временно недоступна из-за перезапуска.");
+      return;
+    }
+
+    setText("update-summary", "Не получилось обновить OTA-сводку.");
+    setText("update-status-note", message);
+    setText("update-error", message);
+  }
+}
+
+async function saveUpdateChannel(): Promise<void> {
+  const select = document.getElementById("update-channel-select") as HTMLSelectElement | null;
+  const channel = select?.value === "stable" ? "stable" : "dev";
+
+  updateBusyAction = "settings";
+  syncUpdateControls();
+  setText("update-status-note", "Сохраняем канал обновлений...");
+
+  try {
+    const response = await fetch("/api/update/settings", {
+      method: "POST",
+      headers: buildFormHeaders(),
+      body: buildFormBody({ channel }),
+    });
+    const payload = (await response.json()) as { channel?: string; error?: string };
+    if (!response.ok) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    setText("update-summary", `Канал обновлений переключен на ${payload.channel || channel}.`);
+    await refreshUpdateState();
+    void refreshStatus();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    setText("update-summary", `Не удалось сменить канал: ${message}`);
+    setText("update-status-note", "Смена канала не удалась");
+    await refreshUpdateState();
+  } finally {
+    updateBusyAction = "";
+    syncUpdateControls();
+  }
+}
+
+async function checkForUpdates(): Promise<void> {
+  const select = document.getElementById("update-channel-select") as HTMLSelectElement | null;
+  const channel = select?.value === "stable" ? "stable" : "dev";
+
+  updateBusyAction = "check";
+  syncUpdateControls();
+  setText("update-status-note", "Проверяем GitHub Releases...");
+
+  try {
+    const response = await fetch("/api/update/check", {
+      method: "POST",
+      headers: buildFormHeaders(),
+      body: buildFormBody({ channel }),
+    });
+    const payload = (await response.json()) as UpdateCheckPayload & { error?: string };
+    if (!response.ok) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    setText(
+      "update-summary",
+      payload.hasUpdate
+        ? `Найдена новая версия ${payload.version}. Можно нажимать «Установить».`
+        : payload.error || "Подходящих обновлений сейчас нет.",
+    );
+    await refreshUpdateState();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    setText("update-summary", `Проверка не удалась: ${message}`);
+    setText("update-status-note", "Ошибка проверки OTA");
+    await refreshUpdateState();
+  } finally {
+    updateBusyAction = "";
+    syncUpdateControls();
+  }
+}
+
+async function installUpdate(): Promise<void> {
+  if (!currentUpdateSnapshot?.availableVersion) {
+    return;
+  }
+
+  updateBusyAction = "install";
+  syncUpdateControls();
+  setText("update-status-note", "Скачиваем и ставим прошивку...");
+
+  try {
+    const response = await fetch("/api/update/install", {
+      method: "POST",
+      headers: buildApiHeaders(),
+    });
+    const payload = (await response.json()) as UpdateInstallPayload;
+    if (!response.ok || !payload.success) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    setText("update-summary", `Прошивка ${currentUpdateSnapshot.availableVersion} установлена. Устройство перезагружается.`);
+    setText("update-status-note", "Ждём перезапуск устройства");
+    updateRebootPending = true;
+    await refreshUpdateState();
+    window.setTimeout(() => {
+      void refreshUpdateState();
+      void refreshStatus();
+    }, 1500);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    setText("update-summary", `Установка не удалась: ${message}`);
+    setText("update-status-note", "OTA установка завершилась с ошибкой");
+    await refreshUpdateState();
+  } finally {
+    updateBusyAction = "";
+    syncUpdateControls();
+  }
+}
+
+function bindUpdateControls(): void {
+  const select = document.getElementById("update-channel-select") as HTMLSelectElement | null;
+  const checkButton = document.getElementById("update-check-button") as HTMLButtonElement | null;
+  const installButton = document.getElementById("update-install-button") as HTMLButtonElement | null;
+
+  select?.addEventListener("change", () => {
+    void saveUpdateChannel();
+  });
+
+  checkButton?.addEventListener("click", () => {
+    void checkForUpdates();
+  });
+
+  installButton?.addEventListener("click", () => {
+    void installUpdate();
+  });
+
+  syncUpdateControls();
+}
+
 app.innerHTML = `
   <main class="shell">
     <header class="shell__header">
@@ -319,6 +577,32 @@ app.innerHTML = `
             <div class="key-value"><span>Автосмена</span><strong id="runtime-autoplay">-</strong></div>
             <div class="key-value"><span>Очередь огоньков</span><strong id="runtime-playlist">-</strong></div>
             <div class="key-value"><span>Запасной режим</span><strong id="runtime-effect">-</strong></div>
+          </div>
+        </section>
+
+        <section class="panel panel--ota">
+          <div class="panel__header">
+            <h2>Обновление прошивки</h2>
+          </div>
+          <div class="panel__body panel__body--stack">
+            <p id="update-summary">Сейчас здесь появится статус OTA, канал обновлений и доступная версия.</p>
+            <div class="status-note" id="update-status-note">Пробуем получить OTA-сводку с лампы.</div>
+            <div class="key-value"><span>Текущая версия</span><strong id="update-version">-</strong></div>
+            <div class="key-value"><span>Канал</span><strong id="update-channel">-</strong></div>
+            <div class="key-value"><span>Состояние</span><strong id="update-runtime-state">-</strong></div>
+            <div class="key-value"><span>Доступная версия</span><strong id="update-available-version">-</strong></div>
+            <div class="key-value"><span>Последняя ошибка</span><strong id="update-error">-</strong></div>
+            <label class="field-stack" for="update-channel-select">
+              <span>Канал обновлений</span>
+              <select id="update-channel-select">
+                <option value="stable">stable</option>
+                <option value="dev">dev</option>
+              </select>
+            </label>
+            <div class="panel__actions panel__actions--wide">
+              <button id="update-check-button" type="button">Проверить обновление</button>
+              <button id="update-install-button" type="button">Установить</button>
+            </div>
           </div>
         </section>
 
@@ -460,6 +744,7 @@ function bindDevScenarioControls(): void {
     setSelectedScenario(nextValue);
     renderScenarioDescription();
     void refreshStatus();
+    void refreshUpdateState();
   });
 
   resetButton?.addEventListener("click", async () => {
@@ -468,6 +753,7 @@ function bindDevScenarioControls(): void {
       headers: buildApiHeaders(),
     });
     void refreshStatus();
+    void refreshUpdateState();
   });
 }
 
@@ -534,11 +820,14 @@ async function refreshStatus(): Promise<void> {
 }
 
 void refreshStatus();
+void refreshUpdateState();
 applySnippet(starterSnippets[0]);
 bindSnippetButtons();
 bindActionButtons();
+bindUpdateControls();
 bindDevScenarioControls();
 bindEditorFocusHints();
 window.setInterval(() => {
   void refreshStatus();
+  void refreshUpdateState();
 }, 5000);

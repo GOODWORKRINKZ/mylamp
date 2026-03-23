@@ -241,6 +241,12 @@ h2 {
     var(--panel);
 }
 
+.panel--ota {
+  background:
+    linear-gradient(160deg, rgba(45, 34, 23, 0.06), rgba(255, 236, 213, 0.92)),
+    var(--panel);
+}
+
 .key-value {
   display: flex;
   justify-content: space-between;
@@ -263,6 +269,32 @@ h2 {
   border-radius: 16px;
   background: rgba(214, 85, 47, 0.08);
   color: var(--text);
+}
+
+.field-stack {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.field-stack span {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.field-stack select {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  padding: 0.65rem 0.75rem;
+  background: #fffdf9;
+  color: var(--text);
+  font: inherit;
+}
+
+.panel__actions--wide > * {
+  flex: 1 1 180px;
 }
 
 .editor-surface {

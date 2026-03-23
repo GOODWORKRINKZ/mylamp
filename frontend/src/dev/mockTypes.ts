@@ -35,6 +35,39 @@ export type LiveDiagnosticResponse = {
   errors: LiveDiagnostic[];
 };
 
+export type UpdateState = "idle" | "checking" | "up-to-date" | "available" | "installing" | "completed" | "error";
+
+export type UpdateCurrentPayload = {
+  version: string;
+  channel: string;
+  board: string;
+  hardwareType: string;
+  updateChannel: string;
+  updateState: UpdateState;
+  availableVersion: string;
+  updateError: string;
+};
+
+export type UpdateSettingsPayload = {
+  channel: "stable" | "dev";
+};
+
+export type UpdateCheckPayload = {
+  hasUpdate: boolean;
+  channel: string;
+  version: string;
+  assetName: string;
+  downloadUrl: string;
+  checksumUrl: string;
+  error: string;
+};
+
+export type UpdateInstallPayload = {
+  success: boolean;
+  rebooting?: boolean;
+  error?: string;
+};
+
 export type PresetPayload = {
   id: string;
   name: string;

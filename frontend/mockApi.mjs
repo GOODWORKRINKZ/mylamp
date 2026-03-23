@@ -132,6 +132,10 @@ function createMockState(scenarioId) {
           activePlaylistId: "evening",
           liveErrorSummary: "",
         },
+        update: createUpdateSnapshot(common, {
+          updateChannel: "dev",
+          updateState: "up-to-date",
+        }),
       };
     case "dsl-error":
       return {
@@ -149,6 +153,11 @@ function createMockState(scenarioId) {
           activePlaylistId: "",
           liveErrorSummary: "Строка 4: неизвестная функция hum(). Возможно, ты хотел humidity().",
         },
+        update: createUpdateSnapshot(common, {
+          updateChannel: "dev",
+          updateState: "available",
+          availableVersion: "feature-bootstrap-lamp-foundation-a1b2c3d",
+        }),
       };
     case "offline-ish":
       return {
@@ -166,6 +175,11 @@ function createMockState(scenarioId) {
           activePlaylistId: "",
           liveErrorSummary: "",
         },
+        update: createUpdateSnapshot(common, {
+          updateChannel: "dev",
+          updateState: "error",
+          updateError: "GitHub Releases недоступен",
+        }),
       };
     case "sensor-missing":
       return {
@@ -183,6 +197,10 @@ function createMockState(scenarioId) {
           activePlaylistId: "",
           liveErrorSummary: "",
         },
+        update: createUpdateSnapshot(common, {
+          updateChannel: "stable",
+          updateState: "idle",
+        }),
       };
     case "happy-path":
     default:
@@ -201,6 +219,10 @@ function createMockState(scenarioId) {
           activePlaylistId: "",
           liveErrorSummary: "",
         },
+        update: createUpdateSnapshot(common, {
+          updateChannel: "dev",
+          updateState: "idle",
+        }),
       };
   }
 }
@@ -245,6 +267,36 @@ function parseJson(body) {
   }
 }
 
+function parseRequestBody(body) {
+  const json = parseJson(body);
+  if (json) {
+    return json;
+  }
+
+  const params = new URLSearchParams(body);
+  const parsed = {};
+
+  for (const [key, value] of params.entries()) {
+    parsed[key] = value;
+  }
+
+  return parsed;
+}
+
+function createUpdateSnapshot(status, overrides = {}) {
+  return {
+    version: status.version,
+    channel: status.channel,
+    board: status.board,
+    hardwareType: "c3-cylinder32x16",
+    updateChannel: status.channel,
+    updateState: "idle",
+    availableVersion: "",
+    updateError: "",
+    ...overrides,
+  };
+}
+
 function findPreset(state, presetId) {
   return state.presets.find((preset) => preset.id === presetId);
 }
@@ -270,7 +322,7 @@ function buildDslResponse(scenarioId) {
   return { ok: true, errors: [] };
 }
 
-async function handleApi(req, res) {
+export async function handleApi(req, res) {
   const url = new URL(req.url || "/", "http://localhost");
   const pathname = url.pathname;
   const method = req.method || "GET";
@@ -284,6 +336,83 @@ async function handleApi(req, res) {
 
   if (pathname === "/api/status" && method === "GET") {
     sendJson(res, 200, state.status);
+    return true;
+  }
+
+  if (pathname === "/api/update/current" && method === "GET") {
+    sendJson(res, 200, state.update);
+    return true;
+  }
+
+  if (pathname === "/api/update/settings" && method === "GET") {
+    sendJson(res, 200, { channel: state.update.updateChannel });
+    return true;
+  }
+
+  if (pathname === "/api/update/settings" && method === "POST") {
+    const payload = parseRequestBody(await readBody(req));
+    const channel = payload && (payload.channel === "stable" || payload.channel === "dev") ? payload.channel : "";
+    if (!channel) {
+      sendJson(res, 400, { error: "invalid update channel" });
+      return true;
+    }
+
+    state.update.updateChannel = channel;
+    sendJson(res, 200, { channel });
+    return true;
+  }
+
+  if (pathname === "/api/update/check" && method === "POST") {
+    const payload = parseRequestBody(await readBody(req));
+    const channelOverride = payload && (payload.channel === "stable" || payload.channel === "dev") ? payload.channel : "";
+    const effectiveChannel = channelOverride || state.update.updateChannel;
+
+    state.update.updateChannel = effectiveChannel;
+
+    if (scenarioId === "offline-ish") {
+      state.update.updateState = "error";
+      state.update.availableVersion = "";
+      state.update.updateError = "GitHub Releases недоступен";
+      sendJson(res, 200, {
+        hasUpdate: false,
+        channel: effectiveChannel,
+        version: "",
+        assetName: "",
+        downloadUrl: "",
+        checksumUrl: "",
+        error: state.update.updateError,
+      });
+      return true;
+    }
+
+    const version = effectiveChannel === "stable" ? "v0.1.0" : "feature-bootstrap-lamp-foundation-a1b2c3d";
+    const hasUpdate = scenarioId === "dsl-error" || effectiveChannel === "dev";
+
+    state.update.updateState = hasUpdate ? "available" : "up-to-date";
+    state.update.availableVersion = hasUpdate ? version : "";
+    state.update.updateError = "";
+
+    sendJson(res, 200, {
+      hasUpdate,
+      channel: effectiveChannel,
+      version: hasUpdate ? version : "",
+      assetName: hasUpdate ? `mylamp-c3-cylinder32x16-${effectiveChannel === "stable" ? "v0.1.0-release" : `dev-${version}`}.bin` : "",
+      downloadUrl: hasUpdate ? `https://example.invalid/${effectiveChannel}/${version}.bin` : "",
+      checksumUrl: hasUpdate ? `https://example.invalid/${effectiveChannel}/${version}.sha256` : "",
+      error: "",
+    });
+    return true;
+  }
+
+  if (pathname === "/api/update/install" && method === "POST") {
+    if (!state.update.availableVersion) {
+      sendJson(res, 400, { success: false, error: "no update available" });
+      return true;
+    }
+
+    state.update.updateState = "completed";
+    state.update.updateError = "";
+    sendJson(res, 200, { success: true, rebooting: true });
     return true;
   }
 
