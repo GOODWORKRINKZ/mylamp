@@ -2,7 +2,7 @@ import "./styles/app.css";
 import { editorHelpSections } from "./editor/help";
 import { starterSnippets, type StarterSnippet } from "./editor/snippets";
 import { defaultScenarioId, isScenarioId, scenarioDefinitions } from "./dev/mockScenarios";
-import type { ScenarioId, StatusPayload } from "./dev/mockTypes";
+import type { LiveDiagnosticResponse, ScenarioId, StatusPayload } from "./dev/mockTypes";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -32,6 +32,23 @@ function getSelectedScenario(): ScenarioId {
 
 let selectedScenario: ScenarioId = getSelectedScenario();
 
+const blankEffectTemplate = `effect "new_effect"
+
+sprite dot {
+  bitmap """
+  #
+  """
+}
+
+layer paint {
+  use dot
+  color rgb(255, 120, 80)
+  x = 10
+  y = 6
+  scale = 2
+  visible = 1
+}`;
+
 function renderStarterSnippetList(): string {
   return starterSnippets
     .map(
@@ -60,6 +77,178 @@ function renderHelpSections(): string {
         </section>`,
     )
     .join("");
+}
+
+function getEditorValue(): string {
+  const editor = document.getElementById("editor-code") as HTMLTextAreaElement | null;
+  return editor?.value ?? "";
+}
+
+function readEffectName(source: string): string {
+  const match = source.match(/^\s*effect\s+"([^"\n]+)"/m);
+  return match?.[1]?.trim() ?? "";
+}
+
+function buildPresetId(effectName: string): string {
+  return effectName
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^\p{L}\p{N}_-]+/gu, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function buildJsonHeaders(): Record<string, string> {
+  return {
+    ...buildApiHeaders(),
+    "Content-Type": "application/json",
+  };
+}
+
+function formatDiagnostics(response: LiveDiagnosticResponse): string {
+  if (response.ok || response.errors.length === 0) {
+    return "Ошибок не найдено.";
+  }
+
+  return response.errors
+    .map((error) => `Строка ${error.line}, столбец ${error.column}: ${error.message}`)
+    .join(" ");
+}
+
+async function postLiveAction(endpoint: "/api/live/validate" | "/api/live/run"): Promise<void> {
+  const source = getEditorValue().trim();
+  const effectName = readEffectName(source);
+
+  if (!source) {
+    setText("diagnostics-summary", "Сначала напиши код эффекта, потом запускай действие.");
+    setText("diagnostics-status", "Редактор пустой");
+    return;
+  }
+
+  setText("editor-status", endpoint === "/api/live/validate" ? "Проверяем код..." : "Отправляем код на лампу...");
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: buildJsonHeaders(),
+      body: JSON.stringify({
+        source,
+        presetName: effectName || undefined,
+      }),
+    });
+
+    const payload = (await response.json()) as LiveDiagnosticResponse;
+    if (!response.ok) {
+      throw new Error(formatDiagnostics(payload));
+    }
+
+    setText("diagnostics-summary", formatDiagnostics(payload));
+    setText(
+      "diagnostics-status",
+      payload.ok
+        ? endpoint === "/api/live/validate"
+          ? "Проверка прошла успешно"
+          : "Код отправлен на лампу"
+        : "Найдены ошибки в DSL",
+    );
+    setText(
+      "editor-status",
+      payload.ok
+        ? endpoint === "/api/live/validate"
+          ? "Код проверен. Можно запускать или сохранить."
+          : "Код запущен. Смотри, как лампа откликнется."
+        : "Проверка завершилась с ошибками.",
+    );
+
+    void refreshStatus();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    setText("diagnostics-summary", message);
+    setText("diagnostics-status", "Не удалось выполнить запрос");
+    setText("editor-status", "Запрос завершился с ошибкой.");
+  }
+}
+
+async function savePreset(): Promise<void> {
+  const source = getEditorValue().trim();
+  const effectName = readEffectName(source);
+  const presetId = buildPresetId(effectName);
+
+  if (!source) {
+    setText("diagnostics-summary", "Нечего сохранять: редактор пустой.");
+    setText("diagnostics-status", "Редактор пустой");
+    return;
+  }
+
+  if (!effectName || !presetId) {
+    setText("diagnostics-summary", "Для сохранения укажи имя в первой строке: effect \"my_effect\".");
+    setText("diagnostics-status", "Не найдено имя эффекта");
+    return;
+  }
+
+  setText("editor-status", "Сохраняем эффект...");
+
+  try {
+    const response = await fetch(`/api/presets/${encodeURIComponent(presetId)}`, {
+      method: "PUT",
+      headers: buildJsonHeaders(),
+      body: JSON.stringify({
+        name: effectName,
+        source,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        tags: [],
+        options: { brightnessCap: 0.35 },
+      }),
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json()) as { error?: string };
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    setText("diagnostics-summary", `Эффект «${effectName}» сохранён.`);
+    setText("diagnostics-status", `Preset id: ${presetId}`);
+    setText("editor-status", "Сохранение завершено.");
+    void refreshStatus();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    setText("diagnostics-summary", `Не удалось сохранить эффект: ${message}`);
+    setText("diagnostics-status", "Сохранение не удалось");
+    setText("editor-status", "Ошибка при сохранении.");
+  }
+}
+
+function createNewEffect(): void {
+  setEditorValue(blankEffectTemplate);
+  setText("editor-hint", "Это пустая заготовка. Дай эффекту имя в строке effect \"...\" и начинай рисовать.");
+  setText("editor-status", "Создан новый пустой эффект. Теперь можно редактировать, проверить или сохранить его.");
+  setText("diagnostics-summary", "Новая заготовка открыта. Поменяй имя, спрайты и слои, потом сохрани эффект.");
+  setText("diagnostics-status", "Черновик готов");
+}
+
+function bindActionButtons(): void {
+  const newEffectButton = document.getElementById("new-effect-button") as HTMLButtonElement | null;
+  const validateButton = document.getElementById("validate-button") as HTMLButtonElement | null;
+  const runButton = document.getElementById("run-button") as HTMLButtonElement | null;
+  const saveButton = document.getElementById("save-button") as HTMLButtonElement | null;
+
+  newEffectButton?.addEventListener("click", () => {
+    createNewEffect();
+  });
+
+  validateButton?.addEventListener("click", () => {
+    void postLiveAction("/api/live/validate");
+  });
+
+  runButton?.addEventListener("click", () => {
+    void postLiveAction("/api/live/run");
+  });
+
+  saveButton?.addEventListener("click", () => {
+    void savePreset();
+  });
 }
 
 app.innerHTML = `
@@ -94,9 +283,10 @@ app.innerHTML = `
         <div class="panel__header">
           <h2>Рисуем огоньки</h2>
           <div class="panel__actions">
-            <button type="button">Проверить</button>
-            <button type="button">Запустить</button>
-            <button type="button">Сохранить</button>
+            <button id="new-effect-button" type="button">Новый эффект</button>
+            <button id="validate-button" type="button">Проверить</button>
+            <button id="run-button" type="button">Запустить</button>
+            <button id="save-button" type="button">Сохранить</button>
           </div>
         </div>
         <div class="panel__body panel__body--editor">
@@ -346,6 +536,7 @@ async function refreshStatus(): Promise<void> {
 void refreshStatus();
 applySnippet(starterSnippets[0]);
 bindSnippetButtons();
+bindActionButtons();
 bindDevScenarioControls();
 bindEditorFocusHints();
 window.setInterval(() => {
