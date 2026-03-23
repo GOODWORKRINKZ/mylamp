@@ -98,6 +98,16 @@ function makePlaylist() {
   };
 }
 
+function makeNetworkSettings(overrides = {}) {
+  return {
+    mode: "ap",
+    accessPointName: "MYLAMP",
+    clientSsid: "",
+    clientPassword: "",
+    ...overrides,
+  };
+}
+
 function createMockState(scenarioId) {
   const presets = [
     makePreset("warm-waves", "Теплые волны", snippetSources["warm-waves"], ["warm", "ambient"]),
@@ -118,6 +128,7 @@ function createMockState(scenarioId) {
   switch (scenarioId) {
     case "autoplay":
       return {
+        networkSettings: makeNetworkSettings(),
         presets,
         playlists,
         status: {
@@ -139,6 +150,7 @@ function createMockState(scenarioId) {
       };
     case "dsl-error":
       return {
+        networkSettings: makeNetworkSettings(),
         presets,
         playlists,
         status: {
@@ -161,6 +173,7 @@ function createMockState(scenarioId) {
       };
     case "offline-ish":
       return {
+        networkSettings: makeNetworkSettings({ mode: "client", clientSsid: "OfficeWiFi", clientPassword: "secret123" }),
         presets,
         playlists,
         status: {
@@ -183,6 +196,7 @@ function createMockState(scenarioId) {
       };
     case "sensor-missing":
       return {
+        networkSettings: makeNetworkSettings(),
         presets,
         playlists,
         status: {
@@ -205,6 +219,7 @@ function createMockState(scenarioId) {
     case "happy-path":
     default:
       return {
+        networkSettings: makeNetworkSettings(),
         presets,
         playlists,
         status: {
@@ -336,6 +351,40 @@ export async function handleApi(req, res) {
 
   if (pathname === "/api/status" && method === "GET") {
     sendJson(res, 200, state.status);
+    return true;
+  }
+
+  if (pathname === "/api/settings/network" && method === "GET") {
+    sendJson(res, 200, {
+      mode: state.networkSettings.mode,
+      accessPointName: state.networkSettings.accessPointName,
+      clientSsid: state.networkSettings.clientSsid,
+    });
+    return true;
+  }
+
+  if (pathname === "/api/settings/network" && method === "POST") {
+    const payload = parseRequestBody(await readBody(req));
+    const mode = payload && (payload.mode === "ap" || payload.mode === "client") ? payload.mode : "";
+    if (!mode) {
+      sendJson(res, 400, { error: "invalid mode" });
+      return true;
+    }
+
+    state.networkSettings.mode = mode;
+    state.networkSettings.accessPointName = payload.accessPointName || "MYLAMP";
+    state.networkSettings.clientSsid = payload.clientSsid || "";
+    state.networkSettings.clientPassword = payload.clientPassword || "";
+    state.status.networkMode = mode;
+    state.status.networkStatus = mode === "client"
+      ? `WiFi: ${state.networkSettings.clientSsid || "configured"}`
+      : `AP: ${state.networkSettings.accessPointName}`;
+
+    sendJson(res, 200, {
+      mode: state.networkSettings.mode,
+      accessPointName: state.networkSettings.accessPointName,
+      clientSsid: state.networkSettings.clientSsid,
+    });
     return true;
   }
 

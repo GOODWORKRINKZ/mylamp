@@ -68,6 +68,12 @@ export type UpdateInstallPayload = {
   error?: string;
 };
 
+export type NetworkSettingsPayload = {
+  mode: "ap" | "client";
+  accessPointName: string;
+  clientSsid: string;
+};
+
 export type PresetPayload = {
   id: string;
   name: string;
@@ -101,6 +107,7 @@ export type ScenarioDefinition = {
 
 export type MockState = {
   status: StatusPayload;
+  networkSettings: NetworkSettingsPayload;
   presets: PresetPayload[];
   playlists: PlaylistPayload[];
 };

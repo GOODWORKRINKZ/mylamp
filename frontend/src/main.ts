@@ -4,6 +4,7 @@ import { starterSnippets, type StarterSnippet } from "./editor/snippets";
 import { defaultScenarioId, isScenarioId, scenarioDefinitions } from "./dev/mockScenarios";
 import type {
   LiveDiagnosticResponse,
+  NetworkSettingsPayload,
   ScenarioId,
   StatusPayload,
   UpdateCheckPayload,
@@ -18,7 +19,7 @@ if (!app) {
 }
 
 const devScenarioStorageKey = "mylamp-dev-scenario";
-const isDevServer = import.meta.env.DEV;
+const isDevServer = Boolean((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV);
 
 function readScenarioFromUrl(): ScenarioId | null {
   const params = new URLSearchParams(window.location.search);
@@ -39,8 +40,13 @@ function getSelectedScenario(): ScenarioId {
 
 let selectedScenario: ScenarioId = getSelectedScenario();
 let currentUpdateSnapshot: UpdateCurrentPayload | null = null;
+let currentNetworkSettings: NetworkSettingsPayload | null = null;
 let updateBusyAction: "" | "check" | "install" | "settings" = "";
 let updateRebootPending = false;
+let networkModalOpen = false;
+let networkModalLoading = false;
+let networkModalSaving = false;
+let networkSettingsLoaded = false;
 
 const blankEffectTemplate = `effect "new_effect"
 
@@ -131,6 +137,50 @@ function buildFormBody(values: Record<string, string>): string {
   });
 
   return params.toString();
+}
+
+function renderNetworkModal(): string {
+  return `
+    <div class="modal" id="network-modal" hidden>
+      <div class="modal__backdrop" data-network-close="overlay"></div>
+      <section class="modal__dialog" role="dialog" aria-modal="true" aria-labelledby="network-modal-title">
+        <div class="modal__header">
+          <div>
+            <p class="eyebrow">Сеть</p>
+            <h2 id="network-modal-title">Настройка сети</h2>
+          </div>
+          <button class="modal__close" id="network-close-button" type="button" aria-label="Закрыть">Закрыть</button>
+        </div>
+        <div class="modal__body">
+          <p class="modal__summary" id="network-summary">Открой модалку и лампа подгрузит текущие настройки сети.</p>
+          <div class="status-note" id="network-settings-status">Ждём запрос к настройкам сети.</div>
+          <label class="field-stack" for="network-mode-select">
+            <span>Режим сети</span>
+            <select id="network-mode-select">
+              <option value="ap">Точка доступа</option>
+              <option value="client">Клиент Wi-Fi</option>
+            </select>
+          </label>
+          <label class="field-stack" for="network-ap-name-input">
+            <span>Имя точки доступа</span>
+            <input id="network-ap-name-input" type="text" placeholder="MYLAMP-DEV" />
+          </label>
+          <label class="field-stack" for="network-ssid-input">
+            <span>SSID домашней сети</span>
+            <input id="network-ssid-input" type="text" placeholder="MyWiFi" />
+          </label>
+          <label class="field-stack" for="network-password-input">
+            <span>Пароль</span>
+            <input id="network-password-input" type="password" placeholder="Введите пароль" />
+          </label>
+          <p class="modal__hint" id="network-mode-hint">В режиме точки доступа лампа раздаёт собственную сеть.</p>
+          <div class="modal__actions">
+            <button id="network-save-button" type="button">Сохранить</button>
+            <button class="button-secondary" id="network-cancel-button" type="button">Закрыть</button>
+          </div>
+        </div>
+      </section>
+    </div>`;
 }
 
 function formatDiagnostics(response: LiveDiagnosticResponse): string {
@@ -298,8 +348,14 @@ function describeUpdateState(state: UpdateCurrentPayload["updateState"]): string
   }
 }
 
+function describeNetworkMode(mode: NetworkSettingsPayload["mode"]): string {
+  return mode === "client"
+    ? "В режиме клиента лампа подключается к домашнему Wi-Fi и может получать OTA через интернет."
+    : "В режиме точки доступа лампа поднимает свою сеть и ждёт подключения напрямую.";
+}
+
 function setElementDisabled(id: string, disabled: boolean): void {
-  const node = document.getElementById(id) as HTMLButtonElement | HTMLSelectElement | null;
+  const node = document.getElementById(id) as HTMLButtonElement | HTMLSelectElement | HTMLInputElement | null;
   if (node) {
     node.disabled = disabled;
   }
@@ -309,6 +365,159 @@ function setInputValue(id: string, value: string): void {
   const node = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
   if (node) {
     node.value = value;
+  }
+}
+
+function toggleElementHidden(id: string, hidden: boolean): void {
+  const node = document.getElementById(id);
+  if (node) {
+    node.hidden = hidden;
+  }
+}
+
+function getNetworkModeValue(): NetworkSettingsPayload["mode"] {
+  const select = document.getElementById("network-mode-select") as HTMLSelectElement | null;
+  return select?.value === "client" ? "client" : "ap";
+}
+
+function syncNetworkModeFields(): void {
+  const mode = getNetworkModeValue();
+  const disableClientFields = mode === "ap";
+  const lockForm = networkModalLoading || networkModalSaving || !networkSettingsLoaded;
+  setElementDisabled("network-ssid-input", disableClientFields || lockForm);
+  setElementDisabled("network-password-input", disableClientFields || lockForm);
+  setElementDisabled("network-mode-select", lockForm);
+  setElementDisabled("network-ap-name-input", lockForm);
+  setElementDisabled("network-save-button", lockForm);
+  setElementDisabled("network-cancel-button", networkModalSaving);
+  setElementDisabled("network-close-button", networkModalSaving);
+  setText("network-mode-hint", describeNetworkMode(mode));
+}
+
+function applyNetworkSettingsToForm(settings: NetworkSettingsPayload): void {
+  currentNetworkSettings = settings;
+  setInputValue("network-mode-select", settings.mode);
+  setInputValue("network-ap-name-input", settings.accessPointName);
+  setInputValue("network-ssid-input", settings.clientSsid);
+  setInputValue("network-password-input", "");
+  syncNetworkModeFields();
+}
+
+function readNetworkForm(): NetworkSettingsPayload & { clientPassword: string } {
+  const apName = (document.getElementById("network-ap-name-input") as HTMLInputElement | null)?.value?.trim() || "";
+  const ssid = (document.getElementById("network-ssid-input") as HTMLInputElement | null)?.value?.trim() || "";
+  const password = (document.getElementById("network-password-input") as HTMLInputElement | null)?.value || "";
+  const mode = getNetworkModeValue();
+
+  return {
+    mode,
+    accessPointName: apName,
+    clientSsid: mode === "client" ? ssid : "",
+    clientPassword: mode === "client" ? password : "",
+  };
+}
+
+function openNetworkModalShell(): void {
+  networkModalOpen = true;
+  networkSettingsLoaded = false;
+  toggleElementHidden("network-modal", false);
+  syncNetworkModeFields();
+}
+
+function closeNetworkModal(): void {
+  if (networkModalSaving) {
+    return;
+  }
+
+  networkModalOpen = false;
+  toggleElementHidden("network-modal", true);
+}
+
+async function refreshNetworkSettings(): Promise<void> {
+  networkModalLoading = true;
+  networkSettingsLoaded = false;
+  syncNetworkModeFields();
+  setText("network-summary", "Читаем текущие настройки сети с лампы...");
+  setText("network-settings-status", "Загружаем настройки сети");
+
+  try {
+    const response = await fetch("/api/settings/network", { headers: buildApiHeaders() });
+    const payload = (await response.json()) as NetworkSettingsPayload & { error?: string };
+    if (!response.ok) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    applyNetworkSettingsToForm(payload);
+    networkSettingsLoaded = true;
+    setText("network-summary", "Настройки загружены. Можно переключить режим и сохранить новую конфигурацию.");
+    setText("network-settings-status", payload.mode === "client" ? "Лампа настроена как Wi-Fi клиент" : "Лампа работает как точка доступа");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    setText("network-summary", `Не удалось загрузить настройки сети: ${message}`);
+    setText("network-settings-status", "Настройки сети недоступны");
+  } finally {
+    networkModalLoading = false;
+    syncNetworkModeFields();
+  }
+}
+
+async function openNetworkSettingsModal(): Promise<void> {
+  openNetworkModalShell();
+  await refreshNetworkSettings();
+}
+
+async function saveNetworkSettings(): Promise<void> {
+  if (!networkSettingsLoaded) {
+    setText("network-summary", "Сначала дождись успешной загрузки текущих настроек с лампы.");
+    setText("network-settings-status", "Сохранение заблокировано до успешного чтения");
+    return;
+  }
+
+  const form = readNetworkForm();
+  if (form.mode === "client" && !form.clientPassword) {
+    setText("network-summary", "Для client-режима пароль нужно ввести заново перед сохранением, иначе лампа потеряет доступ к сети.");
+    setText("network-settings-status", "Введите пароль Wi-Fi для сохранения");
+    return;
+  }
+
+  networkModalSaving = true;
+  syncNetworkModeFields();
+  setText("network-summary", "Сохраняем настройки сети. Лампа может временно переподключиться.");
+  setText("network-settings-status", "Отправляем новые сетевые параметры");
+
+  try {
+    const response = await fetch("/api/settings/network", {
+      method: "POST",
+      headers: buildFormHeaders(),
+      body: buildFormBody({
+        mode: form.mode,
+        accessPointName: form.accessPointName,
+        clientSsid: form.clientSsid,
+        clientPassword: form.clientPassword,
+      }),
+    });
+    const payload = (await response.json()) as NetworkSettingsPayload & { error?: string };
+    if (!response.ok) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    applyNetworkSettingsToForm(payload);
+    networkSettingsLoaded = true;
+    setText(
+      "network-summary",
+      payload.mode === "client"
+        ? `Сеть сохранена. Лампа попробует подключиться к ${payload.clientSsid || "выбранной сети"}.`
+        : `Сеть сохранена. Лампа останется в режиме точки доступа ${payload.accessPointName}.`,
+    );
+    setText("network-settings-status", "Настройки сети сохранены");
+    void refreshStatus();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    setText("network-summary", `Не удалось сохранить сеть: ${message}`);
+    setText("network-settings-status", "Ошибка при сохранении сети");
+  } finally {
+    networkModalSaving = false;
+    syncNetworkModeFields();
   }
 }
 
@@ -648,6 +857,9 @@ app.innerHTML = `
           </div>
           <div class="panel__body panel__body--stack">
             <div class="key-value"><span>Сеть</span><strong id="lamp-network">-</strong></div>
+            <div class="panel__actions panel__actions--wide">
+              <button id="network-settings-button" type="button">Настроить сеть</button>
+            </div>
             <div class="key-value"><span>Часы</span><strong id="lamp-clock">-</strong></div>
             <div class="key-value"><span>Сенсор</span><strong id="lamp-sensor">-</strong></div>
             <div class="key-value"><span>Температура</span><strong id="lamp-temp">-</strong></div>
@@ -656,6 +868,8 @@ app.innerHTML = `
         </section>
       </aside>
     </section>
+
+    ${renderNetworkModal()}
   </main>
 `;
 
@@ -681,7 +895,7 @@ function setSelectedScenario(nextScenario: ScenarioId): void {
   window.history.replaceState({}, "", url);
 }
 
-function buildApiHeaders(): HeadersInit {
+function buildApiHeaders(): Record<string, string> {
   if (!isDevServer) {
     return { Accept: "application/json" };
   }
@@ -776,6 +990,48 @@ function bindEditorFocusHints(): void {
   });
 }
 
+function bindNetworkSettingsControls(): void {
+  const openButton = document.getElementById("network-settings-button") as HTMLButtonElement | null;
+  const closeButton = document.getElementById("network-close-button") as HTMLButtonElement | null;
+  const cancelButton = document.getElementById("network-cancel-button") as HTMLButtonElement | null;
+  const saveButton = document.getElementById("network-save-button") as HTMLButtonElement | null;
+  const modeSelect = document.getElementById("network-mode-select") as HTMLSelectElement | null;
+  const modal = document.getElementById("network-modal") as HTMLDivElement | null;
+  const backdrop = modal?.querySelector<HTMLElement>("[data-network-close='overlay']") ?? null;
+
+  openButton?.addEventListener("click", () => {
+    void openNetworkSettingsModal();
+  });
+
+  closeButton?.addEventListener("click", () => {
+    closeNetworkModal();
+  });
+
+  cancelButton?.addEventListener("click", () => {
+    closeNetworkModal();
+  });
+
+  saveButton?.addEventListener("click", () => {
+    void saveNetworkSettings();
+  });
+
+  modeSelect?.addEventListener("change", () => {
+    syncNetworkModeFields();
+  });
+
+  backdrop?.addEventListener("click", () => {
+    closeNetworkModal();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && networkModalOpen) {
+      closeNetworkModal();
+    }
+  });
+
+  syncNetworkModeFields();
+}
+
 function formatNumber(value: number | null, suffix: string): string {
   if (value === null || Number.isNaN(value)) {
     return "-";
@@ -825,6 +1081,7 @@ applySnippet(starterSnippets[0]);
 bindSnippetButtons();
 bindActionButtons();
 bindUpdateControls();
+bindNetworkSettingsControls();
 bindDevScenarioControls();
 bindEditorFocusHints();
 window.setInterval(() => {

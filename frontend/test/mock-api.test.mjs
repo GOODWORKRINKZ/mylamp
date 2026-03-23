@@ -162,6 +162,50 @@ async function main() {
     assert.equal(postResetCurrentResponse.statusCode, 200);
     assert.equal(postResetCurrentResponse.payload.updateState, "idle");
     assert.equal(postResetCurrentResponse.payload.updateChannel, "dev");
+
+    const networkSettingsResponse = await requestJson(baseUrl, "/api/settings/network", "GET", null, {
+      "X-Dev-Scenario": "happy-path",
+    });
+    assert.equal(networkSettingsResponse.statusCode, 200);
+    assert.equal(typeof networkSettingsResponse.payload.mode, "string");
+    assert.equal(typeof networkSettingsResponse.payload.accessPointName, "string");
+    assert.equal(typeof networkSettingsResponse.payload.clientSsid, "string");
+
+    const networkSaveResponse = await requestJson(
+      baseUrl,
+      "/api/settings/network",
+      "POST",
+      "mode=client&accessPointName=MYLAMP-C3&clientSsid=OfficeWiFi&clientPassword=secret123",
+      {
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "X-Dev-Scenario": "happy-path",
+      },
+    );
+    assert.equal(networkSaveResponse.statusCode, 200);
+    assert.equal(networkSaveResponse.payload.mode, "client");
+    assert.equal(networkSaveResponse.payload.accessPointName, "MYLAMP-C3");
+    assert.equal(networkSaveResponse.payload.clientSsid, "OfficeWiFi");
+
+    const networkPostSaveReadback = await requestJson(baseUrl, "/api/settings/network", "GET", null, {
+      "X-Dev-Scenario": "happy-path",
+    });
+    assert.equal(networkPostSaveReadback.statusCode, 200);
+    assert.equal(networkPostSaveReadback.payload.mode, "client");
+    assert.equal(networkPostSaveReadback.payload.clientSsid, "OfficeWiFi");
+
+    const networkApFallbackResponse = await requestJson(
+      baseUrl,
+      "/api/settings/network",
+      "POST",
+      "mode=ap&accessPointName=&clientSsid=&clientPassword=",
+      {
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "X-Dev-Scenario": "happy-path",
+      },
+    );
+    assert.equal(networkApFallbackResponse.statusCode, 200);
+    assert.equal(networkApFallbackResponse.payload.mode, "ap");
+    assert.equal(networkApFallbackResponse.payload.accessPointName, "MYLAMP");
   } finally {
     await cleanup();
   }

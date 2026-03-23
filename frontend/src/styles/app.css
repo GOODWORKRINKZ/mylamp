@@ -55,7 +55,10 @@ button:active {
 button:focus-visible,
 .snippet-button:focus-visible,
 .dev-panel__select:focus-visible,
-.code-editor:focus-visible {
+.code-editor:focus-visible,
+.field-stack select:focus-visible,
+.field-stack input:focus-visible,
+.modal__close:focus-visible {
   outline: 2px solid rgba(214, 85, 47, 0.55);
   outline-offset: 2px;
 }
@@ -293,7 +296,108 @@ h2 {
   font: inherit;
 }
 
+.field-stack input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  padding: 0.65rem 0.75rem;
+  background: #fffdf9;
+  color: var(--text);
+  font: inherit;
+}
+
+.field-stack input:disabled,
+.field-stack select:disabled,
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .panel__actions--wide > * {
+  flex: 1 1 180px;
+}
+
+.button-secondary {
+  background: #2d2217;
+  color: #fff6ee;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.modal[hidden] {
+  display: none;
+}
+
+.modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(32, 21, 14, 0.42);
+  backdrop-filter: blur(6px);
+}
+
+.modal__dialog {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 560px);
+  max-height: calc(100vh - 1.2rem);
+  display: flex;
+  flex-direction: column;
+  border-radius: 28px;
+  border: 1px solid rgba(56, 43, 28, 0.12);
+  background:
+    radial-gradient(circle at top left, rgba(255, 189, 122, 0.25), transparent 38%),
+    linear-gradient(180deg, rgba(255, 251, 245, 0.98), rgba(255, 246, 236, 0.96));
+  box-shadow: 0 28px 80px rgba(39, 25, 12, 0.2);
+  overflow: hidden;
+}
+
+.modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.1rem 1.2rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.modal__close {
+  background: transparent;
+  color: var(--muted);
+  padding: 0.4rem 0.6rem;
+}
+
+.modal__body {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.2rem;
+  overflow: auto;
+}
+
+.modal__summary {
+  color: var(--text);
+}
+
+.modal__hint {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.modal__actions > * {
   flex: 1 1 180px;
 }
 
@@ -431,5 +535,13 @@ h2 {
 
   .panel--editor {
     min-height: auto;
+  }
+
+  .modal {
+    padding: 0.6rem;
+  }
+
+  .modal__dialog {
+    width: 100%;
   }
 }
