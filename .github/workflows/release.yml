@@ -1,0 +1,60 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release-firmware:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - environment: esp32-c3-supermini-release
+            hardware_type: c3-cylinder32x16
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build firmware
+        run: pio run -e ${{ matrix.target.environment }}
+
+      - name: Prepare release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          ASSET_NAME="mylamp-${{ matrix.target.hardware_type }}-${GITHUB_REF_NAME}-release.bin"
+          cp ".pio/build/${{ matrix.target.environment }}/firmware.bin" "$ASSET_NAME"
+          sha256sum "$ASSET_NAME" > "$ASSET_NAME.sha256"
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          name: mylamp ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            mylamp-${{ matrix.target.hardware_type }}-${{ github.ref_name }}-release.bin
+            mylamp-${{ matrix.target.hardware_type }}-${{ github.ref_name }}-release.bin.sha256

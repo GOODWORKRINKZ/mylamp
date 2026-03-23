@@ -11,6 +11,7 @@
 #include "live/runtime/LiveProgramService.h"
 #include "live/runtime/PlaylistScheduler.h"
 #include "settings/AppSettings.h"
+#include "update/FirmwareReleaseInfo.h"
 #include "web/EmbeddedAsset.h"
 #include "web/NetworkSettingsJson.h"
 #include "web/PlaylistApi.h"
@@ -23,6 +24,8 @@ class LampWebServer {
  public:
   using SettingsGetter = std::function<settings::AppSettings()>;
   using SettingsSaver = std::function<void(const settings::AppSettings&)>;
+  using UpdateChecker = std::function<update::FirmwareReleaseInfo(const std::string& channelOverride)>;
+  using UpdateInstaller = std::function<bool(std::string& error)>;
 
   LampWebServer();
 
@@ -36,6 +39,7 @@ class LampWebServer {
                            live::PresetRepository* presetRepository,
                            live::runtime::PlaylistScheduler* scheduler,
                            live::runtime::LiveProgramService* runtimeService);
+  void setUpdateCallbacks(UpdateChecker checker, UpdateInstaller installer);
 
  private:
   void registerRoutes();
@@ -47,6 +51,11 @@ class LampWebServer {
   void handleStatus();
   void handleGetNetworkSettings();
   void handleUpdateNetworkSettings();
+  void handleGetUpdateSettings();
+  void handleUpdateSettings();
+  void handleCurrentUpdate();
+  void handleCheckUpdates();
+  void handleInstallUpdate();
   void handleLiveValidate();
   void handleLiveRun();
   void handleListPresets();
@@ -59,6 +68,8 @@ class LampWebServer {
   StatusSnapshot snapshot_;
   SettingsGetter getSettings_;
   SettingsSaver saveSettings_;
+  UpdateChecker checkUpdates_;
+  UpdateInstaller installUpdate_;
   live::PresetRepository* presetRepository_ = nullptr;
   live::PlaylistRepository* playlistRepository_ = nullptr;
   live::runtime::PlaylistScheduler* playlistScheduler_ = nullptr;

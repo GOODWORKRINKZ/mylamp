@@ -16,6 +16,10 @@
 #define APP_HARDWARE_TYPE "unknown-hardware"
 #endif
 
+#ifndef APP_GITHUB_REPO
+#define APP_GITHUB_REPO "unknown/unknown"
+#endif
+
 namespace lamp {
 
 struct BuildInfo {
@@ -24,6 +28,7 @@ struct BuildInfo {
   static constexpr const char* channel = APP_CHANNEL;
   static constexpr const char* board = APP_BOARD;
   static constexpr const char* hardwareType = APP_HARDWARE_TYPE;
+  static constexpr const char* githubRepo = APP_GITHUB_REPO;
 };
 
 }  // namespace lamp

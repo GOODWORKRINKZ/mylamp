@@ -45,6 +45,70 @@ void sendPlaylistApiResponse(WebServer& server, const PlaylistApiResponse& respo
   server.send(response.statusCode, "application/json", response.body.c_str());
 }
 
+std::string escapeJsonValue(const std::string& input) {
+  std::string output;
+  output.reserve(input.size());
+
+  for (char ch : input) {
+    switch (ch) {
+      case '\\':
+        output += "\\\\";
+        break;
+      case '"':
+        output += "\\\"";
+        break;
+      case '\n':
+        output += "\\n";
+        break;
+      case '\r':
+        output += "\\r";
+        break;
+      case '\t':
+        output += "\\t";
+        break;
+      default:
+        output += ch;
+        break;
+    }
+  }
+
+  return output;
+}
+
+std::string buildUpdateSettingsJson(const lamp::settings::AppSettings& settings) {
+  std::string json = "{";
+  json += "\"channel\":\"";
+  json += escapeJsonValue(settings.update.channel);
+  json += "\"}";
+  return json;
+}
+
+std::string buildCurrentUpdateJson(const StatusSnapshot& snapshot) {
+  std::string json = "{";
+  json += "\"version\":\"" + escapeJsonValue(snapshot.version) + "\",";
+  json += "\"channel\":\"" + escapeJsonValue(snapshot.channel) + "\",";
+  json += "\"board\":\"" + escapeJsonValue(snapshot.board) + "\",";
+  json += "\"hardwareType\":\"" + escapeJsonValue(snapshot.hardwareType) + "\",";
+  json += "\"updateChannel\":\"" + escapeJsonValue(snapshot.updateChannel) + "\",";
+  json += "\"updateState\":\"" + escapeJsonValue(snapshot.updateState) + "\",";
+  json += "\"availableVersion\":\"" + escapeJsonValue(snapshot.availableVersion) + "\",";
+  json += "\"updateError\":\"" + escapeJsonValue(snapshot.updateError) + "\"}";
+  return json;
+}
+
+std::string buildCheckUpdatesJson(const lamp::update::FirmwareReleaseInfo& release) {
+  std::string json = "{";
+  json += "\"hasUpdate\":";
+  json += release.available ? "true" : "false";
+  json += ",\"channel\":\"" + escapeJsonValue(release.channel) + "\",";
+  json += "\"version\":\"" + escapeJsonValue(release.version) + "\",";
+  json += "\"assetName\":\"" + escapeJsonValue(release.assetName) + "\",";
+  json += "\"downloadUrl\":\"" + escapeJsonValue(release.assetUrl) + "\",";
+  json += "\"checksumUrl\":\"" + escapeJsonValue(release.checksumUrl) + "\",";
+  json += "\"error\":\"" + escapeJsonValue(release.error) + "\"}";
+  return json;
+}
+
 }  // namespace
 
 LampWebServer::LampWebServer() : server_(80) {}
@@ -83,6 +147,11 @@ void LampWebServer::setPlaylistServices(live::PlaylistRepository* playlistReposi
   liveProgramService_ = runtimeService;
 }
 
+void LampWebServer::setUpdateCallbacks(UpdateChecker checker, UpdateInstaller installer) {
+  checkUpdates_ = checker;
+  installUpdate_ = installer;
+}
+
 void LampWebServer::registerRoutes() {
   server_.on("/", [this]() { handleRoot(); });
   server_.on("/favicon.svg", [this]() { handleFavicon(); });
@@ -91,6 +160,11 @@ void LampWebServer::registerRoutes() {
   server_.on("/api/status", [this]() { handleStatus(); });
   server_.on("/api/settings/network", HTTP_GET, [this]() { handleGetNetworkSettings(); });
   server_.on("/api/settings/network", HTTP_POST, [this]() { handleUpdateNetworkSettings(); });
+  server_.on("/api/update/current", HTTP_GET, [this]() { handleCurrentUpdate(); });
+  server_.on("/api/update/check", HTTP_POST, [this]() { handleCheckUpdates(); });
+  server_.on("/api/update/install", HTTP_POST, [this]() { handleInstallUpdate(); });
+  server_.on("/api/update/settings", HTTP_GET, [this]() { handleGetUpdateSettings(); });
+  server_.on("/api/update/settings", HTTP_POST, [this]() { handleUpdateSettings(); });
   server_.on("/api/live/validate", HTTP_POST, [this]() { handleLiveValidate(); });
   server_.on("/api/live/run", HTTP_POST, [this]() { handleLiveRun(); });
   server_.on("/api/presets", HTTP_GET, [this]() { handleListPresets(); });
@@ -162,6 +236,67 @@ void LampWebServer::handleUpdateNetworkSettings() {
 
   saveSettings_(settings);
   server_.send(200, "application/json", buildNetworkSettingsJson(settings).c_str());
+}
+
+void LampWebServer::handleGetUpdateSettings() {
+  if (!getSettings_) {
+    server_.send(500, "application/json", "{\"error\":\"settings unavailable\"}");
+    return;
+  }
+
+  server_.send(200, "application/json", buildUpdateSettingsJson(getSettings_()).c_str());
+}
+
+void LampWebServer::handleUpdateSettings() {
+  if (!getSettings_ || !saveSettings_) {
+    server_.send(500, "application/json", "{\"error\":\"settings unavailable\"}");
+    return;
+  }
+
+  const std::string channel = server_.arg("channel").c_str();
+  if (channel != "stable" && channel != "dev") {
+    server_.send(400, "application/json", "{\"error\":\"invalid update channel\"}");
+    return;
+  }
+
+  settings::AppSettings settings = getSettings_();
+  settings.update.channel = channel;
+  saveSettings_(settings);
+  server_.send(200, "application/json", buildUpdateSettingsJson(settings).c_str());
+}
+
+void LampWebServer::handleCurrentUpdate() {
+  server_.send(200, "application/json", buildCurrentUpdateJson(snapshot_).c_str());
+}
+
+void LampWebServer::handleCheckUpdates() {
+  if (!checkUpdates_) {
+    server_.send(500, "application/json", "{\"error\":\"update checker unavailable\"}");
+    return;
+  }
+
+  const lamp::update::FirmwareReleaseInfo release =
+      checkUpdates_(server_.arg("channel").c_str());
+  server_.send(200, "application/json", buildCheckUpdatesJson(release).c_str());
+}
+
+void LampWebServer::handleInstallUpdate() {
+  if (!installUpdate_) {
+    server_.send(500, "application/json", "{\"error\":\"update installer unavailable\"}");
+    return;
+  }
+
+  std::string error;
+  const bool installed = installUpdate_(error);
+  if (!installed) {
+    server_.send(400, "application/json",
+                 (std::string("{\"success\":false,\"error\":\"") +
+                  escapeJsonValue(error) + "\"}")
+                     .c_str());
+    return;
+  }
+
+  server_.send(200, "application/json", "{\"success\":true,\"rebooting\":true}");
 }
 
 void LampWebServer::handleLiveValidate() {

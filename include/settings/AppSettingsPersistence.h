@@ -24,6 +24,7 @@ class AppSettingsPersistence {
  private:
   static const char* networkModeToString(network::NetworkMode mode);
   static network::NetworkMode networkModeFromString(const std::string& value);
+  static std::string normalizeUpdateChannel(const std::string& value);
 };
 
 }  // namespace lamp::settings

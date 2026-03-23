@@ -10,6 +10,7 @@ constexpr char kNetworkClientSsidKey[] = "network.clientSsid";
 constexpr char kNetworkClientPasswordKey[] = "network.clientPassword";
 constexpr char kClockEnabledKey[] = "clock.enabled";
 constexpr char kClockCachedOfflineKey[] = "clock.cachedOffline";
+constexpr char kUpdateChannelKey[] = "update.channel";
 
 }  // namespace
 
@@ -37,6 +38,9 @@ AppSettings AppSettingsPersistence::load(const ISettingsBackend& backend) const 
   if (backend.getBool(kClockCachedOfflineKey, boolValue)) {
     settings.clock.showCachedTimeWhenOffline = boolValue;
   }
+  if (backend.getString(kUpdateChannelKey, stringValue)) {
+    settings.update.channel = normalizeUpdateChannel(stringValue);
+  }
 
   return settings;
 }
@@ -48,6 +52,7 @@ void AppSettingsPersistence::save(const AppSettings& settings, ISettingsBackend&
   backend.putString(kNetworkClientPasswordKey, settings.network.clientPassword);
   backend.putBool(kClockEnabledKey, settings.clock.enabled);
   backend.putBool(kClockCachedOfflineKey, settings.clock.showCachedTimeWhenOffline);
+  backend.putString(kUpdateChannelKey, normalizeUpdateChannel(settings.update.channel));
 }
 
 const char* AppSettingsPersistence::networkModeToString(network::NetworkMode mode) {
@@ -56,6 +61,10 @@ const char* AppSettingsPersistence::networkModeToString(network::NetworkMode mod
 
 network::NetworkMode AppSettingsPersistence::networkModeFromString(const std::string& value) {
   return value == "client" ? network::NetworkMode::kClient : network::NetworkMode::kAccessPoint;
+}
+
+std::string AppSettingsPersistence::normalizeUpdateChannel(const std::string& value) {
+  return value == "dev" ? "dev" : "stable";
 }
 
 }  // namespace lamp::settings

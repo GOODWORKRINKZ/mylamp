@@ -9,6 +9,10 @@ struct StatusSnapshot {
   std::string channel;
   std::string board;
   std::string hardwareType;
+  std::string updateChannel;
+  std::string updateState;
+  std::string availableVersion;
+  std::string updateError;
   std::string networkMode;
   std::string networkStatus;
   std::string clockStatus;

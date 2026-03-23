@@ -30,6 +30,9 @@
 #include "time/ITimeSource.h"
 #include "time/TimePlanner.h"
 #include "time/TimeRuntimeService.h"
+#include "update/ArduinoGitHubReleaseSource.h"
+#include "update/Esp32FirmwareInstaller.h"
+#include "update/FirmwareUpdateService.h"
 #include "web/LampWebServer.h"
 #include "web/StatusJsonBuilder.h"
 
@@ -59,6 +62,12 @@ lamp::time::RuntimeTimeState g_runtimeTimeState;
 lamp::sensors::ArduinoAht30SensorSource g_sensorSource;
 lamp::sensors::SensorRuntimeService g_sensorRuntimeService;
 lamp::sensors::RuntimeSensorState g_sensorState;
+lamp::update::ArduinoGitHubReleaseSource g_releaseSource(lamp::BuildInfo::githubRepo);
+lamp::update::Esp32FirmwareInstaller g_firmwareInstaller;
+lamp::update::FirmwareUpdateService g_updateService(
+  lamp::update::BuildIdentity{"mylamp", lamp::BuildInfo::version, lamp::BuildInfo::channel,
+                lamp::BuildInfo::board, lamp::BuildInfo::hardwareType},
+  g_releaseSource, g_firmwareInstaller);
 lamp::live::runtime::LiveProgramService g_liveProgramService;
 lamp::live::runtime::PlaylistScheduler g_playlistScheduler;
 lamp::web::LampWebServer g_webServer;
@@ -70,9 +79,12 @@ unsigned long g_lastRenderMs = 0;
 bool g_usePatternEffect = false;
 bool g_networkReconfigureRequested = false;
 bool g_fileSystemReady = false;
+bool g_restartRequested = false;
 std::string g_liveErrorSummary;
 
 lamp::web::StatusSnapshot buildStatusSnapshot();
+lamp::update::FirmwareReleaseInfo checkForFirmwareUpdates(const std::string& channelOverride);
+bool installFirmwareUpdate(std::string& error);
 
 void renderFrame(unsigned long nowMs) {
   const unsigned long deltaMs = g_lastRenderMs == 0 ? 0 : nowMs - g_lastRenderMs;
@@ -132,6 +144,12 @@ lamp::web::StatusSnapshot buildStatusSnapshot() {
   snapshot.channel = lamp::BuildInfo::channel;
   snapshot.board = lamp::BuildInfo::board;
   snapshot.hardwareType = lamp::BuildInfo::hardwareType;
+  snapshot.updateChannel = g_settings.update.channel;
+  snapshot.updateState = lamp::update::firmwareUpdateStateToString(g_updateService.status().state);
+  snapshot.availableVersion = g_updateService.status().lastRelease.available
+                                  ? g_updateService.status().lastRelease.version
+                                  : std::string();
+  snapshot.updateError = g_updateService.status().error;
   snapshot.networkMode =
       g_networkState.activeMode == lamp::network::NetworkMode::kClient ? "client" : "ap";
   snapshot.networkStatus = g_networkState.statusLine;
@@ -163,9 +181,34 @@ lamp::settings::AppSettings getCurrentSettings() {
 }
 
 void saveAndApplySettings(const lamp::settings::AppSettings& settings) {
+  const bool networkChanged = settings.network.preferredMode != g_settings.network.preferredMode ||
+                              settings.network.accessPointName != g_settings.network.accessPointName ||
+                              settings.network.clientSsid != g_settings.network.clientSsid ||
+                              settings.network.clientPassword != g_settings.network.clientPassword;
   g_settings = settings;
   g_settingsPersistence.save(g_settings, g_settingsBackend);
-  g_networkReconfigureRequested = true;
+  g_webServer.setStatusSnapshot(buildStatusSnapshot());
+  g_networkReconfigureRequested = networkChanged;
+}
+
+lamp::update::FirmwareReleaseInfo checkForFirmwareUpdates(const std::string& channelOverride) {
+  lamp::settings::UpdateSettings updateSettings = g_settings.update;
+  if (!channelOverride.empty()) {
+    updateSettings.channel = channelOverride;
+  }
+
+  const lamp::update::FirmwareReleaseInfo& release = g_updateService.check(updateSettings);
+  g_webServer.setStatusSnapshot(buildStatusSnapshot());
+  return release;
+}
+
+bool installFirmwareUpdate(std::string& error) {
+  const bool installed = g_updateService.install(error);
+  g_webServer.setStatusSnapshot(buildStatusSnapshot());
+  if (installed) {
+    g_restartRequested = true;
+  }
+  return installed;
 }
 
 void printBootBanner() {
@@ -226,6 +269,7 @@ void setup() {
   initializeFileSystem();
   g_settings = g_settingsPersistence.load(g_settingsBackend);
   g_webServer.setSettingsCallbacks(getCurrentSettings, saveAndApplySettings);
+  g_webServer.setUpdateCallbacks(checkForFirmwareUpdates, installFirmwareUpdate);
   g_webServer.setPresetServices(&g_presetRepository, &g_liveProgramService);
   g_webServer.setPlaylistServices(&g_playlistRepository, &g_presetRepository, &g_playlistScheduler,
                                   &g_liveProgramService);
@@ -243,6 +287,10 @@ void setup() {
 
 void loop() {
   g_webServer.loop();
+  if (g_restartRequested) {
+    delay(250);
+    ESP.restart();
+  }
   if (g_networkReconfigureRequested) {
     g_networkReconfigureRequested = false;
     const lamp::network::WiFiStartupResult wifiResult =
