@@ -4,6 +4,8 @@
 
 #include <WebServer.h>
 
+#include "live/Diagnostic.h"
+#include "live/LiveRequestJson.h"
 #include "settings/AppSettings.h"
 #include "web/EmbeddedAsset.h"
 #include "web/NetworkSettingsJson.h"
@@ -31,6 +33,8 @@ class LampWebServer {
   void handleStatus();
   void handleGetNetworkSettings();
   void handleUpdateNetworkSettings();
+  void handleLiveValidate();
+  void handleLiveRun();
   void sendEmbeddedAsset(const EmbeddedAsset& asset);
 
   WebServer server_;

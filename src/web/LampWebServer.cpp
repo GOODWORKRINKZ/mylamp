@@ -6,6 +6,25 @@
 
 namespace lamp::web {
 
+namespace {
+
+lamp::live::Diagnostic makeDiagnostic(uint32_t line, uint32_t column,
+                                     const std::string& message) {
+  lamp::live::Diagnostic diagnostic;
+  diagnostic.line = line;
+  diagnostic.column = column;
+  diagnostic.message = message;
+  return diagnostic;
+}
+
+std::string buildNotImplementedLiveResponse(const std::string& fallbackMessage) {
+  std::vector<lamp::live::Diagnostic> diagnostics;
+  diagnostics.push_back(makeDiagnostic(0U, 0U, fallbackMessage));
+  return lamp::live::buildDiagnosticResponseJson(false, diagnostics);
+}
+
+}  // namespace
+
 LampWebServer::LampWebServer() : server_(80) {}
 
 void LampWebServer::begin() {
@@ -33,6 +52,8 @@ void LampWebServer::registerRoutes() {
   server_.on("/api/status", [this]() { handleStatus(); });
   server_.on("/api/settings/network", HTTP_GET, [this]() { handleGetNetworkSettings(); });
   server_.on("/api/settings/network", HTTP_POST, [this]() { handleUpdateNetworkSettings(); });
+  server_.on("/api/live/validate", HTTP_POST, [this]() { handleLiveValidate(); });
+  server_.on("/api/live/run", HTTP_POST, [this]() { handleLiveRun(); });
 }
 
 void LampWebServer::handleRoot() {
@@ -80,6 +101,34 @@ void LampWebServer::handleUpdateNetworkSettings() {
 
   saveSettings_(settings);
   server_.send(200, "application/json", buildNetworkSettingsJson(settings).c_str());
+}
+
+void LampWebServer::handleLiveValidate() {
+  lamp::live::LiveRequest request;
+  if (!lamp::live::parseLiveRequestJson(server_.arg("plain").c_str(), request)) {
+    std::vector<lamp::live::Diagnostic> diagnostics;
+    diagnostics.push_back(makeDiagnostic(0U, 0U, "Некорректный JSON запроса"));
+    server_.send(400, "application/json",
+                 lamp::live::buildDiagnosticResponseJson(false, diagnostics).c_str());
+    return;
+  }
+
+  server_.send(200, "application/json",
+               buildNotImplementedLiveResponse("Проверка DSL пока не реализована").c_str());
+}
+
+void LampWebServer::handleLiveRun() {
+  lamp::live::LiveRequest request;
+  if (!lamp::live::parseLiveRequestJson(server_.arg("plain").c_str(), request)) {
+    std::vector<lamp::live::Diagnostic> diagnostics;
+    diagnostics.push_back(makeDiagnostic(0U, 0U, "Некорректный JSON запроса"));
+    server_.send(400, "application/json",
+                 lamp::live::buildDiagnosticResponseJson(false, diagnostics).c_str());
+    return;
+  }
+
+  server_.send(200, "application/json",
+               buildNotImplementedLiveResponse("Запуск DSL пока не реализован").c_str());
 }
 
 void LampWebServer::sendEmbeddedAsset(const EmbeddedAsset& asset) {
