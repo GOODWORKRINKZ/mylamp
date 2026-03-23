@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <LittleFS.h>
 
 #include "AppConfig.h"
 #include "BuildInfo.h"
@@ -17,6 +18,8 @@
 #include "settings/AppSettings.h"
 #include "settings/AppSettingsPersistence.h"
 #include "settings/PreferencesSettingsBackend.h"
+#include "storage/ContentPaths.h"
+#include "storage/LittleFsFileStore.h"
 #include "time/ArduinoNtpTimeSource.h"
 #include "time/ITimeSource.h"
 #include "time/TimePlanner.h"
@@ -35,6 +38,7 @@ lamp::effects::EffectRegistry g_effectRegistry;
 lamp::settings::AppSettings g_settings;
 lamp::settings::AppSettingsPersistence g_settingsPersistence;
 lamp::settings::PreferencesSettingsBackend g_settingsBackend;
+lamp::storage::LittleFsFileStore g_fileStore(LittleFS);
 lamp::network::ArduinoWiFiAdapter g_wifiAdapter;
 lamp::network::WiFiManager g_wifiManager;
 lamp::network::NetworkPlanner g_networkPlanner;
@@ -53,8 +57,24 @@ unsigned long g_lastTimeRefreshMs = 0;
 unsigned long g_lastSensorRefreshMs = 0;
 bool g_usePatternEffect = false;
 bool g_networkReconfigureRequested = false;
+bool g_fileSystemReady = false;
 
 lamp::web::StatusSnapshot buildStatusSnapshot();
+
+void initializeFileSystem() {
+  g_fileSystemReady = LittleFS.begin(true);
+  if (!g_fileSystemReady) {
+    Serial.println("filesystem: mount failed");
+    return;
+  }
+
+  const std::vector<std::string> presets = g_fileStore.list(lamp::storage::kPresetsDirectory);
+  const std::vector<std::string> playlists = g_fileStore.list(lamp::storage::kPlaylistsDirectory);
+  Serial.print("filesystem: mounted presets=");
+  Serial.print(static_cast<unsigned long>(presets.size()));
+  Serial.print(" playlists=");
+  Serial.println(static_cast<unsigned long>(playlists.size()));
+}
 
 void refreshSensorState() {
   g_sensorState = g_sensorRuntimeService.refresh(g_sensorState, g_sensorSource);
@@ -152,8 +172,9 @@ void printBootBanner() {
 void setup() {
   Serial.begin(115200);
   delay(200);
+  initializeFileSystem();
   g_settings = g_settingsPersistence.load(g_settingsBackend);
-    g_webServer.setSettingsCallbacks(getCurrentSettings, saveAndApplySettings);
+  g_webServer.setSettingsCallbacks(getCurrentSettings, saveAndApplySettings);
   const lamp::network::WiFiStartupResult wifiResult =
       g_wifiManager.startup(g_settings.network, g_wifiAdapter);
   refreshRuntimeState(wifiResult);
