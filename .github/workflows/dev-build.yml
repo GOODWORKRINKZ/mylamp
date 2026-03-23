@@ -1,0 +1,88 @@
+name: Dev Build
+
+on:
+  push:
+    branches:
+      - develop
+      - feature/**
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-dev-firmware:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - environment: esp32-c3-supermini-dev
+            hardware_type: c3-cylinder32x16
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Compute dev build version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          BRANCH_NAME="${GITHUB_REF_NAME//[^[:alnum:]_.-]/-}"
+          BRANCH_NAME="${BRANCH_NAME#-}"
+          BRANCH_NAME="${BRANCH_NAME%-}"
+          SHORT_SHA="$(git rev-parse --short HEAD)"
+          BUILD_TIMESTAMP="$(date -u +%Y%m%d-%H%M%S)"
+          BUILD_VERSION="${BRANCH_NAME}-${SHORT_SHA}-${BUILD_TIMESTAMP}"
+          echo "build_timestamp=${BUILD_TIMESTAMP}" >> "$GITHUB_OUTPUT"
+          echo "build_version=${BUILD_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build firmware
+        env:
+          BUILD_TIMESTAMP: ${{ steps.version.outputs.build_timestamp }}
+        run: pio run -e ${{ matrix.target.environment }}
+
+      - name: Prepare release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          ASSET_NAME="mylamp-${{ matrix.target.hardware_type }}-dev-${{ steps.version.outputs.build_version }}.bin"
+          cp ".pio/build/${{ matrix.target.environment }}/firmware.bin" "$ASSET_NAME"
+          sha256sum "$ASSET_NAME" > "$ASSET_NAME.sha256"
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-${{ matrix.target.hardware_type }}-${{ steps.version.outputs.build_version }}
+          path: |
+            mylamp-${{ matrix.target.hardware_type }}-dev-${{ steps.version.outputs.build_version }}.bin
+            mylamp-${{ matrix.target.hardware_type }}-dev-${{ steps.version.outputs.build_version }}.bin.sha256
+
+      - name: Publish dev prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev-${{ steps.version.outputs.build_version }}
+          name: Dev build ${{ steps.version.outputs.build_version }}
+          prerelease: true
+          generate_release_notes: true
+          files: |
+            mylamp-${{ matrix.target.hardware_type }}-dev-${{ steps.version.outputs.build_version }}.bin
+            mylamp-${{ matrix.target.hardware_type }}-dev-${{ steps.version.outputs.build_version }}.bin.sha256

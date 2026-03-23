@@ -1,0 +1,8 @@
+.pio/
+.vscode/
+.worktrees/
+worktrees/
+frontend/node_modules/
+resources/dist/
+test/__pycache__/
+scripts/__pycache__/

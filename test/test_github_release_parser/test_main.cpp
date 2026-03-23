@@ -1,0 +1,151 @@
+#include <unity.h>
+
+#include <string>
+
+#include "update/GitHubReleaseParser.h"
+
+namespace {
+
+constexpr const char* kHardwareType = "c3-cylinder32x16";
+
+void test_parser_selects_matching_stable_asset_for_hardware() {
+  const std::string payload = R"json({
+    "tag_name": "v0.2.0",
+    "name": "mylamp v0.2.0",
+    "body": "Stable release",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-03-23T20:45:00Z",
+    "assets": [
+      {
+        "name": "mylamp-other-v0.2.0-release.bin",
+        "browser_download_url": "https://example.com/other.bin"
+      },
+      {
+        "name": "mylamp-c3-cylinder32x16-v0.2.0-release.bin",
+        "browser_download_url": "https://example.com/mylamp-c3-cylinder32x16-v0.2.0-release.bin"
+      },
+      {
+        "name": "mylamp-c3-cylinder32x16-v0.2.0-release.bin.sha256",
+        "browser_download_url": "https://example.com/mylamp-c3-cylinder32x16-v0.2.0-release.bin.sha256"
+      }
+    ]
+  })json";
+
+  lamp::update::GitHubReleaseParser parser;
+  const lamp::update::FirmwareReleaseInfo info =
+      parser.parse(payload, "v0.1.0", "stable", kHardwareType);
+
+  TEST_ASSERT_TRUE(info.available);
+  TEST_ASSERT_EQUAL_STRING("stable", info.channel.c_str());
+  TEST_ASSERT_EQUAL_STRING("v0.2.0", info.version.c_str());
+  TEST_ASSERT_EQUAL_STRING("mylamp-c3-cylinder32x16-v0.2.0-release.bin", info.assetName.c_str());
+  TEST_ASSERT_EQUAL_STRING("https://example.com/mylamp-c3-cylinder32x16-v0.2.0-release.bin",
+                           info.assetUrl.c_str());
+  TEST_ASSERT_EQUAL_STRING(
+      "https://example.com/mylamp-c3-cylinder32x16-v0.2.0-release.bin.sha256",
+      info.checksumUrl.c_str());
+}
+
+void test_parser_selects_matching_dev_asset_for_hardware() {
+  const std::string payload = R"json([
+    {
+      "tag_name": "dev-develop-a1b2c3d-20260323-204500",
+      "name": "dev build",
+      "body": "Latest dev release",
+      "draft": false,
+      "prerelease": true,
+      "published_at": "2026-03-23T20:45:00Z",
+      "assets": [
+        {
+          "name": "mylamp-c3-cylinder32x16-dev-develop-a1b2c3d-20260323-204500.bin",
+          "browser_download_url": "https://example.com/dev.bin"
+        }
+      ]
+    },
+    {
+      "tag_name": "dev-develop-older-20260322-120000",
+      "name": "older dev build",
+      "body": "Older dev release",
+      "draft": false,
+      "prerelease": true,
+      "published_at": "2026-03-22T12:00:00Z",
+      "assets": []
+    }
+  ])json";
+
+  lamp::update::GitHubReleaseParser parser;
+  const lamp::update::FirmwareReleaseInfo info =
+      parser.parse(payload, "dev-develop-oldhash-20260320-100000", "dev", kHardwareType);
+
+  TEST_ASSERT_TRUE(info.available);
+  TEST_ASSERT_EQUAL_STRING("dev", info.channel.c_str());
+  TEST_ASSERT_EQUAL_STRING("dev-develop-a1b2c3d-20260323-204500", info.version.c_str());
+  TEST_ASSERT_EQUAL_STRING(
+      "mylamp-c3-cylinder32x16-dev-develop-a1b2c3d-20260323-204500.bin",
+      info.assetName.c_str());
+  TEST_ASSERT_EQUAL_STRING("https://example.com/dev.bin", info.assetUrl.c_str());
+}
+
+void test_parser_reports_missing_hardware_asset() {
+  const std::string payload = R"json({
+    "tag_name": "v0.2.0",
+    "name": "mylamp v0.2.0",
+    "body": "Stable release",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-03-23T20:45:00Z",
+    "assets": [
+      {
+        "name": "mylamp-other-v0.2.0-release.bin",
+        "browser_download_url": "https://example.com/other.bin"
+      }
+    ]
+  })json";
+
+  lamp::update::GitHubReleaseParser parser;
+  const lamp::update::FirmwareReleaseInfo info =
+      parser.parse(payload, "v0.1.0", "stable", kHardwareType);
+
+  TEST_ASSERT_FALSE(info.available);
+  TEST_ASSERT_EQUAL_STRING("missing-hardware-asset", info.error.c_str());
+  TEST_ASSERT_EQUAL_STRING("v0.2.0", info.version.c_str());
+}
+
+void test_parser_ignores_older_release_than_current_version() {
+  const std::string payload = R"json({
+    "tag_name": "v0.1.0",
+    "name": "mylamp v0.1.0",
+    "body": "Old stable release",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-03-20T10:00:00Z",
+    "assets": [
+      {
+        "name": "mylamp-c3-cylinder32x16-v0.1.0-release.bin",
+        "browser_download_url": "https://example.com/old.bin"
+      }
+    ]
+  })json";
+
+  lamp::update::GitHubReleaseParser parser;
+  const lamp::update::FirmwareReleaseInfo info =
+      parser.parse(payload, "v0.2.0", "stable", kHardwareType);
+
+  TEST_ASSERT_FALSE(info.available);
+  TEST_ASSERT_EQUAL_STRING("", info.error.c_str());
+  TEST_ASSERT_EQUAL_STRING("stable", info.channel.c_str());
+}
+
+}  // namespace
+
+int main(int argc, char** argv) {
+  (void)argc;
+  (void)argv;
+  UNITY_BEGIN();
+  RUN_TEST(test_parser_selects_matching_stable_asset_for_hardware);
+  RUN_TEST(test_parser_selects_matching_dev_asset_for_hardware);
+  RUN_TEST(test_parser_reports_missing_hardware_asset);
+  RUN_TEST(test_parser_ignores_older_release_than_current_version);
+  return UNITY_END();
+}
