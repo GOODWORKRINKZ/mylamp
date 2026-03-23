@@ -23,6 +23,19 @@ std::string buildNotImplementedLiveResponse(const std::string& fallbackMessage) 
   return lamp::live::buildDiagnosticResponseJson(false, diagnostics);
 }
 
+bool startsWith(const std::string& value, const char* prefix) {
+  return value.rfind(prefix, 0) == 0;
+}
+
+std::string trimPresetPath(const std::string& uri) {
+  static constexpr const char* kPrefix = "/api/presets/";
+  return uri.substr(std::char_traits<char>::length(kPrefix));
+}
+
+void sendPresetApiResponse(WebServer& server, const PresetApiResponse& response) {
+  server.send(response.statusCode, "application/json", response.body.c_str());
+}
+
 }  // namespace
 
 LampWebServer::LampWebServer() : server_(80) {}
@@ -45,6 +58,12 @@ void LampWebServer::setSettingsCallbacks(SettingsGetter getter, SettingsSaver sa
   saveSettings_ = saver;
 }
 
+void LampWebServer::setPresetServices(live::PresetRepository* repository,
+                                      live::runtime::LiveProgramService* runtimeService) {
+  presetRepository_ = repository;
+  liveProgramService_ = runtimeService;
+}
+
 void LampWebServer::registerRoutes() {
   server_.on("/", [this]() { handleRoot(); });
   server_.on("/script.js", [this]() { handleScript(); });
@@ -54,6 +73,18 @@ void LampWebServer::registerRoutes() {
   server_.on("/api/settings/network", HTTP_POST, [this]() { handleUpdateNetworkSettings(); });
   server_.on("/api/live/validate", HTTP_POST, [this]() { handleLiveValidate(); });
   server_.on("/api/live/run", HTTP_POST, [this]() { handleLiveRun(); });
+  server_.on("/api/presets", HTTP_GET, [this]() { handleListPresets(); });
+  server_.onNotFound([this]() { handleNotFound(); });
+}
+
+void LampWebServer::handleNotFound() {
+  const std::string uri = server_.uri().c_str();
+  if (startsWith(uri, "/api/presets/")) {
+    handlePresetByPath();
+    return;
+  }
+
+  server_.send(404, "application/json", "{\"error\":\"not found\"}");
 }
 
 void LampWebServer::handleRoot() {
@@ -129,6 +160,60 @@ void LampWebServer::handleLiveRun() {
 
   server_.send(200, "application/json",
                buildNotImplementedLiveResponse("Запуск DSL пока не реализован").c_str());
+}
+
+void LampWebServer::handleListPresets() {
+  if (presetRepository_ == nullptr) {
+    server_.send(500, "application/json", "{\"error\":\"preset repository unavailable\"}");
+    return;
+  }
+
+  sendPresetApiResponse(server_, handleListPresetsRequest(*presetRepository_));
+}
+
+void LampWebServer::handlePresetByPath() {
+  if (presetRepository_ == nullptr) {
+    server_.send(500, "application/json", "{\"error\":\"preset repository unavailable\"}");
+    return;
+  }
+
+  const std::string suffix = trimPresetPath(server_.uri().c_str());
+  if (suffix.empty()) {
+    server_.send(404, "application/json", "{\"error\":\"not found\"}");
+    return;
+  }
+
+  const std::string activateSuffix = "/activate";
+  if (suffix.size() > activateSuffix.size() &&
+      suffix.compare(suffix.size() - activateSuffix.size(), activateSuffix.size(), activateSuffix) == 0) {
+    if (liveProgramService_ == nullptr) {
+      server_.send(500, "application/json", "{\"error\":\"live runtime unavailable\"}");
+      return;
+    }
+
+    const std::string presetId = suffix.substr(0, suffix.size() - activateSuffix.size());
+    if (server_.method() == HTTP_POST) {
+      sendPresetApiResponse(server_,
+                            handleActivatePresetRequest(*presetRepository_, *liveProgramService_, presetId));
+      return;
+    }
+  } else {
+    if (server_.method() == HTTP_GET) {
+      sendPresetApiResponse(server_, handleGetPresetRequest(*presetRepository_, suffix));
+      return;
+    }
+    if (server_.method() == HTTP_PUT) {
+      sendPresetApiResponse(server_,
+                            handlePutPresetRequest(*presetRepository_, suffix, server_.arg("plain").c_str()));
+      return;
+    }
+    if (server_.method() == HTTP_DELETE) {
+      sendPresetApiResponse(server_, handleDeletePresetRequest(*presetRepository_, suffix));
+      return;
+    }
+  }
+
+  server_.send(404, "application/json", "{\"error\":\"not found\"}");
 }
 
 void LampWebServer::sendEmbeddedAsset(const EmbeddedAsset& asset) {

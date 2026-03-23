@@ -14,6 +14,7 @@
 #include "network/NetworkPlanner.h"
 #include "network/WiFiManager.h"
 #include "live/runtime/RuntimeContext.h"
+#include "live/PresetRepository.h"
 #include "sensors/ArduinoAht30SensorSource.h"
 #include "sensors/ISensorSource.h"
 #include "sensors/SensorRuntimeService.h"
@@ -41,6 +42,7 @@ lamp::settings::AppSettings g_settings;
 lamp::settings::AppSettingsPersistence g_settingsPersistence;
 lamp::settings::PreferencesSettingsBackend g_settingsBackend;
 lamp::storage::LittleFsFileStore g_fileStore(LittleFS);
+lamp::live::PresetRepository g_presetRepository(g_fileStore);
 lamp::network::ArduinoWiFiAdapter g_wifiAdapter;
 lamp::network::WiFiManager g_wifiManager;
 lamp::network::NetworkPlanner g_networkPlanner;
@@ -197,6 +199,7 @@ void setup() {
   initializeFileSystem();
   g_settings = g_settingsPersistence.load(g_settingsBackend);
   g_webServer.setSettingsCallbacks(getCurrentSettings, saveAndApplySettings);
+  g_webServer.setPresetServices(&g_presetRepository, &g_liveProgramService);
   const lamp::network::WiFiStartupResult wifiResult =
       g_wifiManager.startup(g_settings.network, g_wifiAdapter);
   refreshRuntimeState(wifiResult);

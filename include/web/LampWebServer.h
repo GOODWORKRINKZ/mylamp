@@ -6,9 +6,12 @@
 
 #include "live/Diagnostic.h"
 #include "live/LiveRequestJson.h"
+#include "live/PresetRepository.h"
+#include "live/runtime/LiveProgramService.h"
 #include "settings/AppSettings.h"
 #include "web/EmbeddedAsset.h"
 #include "web/NetworkSettingsJson.h"
+#include "web/PresetApi.h"
 #include "web/StatusJsonBuilder.h"
 
 namespace lamp::web {
@@ -24,9 +27,12 @@ class LampWebServer {
   void loop();
   void setStatusSnapshot(StatusSnapshot snapshot);
   void setSettingsCallbacks(SettingsGetter getter, SettingsSaver saver);
+  void setPresetServices(live::PresetRepository* repository,
+                         live::runtime::LiveProgramService* runtimeService);
 
  private:
   void registerRoutes();
+  void handleNotFound();
   void handleRoot();
   void handleScript();
   void handleStyles();
@@ -35,12 +41,16 @@ class LampWebServer {
   void handleUpdateNetworkSettings();
   void handleLiveValidate();
   void handleLiveRun();
+  void handleListPresets();
+  void handlePresetByPath();
   void sendEmbeddedAsset(const EmbeddedAsset& asset);
 
   WebServer server_;
   StatusSnapshot snapshot_;
   SettingsGetter getSettings_;
   SettingsSaver saveSettings_;
+  live::PresetRepository* presetRepository_ = nullptr;
+  live::runtime::LiveProgramService* liveProgramService_ = nullptr;
 };
 
 }  // namespace lamp::web
