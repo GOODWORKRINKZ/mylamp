@@ -25,9 +25,12 @@ class LampWebServer {
  private:
   void registerRoutes();
   void handleRoot();
+  void handleScript();
+  void handleStyles();
   void handleStatus();
   void handleGetNetworkSettings();
   void handleUpdateNetworkSettings();
+  void sendEmbeddedAsset(const uint8_t* data, size_t length, const char* contentType);
 
   WebServer server_;
   StatusSnapshot snapshot_;

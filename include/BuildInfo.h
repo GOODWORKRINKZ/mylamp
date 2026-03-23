@@ -15,6 +15,7 @@
 namespace lamp {
 
 struct BuildInfo {
+  static constexpr const char* projectName = "mylamp";
   static constexpr const char* version = APP_VERSION;
   static constexpr const char* channel = APP_CHANNEL;
   static constexpr const char* board = APP_BOARD;

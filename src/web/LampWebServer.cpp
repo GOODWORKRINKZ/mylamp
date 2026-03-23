@@ -1,5 +1,9 @@
 #include "web/LampWebServer.h"
 
+#include <pgmspace.h>
+
+#include "embedded_resources.h"
+
 namespace lamp::web {
 
 LampWebServer::LampWebServer() : server_(80) {}
@@ -24,13 +28,23 @@ void LampWebServer::setSettingsCallbacks(SettingsGetter getter, SettingsSaver sa
 
 void LampWebServer::registerRoutes() {
   server_.on("/", [this]() { handleRoot(); });
+  server_.on("/script.js", [this]() { handleScript(); });
+  server_.on("/styles.css", [this]() { handleStyles(); });
   server_.on("/api/status", [this]() { handleStatus(); });
   server_.on("/api/settings/network", HTTP_GET, [this]() { handleGetNetworkSettings(); });
   server_.on("/api/settings/network", HTTP_POST, [this]() { handleUpdateNetworkSettings(); });
 }
 
 void LampWebServer::handleRoot() {
-  server_.send(200, "text/plain", "mylamp web server");
+  sendEmbeddedAsset(indexHtml, indexHtml_len, "text/html; charset=utf-8");
+}
+
+void LampWebServer::handleScript() {
+  sendEmbeddedAsset(scriptJs, scriptJs_len, "application/javascript; charset=utf-8");
+}
+
+void LampWebServer::handleStyles() {
+  sendEmbeddedAsset(stylesCss, stylesCss_len, "text/css; charset=utf-8");
 }
 
 void LampWebServer::handleStatus() {
@@ -63,6 +77,11 @@ void LampWebServer::handleUpdateNetworkSettings() {
 
   saveSettings_(settings);
   server_.send(200, "application/json", buildNetworkSettingsJson(settings).c_str());
+}
+
+void LampWebServer::sendEmbeddedAsset(const uint8_t* data, size_t length,
+                                      const char* contentType) {
+  server_.send_P(200, contentType, reinterpret_cast<PGM_P>(data), length);
 }
 
 }  // namespace lamp::web
