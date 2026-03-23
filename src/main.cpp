@@ -23,6 +23,7 @@
 #include "settings/AppSettings.h"
 #include "settings/AppSettingsPersistence.h"
 #include "settings/PreferencesSettingsBackend.h"
+#include "settings/SettingsAccess.h"
 #include "storage/ContentPaths.h"
 #include "storage/LittleFsFileStore.h"
 #include "storage/StorageBootstrap.h"
@@ -45,7 +46,6 @@ lamp::effects::AlternatingColumnsEffect g_patternEffect(
   lamp::Rgb{10, 0, 0}, lamp::Rgb{0, 10, 0}, "debug-columns");
 lamp::effects::EffectRegistry g_effectRegistry;
 lamp::settings::AppSettings g_settings;
-lamp::settings::AppSettingsPersistence g_settingsPersistence;
 lamp::settings::PreferencesSettingsBackend g_settingsBackend;
 lamp::storage::LittleFsFileStore g_fileStore(LittleFS);
 lamp::live::PresetRepository g_presetRepository(g_fileStore);
@@ -189,7 +189,9 @@ void saveAndApplySettings(const lamp::settings::AppSettings& settings) {
                             settings.clock.showCachedTimeWhenOffline != g_settings.clock.showCachedTimeWhenOffline ||
                             settings.clock.timezone != g_settings.clock.timezone;
   g_settings = settings;
-  g_settingsPersistence.save(g_settings, g_settingsBackend);
+  if (!lamp::settings::saveSettingsIfReady(g_settings, g_settingsBackend)) {
+    Serial.println("settings: save skipped because NVS backend is unavailable");
+  }
   g_timeState = g_timePlanner.plan(g_settings.clock, g_networkState, g_timeSource.hasValidTime());
   g_runtimeTimeState = g_timeRuntimeService.refresh(g_settings.clock, g_timeState, g_timeSource);
   g_webServer.setStatusSnapshot(buildStatusSnapshot());
@@ -273,7 +275,11 @@ void setup() {
   Serial.begin(115200);
   delay(200);
   initializeFileSystem();
-  g_settings = g_settingsPersistence.load(g_settingsBackend);
+  if (!g_settingsBackend.begin()) {
+    Serial.println("settings: failed to initialize NVS backend, using defaults");
+  } else {
+    lamp::settings::loadSettingsIfReady(g_settingsBackend, g_settings);
+  }
   g_webServer.setSettingsCallbacks(getCurrentSettings, saveAndApplySettings);
   g_webServer.setUpdateCallbacks(checkForFirmwareUpdates, installFirmwareUpdate);
   g_webServer.setPresetServices(&g_presetRepository, &g_liveProgramService);

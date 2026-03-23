@@ -6,10 +6,10 @@ namespace {
 
 constexpr char kNetworkModeKey[] = "network.mode";
 constexpr char kNetworkApNameKey[] = "network.apName";
-constexpr char kNetworkClientSsidKey[] = "network.clientSsid";
-constexpr char kNetworkClientPasswordKey[] = "network.clientPassword";
+constexpr char kNetworkClientSsidKey[] = "network.clSsid";
+constexpr char kNetworkClientPasswordKey[] = "network.clPass";
 constexpr char kClockEnabledKey[] = "clock.enabled";
-constexpr char kClockCachedOfflineKey[] = "clock.cachedOffline";
+constexpr char kClockCachedOfflineKey[] = "clock.cached";
 constexpr char kClockTimezoneKey[] = "clock.timezone";
 constexpr char kUpdateChannelKey[] = "update.channel";
 

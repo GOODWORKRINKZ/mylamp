@@ -6,12 +6,18 @@
 #include <utility>
 
 #include "settings/AppSettingsPersistence.h"
+#include "settings/SettingsAccess.h"
 
 namespace {
 
 class FakeSettingsBackend final : public lamp::settings::ISettingsBackend {
  public:
+  bool ready = true;
   std::map<std::string, std::string> values;
+
+  bool isReady() const override {
+    return ready;
+  }
 
   bool getString(const char* key, std::string& value) const override {
     const auto it = values.find(key);
@@ -54,6 +60,14 @@ template <typename T>
 struct has_clock_timezone<T, std::void_t<decltype(std::declval<T>().clock.timezone)>>
   : std::true_type {};
 
+void assert_all_keys_fit_nvs_limit(const FakeSettingsBackend& backend) {
+  for (const auto& entry : backend.values) {
+    const std::string& key = entry.first;
+    TEST_ASSERT_LESS_OR_EQUAL_UINT32_MESSAGE(15, static_cast<uint32_t>(key.size()),
+                                             key.c_str());
+  }
+}
+
 void test_app_settings_exposes_update_channel() {
   TEST_ASSERT_TRUE(has_update_channel<lamp::settings::AppSettings>::value);
 }
@@ -80,10 +94,10 @@ void test_load_reads_saved_network_clock_and_update_settings() {
   FakeSettingsBackend backend;
   backend.values["network.mode"] = "client";
   backend.values["network.apName"] = "MYLAMP-ROOM";
-  backend.values["network.clientSsid"] = "HomeWiFi";
-  backend.values["network.clientPassword"] = "secret";
+  backend.values["network.clSsid"] = "HomeWiFi";
+  backend.values["network.clPass"] = "secret";
   backend.values["clock.enabled"] = "false";
-  backend.values["clock.cachedOffline"] = "false";
+  backend.values["clock.cached"] = "false";
   backend.values["clock.timezone"] = "MSK-3";
   backend.values["update.channel"] = "dev";
 
@@ -125,12 +139,14 @@ void test_save_persists_network_clock_and_update_settings() {
   lamp::settings::AppSettingsPersistence persistence;
   persistence.save(settings, backend);
 
+  assert_all_keys_fit_nvs_limit(backend);
+
   TEST_ASSERT_EQUAL_STRING("client", backend.values["network.mode"].c_str());
   TEST_ASSERT_EQUAL_STRING("MYLAMP-ROOM", backend.values["network.apName"].c_str());
-  TEST_ASSERT_EQUAL_STRING("HomeWiFi", backend.values["network.clientSsid"].c_str());
-  TEST_ASSERT_EQUAL_STRING("secret", backend.values["network.clientPassword"].c_str());
+  TEST_ASSERT_EQUAL_STRING("HomeWiFi", backend.values["network.clSsid"].c_str());
+  TEST_ASSERT_EQUAL_STRING("secret", backend.values["network.clPass"].c_str());
   TEST_ASSERT_EQUAL_STRING("true", backend.values["clock.enabled"].c_str());
-  TEST_ASSERT_EQUAL_STRING("false", backend.values["clock.cachedOffline"].c_str());
+  TEST_ASSERT_EQUAL_STRING("false", backend.values["clock.cached"].c_str());
   TEST_ASSERT_EQUAL_STRING("MSK-3", backend.values["clock.timezone"].c_str());
   TEST_ASSERT_EQUAL_STRING("dev", backend.values["update.channel"].c_str());
 }
@@ -146,6 +162,38 @@ void test_save_normalizes_invalid_update_channel_to_stable() {
   TEST_ASSERT_EQUAL_STRING("stable", backend.values["update.channel"].c_str());
 }
 
+void test_settings_access_load_skips_unready_backend() {
+  FakeSettingsBackend backend;
+  backend.ready = false;
+  backend.values["network.mode"] = "client";
+  backend.values["network.clSsid"] = "HomeWiFi";
+
+  lamp::settings::AppSettings settings;
+  settings.network.preferredMode = lamp::network::NetworkMode::kAccessPoint;
+  settings.network.clientSsid = "";
+
+  const bool loaded = lamp::settings::loadSettingsIfReady(backend, settings);
+
+  TEST_ASSERT_FALSE(loaded);
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(lamp::network::NetworkMode::kAccessPoint),
+                        static_cast<int>(settings.network.preferredMode));
+  TEST_ASSERT_EQUAL_STRING("", settings.network.clientSsid.c_str());
+}
+
+void test_settings_access_save_skips_unready_backend() {
+  FakeSettingsBackend backend;
+  backend.ready = false;
+
+  lamp::settings::AppSettings settings;
+  settings.network.preferredMode = lamp::network::NetworkMode::kClient;
+  settings.network.clientSsid = "HomeWiFi";
+
+  const bool saved = lamp::settings::saveSettingsIfReady(settings, backend);
+
+  TEST_ASSERT_FALSE(saved);
+  TEST_ASSERT_TRUE(backend.values.empty());
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -159,5 +207,7 @@ int main(int argc, char** argv) {
   RUN_TEST(test_load_normalizes_invalid_update_channel_to_stable);
   RUN_TEST(test_save_persists_network_clock_and_update_settings);
   RUN_TEST(test_save_normalizes_invalid_update_channel_to_stable);
+  RUN_TEST(test_settings_access_load_skips_unready_backend);
+  RUN_TEST(test_settings_access_save_skips_unready_backend);
   return UNITY_END();
 }

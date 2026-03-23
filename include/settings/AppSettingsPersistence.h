@@ -10,6 +10,7 @@ class ISettingsBackend {
  public:
   virtual ~ISettingsBackend() = default;
 
+  virtual bool isReady() const = 0;
   virtual bool getString(const char* key, std::string& value) const = 0;
   virtual bool getBool(const char* key, bool& value) const = 0;
   virtual void putString(const char* key, const std::string& value) = 0;
