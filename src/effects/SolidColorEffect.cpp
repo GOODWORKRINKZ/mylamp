@@ -2,10 +2,11 @@
 
 namespace lamp::effects {
 
-SolidColorEffect::SolidColorEffect(Rgb color) : color_(color) {}
+SolidColorEffect::SolidColorEffect(Rgb color, const char* effectName)
+    : color_(color), name_(effectName) {}
 
 const char* SolidColorEffect::name() const {
-  return "solid-color";
+  return name_;
 }
 
 void SolidColorEffect::render(EffectContext& context) {

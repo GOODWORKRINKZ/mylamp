@@ -4,15 +4,21 @@
 #include "BuildInfo.h"
 #include "FrameBuffer.h"
 #include "MatrixLayout.h"
+#include "effects/AlternatingColumnsEffect.h"
 #include "effects/EffectContext.h"
+#include "effects/EffectRegistry.h"
 #include "effects/SolidColorEffect.h"
 
 namespace {
 
 lamp::MatrixLayout g_layout;
 lamp::FrameBuffer g_frameBuffer(g_layout);
-lamp::effects::SolidColorEffect g_bootEffect(lamp::Rgb{0, 0, 24});
+lamp::effects::SolidColorEffect g_bootEffect(lamp::Rgb{0, 0, 24}, "boot-solid");
+lamp::effects::AlternatingColumnsEffect g_patternEffect(
+  lamp::Rgb{10, 0, 0}, lamp::Rgb{0, 10, 0}, "debug-columns");
+lamp::effects::EffectRegistry g_effectRegistry;
 unsigned long g_lastHeartbeatMs = 0;
+bool g_usePatternEffect = false;
 
 void printBootBanner() {
   Serial.println();
@@ -38,6 +44,10 @@ void printBootBanner() {
   Serial.print(bootPixel.g);
   Serial.print(" b=");
   Serial.println(bootPixel.b);
+  if (const lamp::effects::IEffect* effect = g_effectRegistry.active()) {
+    Serial.print("active effect: ");
+    Serial.println(effect->name());
+  }
 }
 
 }  // namespace
@@ -45,8 +55,10 @@ void printBootBanner() {
 void setup() {
   Serial.begin(115200);
   delay(200);
+  g_effectRegistry.add(g_bootEffect);
+  g_effectRegistry.add(g_patternEffect);
   lamp::effects::EffectContext context{0, g_frameBuffer};
-  g_bootEffect.render(context);
+  g_effectRegistry.renderActive(context);
   printBootBanner();
 }
 
@@ -54,9 +66,15 @@ void loop() {
   const unsigned long now = millis();
   if (now - g_lastHeartbeatMs >= 5000UL) {
     g_lastHeartbeatMs = now;
+    g_usePatternEffect = !g_usePatternEffect;
+    g_effectRegistry.setActiveByName(g_usePatternEffect ? "debug-columns" : "boot-solid");
     lamp::effects::EffectContext context{now, g_frameBuffer};
-    g_bootEffect.render(context);
+    g_effectRegistry.renderActive(context);
     Serial.print("heartbeat uptime_ms=");
     Serial.println(now);
+    if (const lamp::effects::IEffect* effect = g_effectRegistry.active()) {
+      Serial.print("switched effect: ");
+      Serial.println(effect->name());
+    }
   }
 }

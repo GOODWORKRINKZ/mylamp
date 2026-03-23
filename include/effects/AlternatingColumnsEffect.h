@@ -5,16 +5,17 @@
 
 namespace lamp::effects {
 
-class SolidColorEffect : public IEffect {
+class AlternatingColumnsEffect : public IEffect {
  public:
-  explicit SolidColorEffect(Rgb color, const char* effectName = "solid-color");
+  AlternatingColumnsEffect(Rgb evenColor, Rgb oddColor,
+                           const char* effectName = "alternating-columns");
 
   const char* name() const override;
   void render(EffectContext& context) override;
-  void setColor(Rgb color);
 
  private:
-  Rgb color_;
+  Rgb evenColor_;
+  Rgb oddColor_;
   const char* name_;
 };
 
