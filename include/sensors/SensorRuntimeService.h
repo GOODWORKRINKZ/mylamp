@@ -10,6 +10,7 @@ struct RuntimeSensorState {
   bool available = false;
   float temperatureC = 0.0f;
   float humidityPercent = 0.0f;
+  uint8_t consecutiveMisses = 0;
   std::string statusLine;
 };
 

@@ -14,6 +14,7 @@ static constexpr uint16_t kPixelCount = kLogicalWidth * kLogicalHeight;
 static constexpr uint8_t kLedDataPin = 2;
 static constexpr uint8_t kI2cSdaPin = 8;
 static constexpr uint8_t kI2cSclPin = 9;
+static constexpr uint16_t kI2cTimeoutMs = 100;
 
 static constexpr uint8_t kDefaultBrightness = 32;
 static constexpr uint8_t kMaxBrightness = 96;
@@ -28,5 +29,6 @@ static constexpr uint32_t kWiFiConnectTimeoutMs = 10000;
 static constexpr uint16_t kWiFiPollIntervalMs = 250;
 static constexpr uint32_t kTimeRefreshIntervalMs = 30000;
 static constexpr uint32_t kSensorRefreshIntervalMs = 5000;
+static constexpr uint8_t kSensorStaleReadLimit = 12;
 
 }  // namespace lamp::config
