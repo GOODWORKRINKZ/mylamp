@@ -9,9 +9,11 @@
 #include "effects/EffectContext.h"
 #include "effects/EffectRegistry.h"
 #include "effects/SolidColorEffect.h"
+#include "live/runtime/LiveProgramService.h"
 #include "network/ArduinoWiFiAdapter.h"
 #include "network/NetworkPlanner.h"
 #include "network/WiFiManager.h"
+#include "live/runtime/RuntimeContext.h"
 #include "sensors/ArduinoAht30SensorSource.h"
 #include "sensors/ISensorSource.h"
 #include "sensors/SensorRuntimeService.h"
@@ -51,15 +53,35 @@ lamp::time::RuntimeTimeState g_runtimeTimeState;
 lamp::sensors::ArduinoAht30SensorSource g_sensorSource;
 lamp::sensors::SensorRuntimeService g_sensorRuntimeService;
 lamp::sensors::RuntimeSensorState g_sensorState;
+lamp::live::runtime::LiveProgramService g_liveProgramService;
 lamp::web::LampWebServer g_webServer;
 unsigned long g_lastHeartbeatMs = 0;
 unsigned long g_lastTimeRefreshMs = 0;
 unsigned long g_lastSensorRefreshMs = 0;
+unsigned long g_lastRenderMs = 0;
 bool g_usePatternEffect = false;
 bool g_networkReconfigureRequested = false;
 bool g_fileSystemReady = false;
 
 lamp::web::StatusSnapshot buildStatusSnapshot();
+
+void renderFrame(unsigned long nowMs) {
+  const unsigned long deltaMs = g_lastRenderMs == 0 ? 0 : nowMs - g_lastRenderMs;
+  g_lastRenderMs = nowMs;
+
+  lamp::live::runtime::RuntimeContext runtimeContext;
+  runtimeContext.nowMs = static_cast<uint32_t>(nowMs);
+  runtimeContext.deltaMs = static_cast<uint32_t>(deltaMs);
+  runtimeContext.temperatureC = g_sensorState.temperatureC;
+  runtimeContext.humidityPercent = g_sensorState.humidityPercent;
+
+  if (g_liveProgramService.render(runtimeContext, g_frameBuffer)) {
+    return;
+  }
+
+  lamp::effects::EffectContext effectContext{static_cast<uint32_t>(nowMs), g_frameBuffer};
+  g_effectRegistry.renderActive(effectContext);
+}
 
 void initializeFileSystem() {
   g_fileSystemReady = LittleFS.begin(true);
@@ -183,8 +205,7 @@ void setup() {
   refreshSensorState();
   g_webServer.setStatusSnapshot(buildStatusSnapshot());
   g_webServer.begin();
-  lamp::effects::EffectContext context{0, g_frameBuffer};
-  g_effectRegistry.renderActive(context);
+  renderFrame(0);
   printBootBanner();
 }
 
@@ -212,8 +233,7 @@ void loop() {
     g_usePatternEffect = !g_usePatternEffect;
     g_effectRegistry.setActiveByName(g_usePatternEffect ? "debug-columns" : "boot-solid");
     g_webServer.setStatusSnapshot(buildStatusSnapshot());
-    lamp::effects::EffectContext context{now, g_frameBuffer};
-    g_effectRegistry.renderActive(context);
+    renderFrame(now);
     Serial.print("heartbeat uptime_ms=");
     Serial.println(now);
     if (const lamp::effects::IEffect* effect = g_effectRegistry.active()) {
@@ -227,4 +247,5 @@ void loop() {
     Serial.print("sensor state: ");
     Serial.println(g_sensorState.statusLine.c_str());
   }
+  renderFrame(now);
 }
