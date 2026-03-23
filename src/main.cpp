@@ -4,6 +4,8 @@
 #include "BuildInfo.h"
 #include "FrameBuffer.h"
 #include "MatrixLayout.h"
+#include "network/NetworkPlanner.h"
+#include "settings/AppSettings.h"
 #include "effects/AlternatingColumnsEffect.h"
 #include "effects/EffectContext.h"
 #include "effects/EffectRegistry.h"
@@ -17,6 +19,9 @@ lamp::effects::SolidColorEffect g_bootEffect(lamp::Rgb{0, 0, 24}, "boot-solid");
 lamp::effects::AlternatingColumnsEffect g_patternEffect(
   lamp::Rgb{10, 0, 0}, lamp::Rgb{0, 10, 0}, "debug-columns");
 lamp::effects::EffectRegistry g_effectRegistry;
+lamp::settings::AppSettings g_settings;
+lamp::network::NetworkPlanner g_networkPlanner;
+lamp::network::PlannedNetworkState g_networkState;
 unsigned long g_lastHeartbeatMs = 0;
 bool g_usePatternEffect = false;
 
@@ -48,6 +53,12 @@ void printBootBanner() {
     Serial.print("active effect: ");
     Serial.println(effect->name());
   }
+  Serial.print("network mode: ");
+  Serial.println(g_networkState.activeMode == lamp::network::NetworkMode::kClient ? "client" : "ap");
+  Serial.print("network status: ");
+  Serial.println(g_networkState.statusLine.c_str());
+  Serial.print("time sync: ");
+  Serial.println(g_networkState.timeSyncAllowed ? "enabled" : "disabled");
 }
 
 }  // namespace
@@ -55,6 +66,8 @@ void printBootBanner() {
 void setup() {
   Serial.begin(115200);
   delay(200);
+  g_settings.network.preferredMode = lamp::network::NetworkMode::kAccessPoint;
+  g_networkState = g_networkPlanner.planStartup(g_settings.network, false, false, "");
   g_effectRegistry.add(g_bootEffect);
   g_effectRegistry.add(g_patternEffect);
   lamp::effects::EffectContext context{0, g_frameBuffer};
@@ -76,5 +89,7 @@ void loop() {
       Serial.print("switched effect: ");
       Serial.println(effect->name());
     }
+    Serial.print("network status: ");
+    Serial.println(g_networkState.statusLine.c_str());
   }
 }
