@@ -19,6 +19,10 @@ static constexpr uint8_t kDefaultBrightness = 32;
 static constexpr uint8_t kMaxBrightness = 96;
 
 static constexpr char kAccessPointPrefix[] = "MYLAMP";
+static constexpr char kAccessPointPassword[] = "12345678";
 static constexpr char kTimeZone[] = "UTC0";
+
+static constexpr uint32_t kWiFiConnectTimeoutMs = 10000;
+static constexpr uint16_t kWiFiPollIntervalMs = 250;
 
 }  // namespace lamp::config

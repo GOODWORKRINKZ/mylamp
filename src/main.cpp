@@ -4,7 +4,7 @@
 #include "BuildInfo.h"
 #include "FrameBuffer.h"
 #include "MatrixLayout.h"
-#include "network/IWiFiAdapter.h"
+#include "network/ArduinoWiFiAdapter.h"
 #include "network/NetworkPlanner.h"
 #include "network/WiFiManager.h"
 #include "settings/AppSettings.h"
@@ -16,32 +16,6 @@
 
 namespace {
 
-class BootstrapWiFiAdapter : public lamp::network::IWiFiAdapter {
- public:
-  bool startAccessPoint(const std::string& ssid) override {
-    lastApSsid_ = ssid;
-    ipAddress_.clear();
-    return true;
-  }
-
-  bool connectStation(const std::string& ssid, const std::string& password) override {
-    lastStationSsid_ = ssid;
-    lastStationPassword_ = password;
-    ipAddress_.clear();
-    return false;
-  }
-
-  std::string localIp() const override {
-    return ipAddress_;
-  }
-
- private:
-  std::string lastApSsid_;
-  std::string lastStationSsid_;
-  std::string lastStationPassword_;
-  std::string ipAddress_;
-};
-
 lamp::MatrixLayout g_layout;
 lamp::FrameBuffer g_frameBuffer(g_layout);
 lamp::effects::SolidColorEffect g_bootEffect(lamp::Rgb{0, 0, 24}, "boot-solid");
@@ -49,7 +23,7 @@ lamp::effects::AlternatingColumnsEffect g_patternEffect(
   lamp::Rgb{10, 0, 0}, lamp::Rgb{0, 10, 0}, "debug-columns");
 lamp::effects::EffectRegistry g_effectRegistry;
 lamp::settings::AppSettings g_settings;
-BootstrapWiFiAdapter g_wifiAdapter;
+lamp::network::ArduinoWiFiAdapter g_wifiAdapter;
 lamp::network::WiFiManager g_wifiManager;
 lamp::network::NetworkPlanner g_networkPlanner;
 lamp::network::PlannedNetworkState g_networkState;
@@ -102,6 +76,7 @@ void setup() {
   Serial.begin(115200);
   delay(200);
   g_settings.network.preferredMode = lamp::network::NetworkMode::kAccessPoint;
+  g_settings.network.accessPointName = lamp::config::kAccessPointPrefix;
   const lamp::network::WiFiStartupResult wifiResult =
       g_wifiManager.startup(g_settings.network, g_wifiAdapter);
   const bool internetAvailable = wifiResult.activeMode == lamp::network::NetworkMode::kClient;
