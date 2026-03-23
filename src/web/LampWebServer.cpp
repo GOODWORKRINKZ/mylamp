@@ -32,7 +32,16 @@ std::string trimPresetPath(const std::string& uri) {
   return uri.substr(std::char_traits<char>::length(kPrefix));
 }
 
+std::string trimPlaylistPath(const std::string& uri) {
+  static constexpr const char* kPrefix = "/api/playlists/";
+  return uri.substr(std::char_traits<char>::length(kPrefix));
+}
+
 void sendPresetApiResponse(WebServer& server, const PresetApiResponse& response) {
+  server.send(response.statusCode, "application/json", response.body.c_str());
+}
+
+void sendPlaylistApiResponse(WebServer& server, const PlaylistApiResponse& response) {
   server.send(response.statusCode, "application/json", response.body.c_str());
 }
 
@@ -64,6 +73,16 @@ void LampWebServer::setPresetServices(live::PresetRepository* repository,
   liveProgramService_ = runtimeService;
 }
 
+void LampWebServer::setPlaylistServices(live::PlaylistRepository* playlistRepository,
+                                        live::PresetRepository* presetRepository,
+                                        live::runtime::PlaylistScheduler* scheduler,
+                                        live::runtime::LiveProgramService* runtimeService) {
+  playlistRepository_ = playlistRepository;
+  presetRepository_ = presetRepository;
+  playlistScheduler_ = scheduler;
+  liveProgramService_ = runtimeService;
+}
+
 void LampWebServer::registerRoutes() {
   server_.on("/", [this]() { handleRoot(); });
   server_.on("/script.js", [this]() { handleScript(); });
@@ -74,6 +93,7 @@ void LampWebServer::registerRoutes() {
   server_.on("/api/live/validate", HTTP_POST, [this]() { handleLiveValidate(); });
   server_.on("/api/live/run", HTTP_POST, [this]() { handleLiveRun(); });
   server_.on("/api/presets", HTTP_GET, [this]() { handleListPresets(); });
+  server_.on("/api/playlists/stop", HTTP_POST, [this]() { handlePlaylistByPath(); });
   server_.onNotFound([this]() { handleNotFound(); });
 }
 
@@ -81,6 +101,10 @@ void LampWebServer::handleNotFound() {
   const std::string uri = server_.uri().c_str();
   if (startsWith(uri, "/api/presets/")) {
     handlePresetByPath();
+    return;
+  }
+  if (startsWith(uri, "/api/playlists/")) {
+    handlePlaylistByPath();
     return;
   }
 
@@ -209,6 +233,47 @@ void LampWebServer::handlePresetByPath() {
     }
     if (server_.method() == HTTP_DELETE) {
       sendPresetApiResponse(server_, handleDeletePresetRequest(*presetRepository_, suffix));
+      return;
+    }
+  }
+
+  server_.send(404, "application/json", "{\"error\":\"not found\"}");
+}
+
+void LampWebServer::handlePlaylistByPath() {
+  if (playlistRepository_ == nullptr || presetRepository_ == nullptr || playlistScheduler_ == nullptr ||
+      liveProgramService_ == nullptr) {
+    server_.send(500, "application/json", "{\"error\":\"playlist services unavailable\"}");
+    return;
+  }
+
+  const std::string uri = server_.uri().c_str();
+  if (uri == "/api/playlists/stop" && server_.method() == HTTP_POST) {
+    sendPlaylistApiResponse(server_, handleStopPlaylistRequest(*playlistScheduler_, *liveProgramService_));
+    return;
+  }
+
+  const std::string suffix = trimPlaylistPath(uri);
+  const std::string startSuffix = "/start";
+  if (suffix.size() > startSuffix.size() &&
+      suffix.compare(suffix.size() - startSuffix.size(), startSuffix.size(), startSuffix) == 0) {
+    const std::string playlistId = suffix.substr(0, suffix.size() - startSuffix.size());
+    if (server_.method() == HTTP_POST) {
+      std::vector<lamp::live::Diagnostic> diagnostics;
+      sendPlaylistApiResponse(server_, handleStartPlaylistRequest(
+                                           *playlistRepository_, *presetRepository_, *playlistScheduler_,
+                                           *liveProgramService_, playlistId, diagnostics));
+      return;
+    }
+  } else {
+    if (server_.method() == HTTP_PUT) {
+      sendPlaylistApiResponse(server_,
+                              handlePutPlaylistRequest(*playlistRepository_, suffix,
+                                                       server_.arg("plain").c_str()));
+      return;
+    }
+    if (server_.method() == HTTP_DELETE) {
+      sendPlaylistApiResponse(server_, handleDeletePlaylistRequest(*playlistRepository_, suffix));
       return;
     }
   }

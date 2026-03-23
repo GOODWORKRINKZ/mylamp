@@ -9,7 +9,9 @@
 #include "effects/EffectContext.h"
 #include "effects/EffectRegistry.h"
 #include "effects/SolidColorEffect.h"
+#include "live/PlaylistRepository.h"
 #include "live/runtime/LiveProgramService.h"
+#include "live/runtime/PlaylistScheduler.h"
 #include "network/ArduinoWiFiAdapter.h"
 #include "network/NetworkPlanner.h"
 #include "network/WiFiManager.h"
@@ -43,6 +45,7 @@ lamp::settings::AppSettingsPersistence g_settingsPersistence;
 lamp::settings::PreferencesSettingsBackend g_settingsBackend;
 lamp::storage::LittleFsFileStore g_fileStore(LittleFS);
 lamp::live::PresetRepository g_presetRepository(g_fileStore);
+lamp::live::PlaylistRepository g_playlistRepository(g_fileStore);
 lamp::network::ArduinoWiFiAdapter g_wifiAdapter;
 lamp::network::WiFiManager g_wifiManager;
 lamp::network::NetworkPlanner g_networkPlanner;
@@ -56,10 +59,12 @@ lamp::sensors::ArduinoAht30SensorSource g_sensorSource;
 lamp::sensors::SensorRuntimeService g_sensorRuntimeService;
 lamp::sensors::RuntimeSensorState g_sensorState;
 lamp::live::runtime::LiveProgramService g_liveProgramService;
+lamp::live::runtime::PlaylistScheduler g_playlistScheduler;
 lamp::web::LampWebServer g_webServer;
 unsigned long g_lastHeartbeatMs = 0;
 unsigned long g_lastTimeRefreshMs = 0;
 unsigned long g_lastSensorRefreshMs = 0;
+unsigned long g_lastPlaylistTickMs = 0;
 unsigned long g_lastRenderMs = 0;
 bool g_usePatternEffect = false;
 bool g_networkReconfigureRequested = false;
@@ -200,6 +205,8 @@ void setup() {
   g_settings = g_settingsPersistence.load(g_settingsBackend);
   g_webServer.setSettingsCallbacks(getCurrentSettings, saveAndApplySettings);
   g_webServer.setPresetServices(&g_presetRepository, &g_liveProgramService);
+  g_webServer.setPlaylistServices(&g_playlistRepository, &g_presetRepository, &g_playlistScheduler,
+                                  &g_liveProgramService);
   const lamp::network::WiFiStartupResult wifiResult =
       g_wifiManager.startup(g_settings.network, g_wifiAdapter);
   refreshRuntimeState(wifiResult);
@@ -221,6 +228,12 @@ void loop() {
     refreshRuntimeState(wifiResult);
   }
   const unsigned long now = millis();
+  const unsigned long playlistDeltaMs = g_lastPlaylistTickMs == 0 ? 0 : now - g_lastPlaylistTickMs;
+  g_lastPlaylistTickMs = now;
+  g_playlistScheduler.syncWithRuntime(g_liveProgramService);
+  std::vector<lamp::live::Diagnostic> playlistDiagnostics;
+  g_playlistScheduler.advance(static_cast<uint32_t>(playlistDeltaMs), g_presetRepository,
+                              g_liveProgramService, playlistDiagnostics);
   if (now - g_lastTimeRefreshMs >= lamp::config::kTimeRefreshIntervalMs) {
     g_lastTimeRefreshMs = now;
     g_runtimeTimeState = g_timeRuntimeService.refresh(g_timeState, g_timeSource);

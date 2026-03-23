@@ -6,11 +6,14 @@
 
 #include "live/Diagnostic.h"
 #include "live/LiveRequestJson.h"
+#include "live/PlaylistRepository.h"
 #include "live/PresetRepository.h"
 #include "live/runtime/LiveProgramService.h"
+#include "live/runtime/PlaylistScheduler.h"
 #include "settings/AppSettings.h"
 #include "web/EmbeddedAsset.h"
 #include "web/NetworkSettingsJson.h"
+#include "web/PlaylistApi.h"
 #include "web/PresetApi.h"
 #include "web/StatusJsonBuilder.h"
 
@@ -29,6 +32,10 @@ class LampWebServer {
   void setSettingsCallbacks(SettingsGetter getter, SettingsSaver saver);
   void setPresetServices(live::PresetRepository* repository,
                          live::runtime::LiveProgramService* runtimeService);
+  void setPlaylistServices(live::PlaylistRepository* playlistRepository,
+                           live::PresetRepository* presetRepository,
+                           live::runtime::PlaylistScheduler* scheduler,
+                           live::runtime::LiveProgramService* runtimeService);
 
  private:
   void registerRoutes();
@@ -43,6 +50,7 @@ class LampWebServer {
   void handleLiveRun();
   void handleListPresets();
   void handlePresetByPath();
+  void handlePlaylistByPath();
   void sendEmbeddedAsset(const EmbeddedAsset& asset);
 
   WebServer server_;
@@ -50,6 +58,8 @@ class LampWebServer {
   SettingsGetter getSettings_;
   SettingsSaver saveSettings_;
   live::PresetRepository* presetRepository_ = nullptr;
+  live::PlaylistRepository* playlistRepository_ = nullptr;
+  live::runtime::PlaylistScheduler* playlistScheduler_ = nullptr;
   live::runtime::LiveProgramService* liveProgramService_ = nullptr;
 };
 
