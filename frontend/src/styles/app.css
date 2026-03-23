@@ -256,9 +256,12 @@ button:disabled, .field-stack input:disabled, .field-stack select:disabled {
 .diagnostics-bar__text {
   color: var(--muted);
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: auto;
+  white-space: pre-line;
+  max-height: 6rem;
+  font-family: monospace;
+  font-size: 0.78rem;
+  line-height: 1.45;
 }
 .diagnostics-bar__badge {
   flex-shrink: 0;

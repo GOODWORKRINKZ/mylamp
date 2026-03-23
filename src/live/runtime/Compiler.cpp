@@ -10,9 +10,9 @@ namespace lamp::live::runtime {
 
 namespace {
 
-lamp::live::Diagnostic makeDiagnostic(const std::string& message) {
+lamp::live::Diagnostic makeDiagnostic(uint32_t line, const std::string& message) {
   lamp::live::Diagnostic diagnostic;
-  diagnostic.line = 0;
+  diagnostic.line = line;
   diagnostic.column = 0;
   diagnostic.message = message;
   return diagnostic;
@@ -23,16 +23,17 @@ class ExpressionCompiler {
   explicit ExpressionCompiler(std::vector<ExpressionNode>& nodes) : nodes_(nodes) {}
 
   bool compile(const std::string& expression, int16_t& rootIndex,
-               std::vector<lamp::live::Diagnostic>& diagnostics) {
+               std::vector<lamp::live::Diagnostic>& diagnostics, uint32_t sourceLine = 0) {
     input_ = expression;
     position_ = 0;
+    sourceLine_ = sourceLine;
     skipWhitespace();
     if (!parseExpression(rootIndex, diagnostics)) {
       return false;
     }
     skipWhitespace();
     if (position_ != input_.size()) {
-      diagnostics.push_back(makeDiagnostic("Не удалось разобрать выражение: " + expression));
+      diagnostics.push_back(makeDiagnostic(sourceLine_, "Не удалось разобрать выражение: " + expression));
       return false;
     }
     return true;
@@ -71,7 +72,7 @@ class ExpressionCompiler {
 
     while (true) {
       skipWhitespace();
-      if (!match('*') && !match('/')) {
+      if (!match('*') && !match('/') && !match('%')) {
         return true;
       }
 
@@ -82,7 +83,13 @@ class ExpressionCompiler {
       }
 
       ExpressionNode node;
-      node.op = op == '*' ? ExpressionOp::kMultiply : ExpressionOp::kDivide;
+      if (op == '*') {
+        node.op = ExpressionOp::kMultiply;
+      } else if (op == '/') {
+        node.op = ExpressionOp::kDivide;
+      } else {
+        node.op = ExpressionOp::kModulo;
+      }
       node.children[0] = index;
       node.children[1] = rhs;
       index = appendNode(node);
@@ -115,7 +122,7 @@ class ExpressionCompiler {
       }
       skipWhitespace();
       if (!match(')')) {
-        diagnostics.push_back(makeDiagnostic("Ожидалась закрывающая скобка"));
+        diagnostics.push_back(makeDiagnostic(sourceLine_, "Ожидалась закрывающая скобка"));
         return false;
       }
       return true;
@@ -152,7 +159,7 @@ class ExpressionCompiler {
     }
 
     if (start == position_) {
-      diagnostics.push_back(makeDiagnostic("Ожидалось выражение"));
+      diagnostics.push_back(makeDiagnostic(sourceLine_, "Ожидалось выражение"));
       return false;
     }
 
@@ -173,7 +180,7 @@ class ExpressionCompiler {
             break;
           }
           if (!match(',')) {
-            diagnostics.push_back(makeDiagnostic("Ожидалась запятая в списке аргументов"));
+            diagnostics.push_back(makeDiagnostic(sourceLine_, "Ожидалась запятая в списке аргументов"));
             return false;
           }
         }
@@ -196,7 +203,7 @@ class ExpressionCompiler {
     } else if (name == "ny") {
       node.op = ExpressionOp::kCoordNy;
     } else {
-      diagnostics.push_back(makeDiagnostic("Неизвестный идентификатор: " + name));
+      diagnostics.push_back(makeDiagnostic(sourceLine_, "Неизвестный идентификатор: " + name));
       return false;
     }
 
@@ -209,13 +216,13 @@ class ExpressionCompiler {
     ExpressionNode node;
     if (name == "temp") {
       if (!arguments.empty()) {
-        diagnostics.push_back(makeDiagnostic("temp() не принимает аргументы"));
+        diagnostics.push_back(makeDiagnostic(sourceLine_, "temp() не принимает аргументы"));
         return false;
       }
       node.op = ExpressionOp::kTemperature;
     } else if (name == "humidity") {
       if (!arguments.empty()) {
-        diagnostics.push_back(makeDiagnostic("humidity() не принимает аргументы"));
+        diagnostics.push_back(makeDiagnostic(sourceLine_, "humidity() не принимает аргументы"));
         return false;
       }
       node.op = ExpressionOp::kHumidity;
@@ -252,7 +259,7 @@ class ExpressionCompiler {
       node.children[1] = arguments[1];
       node.children[2] = arguments[2];
     } else {
-      diagnostics.push_back(makeDiagnostic("Неизвестная функция: " + name));
+      diagnostics.push_back(makeDiagnostic(sourceLine_, "Неизвестная функция: " + name));
       return false;
     }
 
@@ -283,6 +290,7 @@ class ExpressionCompiler {
   std::vector<ExpressionNode>& nodes_;
   std::string input_;
   size_t position_ = 0;
+  uint32_t sourceLine_ = 0;
 };
 
 std::string trim(const std::string& text) {
@@ -319,10 +327,11 @@ bool splitArguments(const std::string& text, std::vector<std::string>& arguments
 }
 
 bool compileColor(const std::string& expression, std::vector<ExpressionNode>& nodes,
-                  CompiledColor& color, std::vector<lamp::live::Diagnostic>& diagnostics) {
+                  CompiledColor& color, std::vector<lamp::live::Diagnostic>& diagnostics,
+                  uint32_t sourceLine = 0) {
   const std::string trimmed = trim(expression);
   if ((trimmed.rfind("rgb(", 0) != 0 && trimmed.rfind("hsv(", 0) != 0) || trimmed.back() != ')') {
-    diagnostics.push_back(makeDiagnostic("Поддерживаются только rgb(...) и hsv(...)"));
+    diagnostics.push_back(makeDiagnostic(sourceLine, "Поддерживаются только rgb(...) и hsv(...)"));
     return false;
   }
 
@@ -330,13 +339,13 @@ bool compileColor(const std::string& expression, std::vector<ExpressionNode>& no
   const std::string argsText = trimmed.substr(4, trimmed.size() - 5U);
   std::vector<std::string> arguments;
   if (!splitArguments(argsText, arguments) || arguments.size() != 3U) {
-    diagnostics.push_back(makeDiagnostic("Ожидалось три аргумента цвета"));
+    diagnostics.push_back(makeDiagnostic(sourceLine, "Ожидалось три аргумента цвета"));
     return false;
   }
 
   ExpressionCompiler compiler(nodes);
   for (size_t index = 0; index < 3U; ++index) {
-    if (!compiler.compile(arguments[index], color.channels[index], diagnostics)) {
+    if (!compiler.compile(arguments[index], color.channels[index], diagnostics, sourceLine)) {
       return false;
     }
   }
@@ -394,22 +403,23 @@ bool Compiler::compile(const dsl::Program& program, CompiledProgram& compiledPro
       }
     }
     if (spriteIndex == compiled.sprites.size()) {
-      diagnostics.push_back(makeDiagnostic("Не найден sprite: " + layer.spriteName));
+      diagnostics.push_back(makeDiagnostic(0, "Не найден sprite: " + layer.spriteName));
       return false;
     }
     compiledLayer.spriteIndex = static_cast<uint16_t>(spriteIndex);
 
-    if (!compileColor(layer.colorExpression, compiled.expressions, compiledLayer.color, diagnostics)) {
+    if (!compileColor(layer.colorExpression, compiled.expressions, compiledLayer.color, diagnostics,
+                      layer.colorLine)) {
       return false;
     }
     if (!expressionCompiler.compile(layer.xExpression.empty() ? "0" : layer.xExpression,
-                                    compiledLayer.xExpression, diagnostics) ||
+                                    compiledLayer.xExpression, diagnostics, layer.xLine) ||
         !expressionCompiler.compile(layer.yExpression.empty() ? "0" : layer.yExpression,
-                                    compiledLayer.yExpression, diagnostics) ||
+                                    compiledLayer.yExpression, diagnostics, layer.yLine) ||
         !expressionCompiler.compile(layer.scaleExpression.empty() ? "1" : layer.scaleExpression,
-                                    compiledLayer.scaleExpression, diagnostics) ||
+                                    compiledLayer.scaleExpression, diagnostics, layer.scaleLine) ||
         !expressionCompiler.compile(layer.visibleExpression.empty() ? "1" : layer.visibleExpression,
-                                    compiledLayer.visibleExpression, diagnostics)) {
+                                    compiledLayer.visibleExpression, diagnostics, layer.visibleLine)) {
       return false;
     }
 

@@ -21,6 +21,7 @@ enum class ExpressionOp {
   kSubtract,
   kMultiply,
   kDivide,
+  kModulo,
   kNegate,
   kSin,
   kCos,

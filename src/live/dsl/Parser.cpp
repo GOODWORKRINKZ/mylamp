@@ -112,6 +112,7 @@ bool parseLayer(ParserState& state, Program& program,
           return false;
         }
         layer.colorExpression = valueToken.text;
+        layer.colorLine = valueToken.line;
         break;
       }
       case TokenType::kKeywordX:
@@ -130,12 +131,16 @@ bool parseLayer(ParserState& state, Program& program,
 
         if (propertyType == TokenType::kKeywordX) {
           layer.xExpression = valueToken.text;
+          layer.xLine = valueToken.line;
         } else if (propertyType == TokenType::kKeywordY) {
           layer.yExpression = valueToken.text;
+          layer.yLine = valueToken.line;
         } else if (propertyType == TokenType::kKeywordScale) {
           layer.scaleExpression = valueToken.text;
+          layer.scaleLine = valueToken.line;
         } else {
           layer.visibleExpression = valueToken.text;
+          layer.visibleLine = valueToken.line;
         }
         break;
       }

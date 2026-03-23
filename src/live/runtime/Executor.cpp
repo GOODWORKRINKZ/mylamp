@@ -68,6 +68,10 @@ float evaluateNode(const std::vector<ExpressionNode>& nodes, int16_t index,
       const float denominator = evaluateNode(nodes, node.children[1], context);
       return denominator == 0.0f ? 0.0f : evaluateNode(nodes, node.children[0], context) / denominator;
     }
+    case ExpressionOp::kModulo: {
+      const float denominator = evaluateNode(nodes, node.children[1], context);
+      return denominator == 0.0f ? 0.0f : std::fmod(evaluateNode(nodes, node.children[0], context), denominator);
+    }
     case ExpressionOp::kNegate:
       return -evaluateNode(nodes, node.children[0], context);
     case ExpressionOp::kSin:

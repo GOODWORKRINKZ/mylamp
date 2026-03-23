@@ -273,7 +273,7 @@ function formatDiagnostics(response: LiveDiagnosticResponse): string {
 
   return response.errors
     .map((error) => `Строка ${error.line}, столбец ${error.column}: ${error.message}`)
-    .join(" ");
+    .join("\n");
 }
 
 async function postLiveAction(endpoint: "/api/live/validate" | "/api/live/run"): Promise<void> {
@@ -299,9 +299,6 @@ async function postLiveAction(endpoint: "/api/live/validate" | "/api/live/run"):
     });
 
     const payload = (await response.json()) as LiveDiagnosticResponse;
-    if (!response.ok) {
-      throw new Error(formatDiagnostics(payload));
-    }
 
     setText("diagnostics-summary", formatDiagnostics(payload));
     setText(
@@ -310,7 +307,7 @@ async function postLiveAction(endpoint: "/api/live/validate" | "/api/live/run"):
         ? endpoint === "/api/live/validate"
           ? "Проверка прошла успешно"
           : "Код отправлен на лампу"
-        : "Найдены ошибки в DSL",
+        : `Найдено ошибок: ${payload.errors.length}`,
     );
     setText(
       "editor-status",
