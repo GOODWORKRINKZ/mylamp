@@ -13,6 +13,7 @@
 #include "settings/AppSettings.h"
 #include "update/FirmwareReleaseInfo.h"
 #include "web/EmbeddedAsset.h"
+#include "web/LiveApi.h"
 #include "web/NetworkSettingsJson.h"
 #include "web/PlaylistApi.h"
 #include "web/PresetApi.h"

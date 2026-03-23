@@ -327,31 +327,25 @@ void LampWebServer::handleInstallUpdate() {
 }
 
 void LampWebServer::handleLiveValidate() {
-  lamp::live::LiveRequest request;
-  if (!lamp::live::parseLiveRequestJson(server_.arg("plain").c_str(), request)) {
-    std::vector<lamp::live::Diagnostic> diagnostics;
-    diagnostics.push_back(makeDiagnostic(0U, 0U, "Некорректный JSON запроса"));
-    server_.send(400, "application/json",
-                 lamp::live::buildDiagnosticResponseJson(false, diagnostics).c_str());
+  if (liveProgramService_ == nullptr) {
+    server_.send(500, "application/json", "{\"error\":\"live runtime unavailable\"}");
     return;
   }
 
-  server_.send(200, "application/json",
-               buildNotImplementedLiveResponse("Проверка DSL пока не реализована").c_str());
+  const LiveApiResponse response =
+      handleLiveValidateRequest(*liveProgramService_, server_.arg("plain").c_str());
+  server_.send(response.statusCode, "application/json", response.body.c_str());
 }
 
 void LampWebServer::handleLiveRun() {
-  lamp::live::LiveRequest request;
-  if (!lamp::live::parseLiveRequestJson(server_.arg("plain").c_str(), request)) {
-    std::vector<lamp::live::Diagnostic> diagnostics;
-    diagnostics.push_back(makeDiagnostic(0U, 0U, "Некорректный JSON запроса"));
-    server_.send(400, "application/json",
-                 lamp::live::buildDiagnosticResponseJson(false, diagnostics).c_str());
+  if (liveProgramService_ == nullptr) {
+    server_.send(500, "application/json", "{\"error\":\"live runtime unavailable\"}");
     return;
   }
 
-  server_.send(200, "application/json",
-               buildNotImplementedLiveResponse("Запуск DSL пока не реализован").c_str());
+  const LiveApiResponse response =
+      handleLiveRunRequest(*liveProgramService_, server_.arg("plain").c_str());
+  server_.send(response.statusCode, "application/json", response.body.c_str());
 }
 
 void LampWebServer::handleListPresets() {
