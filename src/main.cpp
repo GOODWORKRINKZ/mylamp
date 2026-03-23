@@ -131,6 +131,7 @@ lamp::web::StatusSnapshot buildStatusSnapshot() {
   snapshot.version = lamp::BuildInfo::version;
   snapshot.channel = lamp::BuildInfo::channel;
   snapshot.board = lamp::BuildInfo::board;
+  snapshot.hardwareType = lamp::BuildInfo::hardwareType;
   snapshot.networkMode =
       g_networkState.activeMode == lamp::network::NetworkMode::kClient ? "client" : "ap";
   snapshot.networkStatus = g_networkState.statusLine;
@@ -176,6 +177,8 @@ void printBootBanner() {
   Serial.println(lamp::BuildInfo::version);
   Serial.print("channel: ");
   Serial.println(lamp::BuildInfo::channel);
+  Serial.print("hardware type: ");
+  Serial.println(lamp::BuildInfo::hardwareType);
   Serial.print("logical canvas: ");
   Serial.print(lamp::config::kLogicalWidth);
   Serial.print("x");

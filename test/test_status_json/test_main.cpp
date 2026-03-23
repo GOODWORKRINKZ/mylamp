@@ -11,6 +11,7 @@ void test_status_json_contains_build_and_runtime_fields() {
   snapshot.version = "0.1.0-dev";
   snapshot.channel = "dev";
   snapshot.board = "esp32-c3-supermini";
+  snapshot.hardwareType = "c3-cylinder32x16";
   snapshot.networkMode = "ap";
   snapshot.networkStatus = "AP: MYLAMP";
   snapshot.clockStatus = "Clock: unavailable";
@@ -30,6 +31,7 @@ void test_status_json_contains_build_and_runtime_fields() {
 
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"version\":\"0.1.0-dev\"")));
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"channel\":\"dev\"")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"hardwareType\":\"c3-cylinder32x16\"")));
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"networkMode\":\"ap\"")));
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"sensorStatus\":\"Sensor: unavailable\"")));
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"temperatureC\":null")));
@@ -47,6 +49,7 @@ void test_status_json_escapes_quotes_and_backslashes() {
   snapshot.version = "0.1.0-dev";
   snapshot.channel = "dev";
   snapshot.board = "esp32-c3\\mini";
+  snapshot.hardwareType = "c3-cylinder32x16";
   snapshot.networkMode = "client";
   snapshot.networkStatus = "IP: \"192.168.1.55\"";
   snapshot.clockStatus = "Clock: NTP";

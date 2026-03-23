@@ -83,6 +83,7 @@ def main():
         "VERSION": get_cpp_define("APP_VERSION", "0.0.0-local"),
         "CHANNEL": get_cpp_define("APP_CHANNEL", "local"),
         "BOARD": get_cpp_define("APP_BOARD", "unknown-board"),
+        "HARDWARE_TYPE": get_cpp_define("APP_HARDWARE_TYPE", "unknown-hardware"),
     }
 
     ensure_frontend_build(frontend_dir, dist_dir)

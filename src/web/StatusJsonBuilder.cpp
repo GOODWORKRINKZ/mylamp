@@ -92,6 +92,7 @@ std::string buildStatusJson(const StatusSnapshot& snapshot) {
   appendField(json, "version", snapshot.version, true);
   appendField(json, "channel", snapshot.channel, true);
   appendField(json, "board", snapshot.board, true);
+  appendField(json, "hardwareType", snapshot.hardwareType, true);
   appendField(json, "networkMode", snapshot.networkMode, true);
   appendField(json, "networkStatus", snapshot.networkStatus, true);
   appendField(json, "clockStatus", snapshot.clockStatus, true);
