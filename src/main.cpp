@@ -9,6 +9,8 @@
 #include "network/WiFiManager.h"
 #include "settings/AppSettings.h"
 #include "time/TimePlanner.h"
+#include "web/LampWebServer.h"
+#include "web/StatusJsonBuilder.h"
 #include "effects/AlternatingColumnsEffect.h"
 #include "effects/EffectContext.h"
 #include "effects/EffectRegistry.h"
@@ -29,8 +31,24 @@ lamp::network::NetworkPlanner g_networkPlanner;
 lamp::network::PlannedNetworkState g_networkState;
 lamp::time::TimePlanner g_timePlanner;
 lamp::time::PlannedTimeState g_timeState;
+lamp::web::LampWebServer g_webServer;
 unsigned long g_lastHeartbeatMs = 0;
 bool g_usePatternEffect = false;
+
+lamp::web::StatusSnapshot buildStatusSnapshot() {
+  lamp::web::StatusSnapshot snapshot;
+  snapshot.version = lamp::BuildInfo::version;
+  snapshot.channel = lamp::BuildInfo::channel;
+  snapshot.board = lamp::BuildInfo::board;
+  snapshot.networkMode =
+      g_networkState.activeMode == lamp::network::NetworkMode::kClient ? "client" : "ap";
+  snapshot.networkStatus = g_networkState.statusLine;
+  snapshot.clockStatus = g_timeState.statusLine;
+  if (const lamp::effects::IEffect* effect = g_effectRegistry.active()) {
+    snapshot.activeEffect = effect->name();
+  }
+  return snapshot;
+}
 
 void printBootBanner() {
   Serial.println();
@@ -86,17 +104,21 @@ void setup() {
   g_timeState = g_timePlanner.plan(g_settings.clock, g_networkState, false);
   g_effectRegistry.add(g_bootEffect);
   g_effectRegistry.add(g_patternEffect);
+  g_webServer.setStatusSnapshot(buildStatusSnapshot());
+  g_webServer.begin();
   lamp::effects::EffectContext context{0, g_frameBuffer};
   g_effectRegistry.renderActive(context);
   printBootBanner();
 }
 
 void loop() {
+  g_webServer.loop();
   const unsigned long now = millis();
   if (now - g_lastHeartbeatMs >= 5000UL) {
     g_lastHeartbeatMs = now;
     g_usePatternEffect = !g_usePatternEffect;
     g_effectRegistry.setActiveByName(g_usePatternEffect ? "debug-columns" : "boot-solid");
+    g_webServer.setStatusSnapshot(buildStatusSnapshot());
     lamp::effects::EffectContext context{now, g_frameBuffer};
     g_effectRegistry.renderActive(context);
     Serial.print("heartbeat uptime_ms=");
