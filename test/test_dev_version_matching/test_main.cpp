@@ -26,7 +26,8 @@ void test_parser_does_not_offer_same_dev_release_when_current_version_lacks_pref
 
   lamp::update::GitHubReleaseParser parser;
   const lamp::update::FirmwareReleaseInfo info =
-      parser.parse(payload, "develop-a1b2c3d-20260323-204500", "dev", "c3-cylinder32x16");
+      parser.parse(payload.c_str(), "develop-a1b2c3d-20260323-204500", "dev",
+             "c3-cylinder32x16");
 
   TEST_ASSERT_FALSE(info.available);
   TEST_ASSERT_EQUAL_STRING("", info.error.c_str());

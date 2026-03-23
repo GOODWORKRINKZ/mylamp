@@ -54,7 +54,6 @@ FirmwareReleaseInfo parseReleaseInfo(JsonObjectConst release, const std::string&
   FirmwareReleaseInfo info;
   info.channel = channel;
   info.version = readString(release["tag_name"]);
-  info.notes = readString(release["body"]);
   info.publishedAt = readString(release["published_at"]);
   return info;
 }
@@ -179,7 +178,7 @@ bool processCandidateRelease(JsonObjectConst release, const std::string& current
 
 }  // namespace
 
-FirmwareReleaseInfo GitHubReleaseParser::parse(const std::string& payload,
+FirmwareReleaseInfo GitHubReleaseParser::parse(const char* payload,
                                                const std::string& currentVersion,
                                                const std::string& channel,
                                                const std::string& hardwareType) const {
@@ -187,7 +186,7 @@ FirmwareReleaseInfo GitHubReleaseParser::parse(const std::string& payload,
   FirmwareReleaseInfo info;
   info.channel = channel;
 
-  if (deserializeJson(document, payload.c_str()) != DeserializationError::Ok) {
+  if (payload == nullptr || deserializeJson(document, payload) != DeserializationError::Ok) {
     info.error = "invalid-payload";
     return info;
   }

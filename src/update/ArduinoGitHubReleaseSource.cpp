@@ -10,9 +10,13 @@ extern const uint8_t rootca_crt_bundle_start[] asm("_binary_x509_crt_bundle_star
 
 namespace {
 
+constexpr int kDevReleasePageSize = 3;
+
 std::string buildReleaseUrl(const std::string& githubRepo, const std::string& channel) {
   const std::string baseUrl = "https://api.github.com/repos/" + githubRepo + "/releases";
-  return channel == "dev" ? baseUrl + "?per_page=10" : baseUrl + "/latest";
+  return channel == "dev"
+             ? baseUrl + "?per_page=" + std::to_string(kDevReleasePageSize)
+             : baseUrl + "/latest";
 }
 
 }  // namespace
