@@ -12,6 +12,10 @@ namespace {
 
 class MemoryFileStore : public lamp::storage::IFileStore {
  public:
+  bool isReady() const override {
+    return ready;
+  }
+
   bool writeText(const std::string& path, const std::string& content) override {
     for (Entry& entry : entries_) {
       if (entry.path == path) {
@@ -63,6 +67,8 @@ class MemoryFileStore : public lamp::storage::IFileStore {
   };
 
   std::vector<Entry> entries_;
+ public:
+  bool ready = true;
 };
 
 std::string makePresetBody(const char* name, const char* source) {
@@ -168,6 +174,25 @@ void test_preset_api_helpers_update_activate_and_delete_presets() {
   TEST_ASSERT_EQUAL_INT(404, missingResponse.statusCode);
 }
 
+void test_preset_api_reports_storage_unavailable_when_store_is_not_ready() {
+  MemoryFileStore fileStore;
+  fileStore.ready = false;
+  lamp::live::PresetRepository repository(fileStore);
+  lamp::live::runtime::LiveProgramService runtimeService;
+
+  const lamp::web::PresetApiResponse putResponse =
+      lamp::web::handlePutPresetRequest(repository, "warm_waves",
+                                        makePresetBody("Warm Waves", escapeJsonString(makeValidDslSource()).c_str()));
+  TEST_ASSERT_EQUAL_INT(503, putResponse.statusCode);
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(putResponse.body.find("storage unavailable")));
+
+  TEST_ASSERT_EQUAL_INT(503, lamp::web::handleGetPresetRequest(repository, "warm_waves").statusCode);
+  TEST_ASSERT_EQUAL_INT(503, lamp::web::handleListPresetsRequest(repository).statusCode);
+  TEST_ASSERT_EQUAL_INT(503, lamp::web::handleDeletePresetRequest(repository, "warm_waves").statusCode);
+  TEST_ASSERT_EQUAL_INT(503,
+                        lamp::web::handleActivatePresetRequest(repository, runtimeService, "warm_waves").statusCode);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -176,5 +201,6 @@ int main(int argc, char** argv) {
   UNITY_BEGIN();
   RUN_TEST(test_preset_api_helpers_save_get_and_list_presets);
   RUN_TEST(test_preset_api_helpers_update_activate_and_delete_presets);
+  RUN_TEST(test_preset_api_reports_storage_unavailable_when_store_is_not_ready);
   return UNITY_END();
 }

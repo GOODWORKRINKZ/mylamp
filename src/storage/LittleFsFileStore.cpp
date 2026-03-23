@@ -19,7 +19,19 @@ std::string parentDirectoryForPath(const std::string& path) {
 
 LittleFsFileStore::LittleFsFileStore(fs::FS& filesystem) : filesystem_(filesystem) {}
 
+void LittleFsFileStore::setReady(bool ready) {
+  ready_ = ready;
+}
+
+bool LittleFsFileStore::isReady() const {
+  return ready_;
+}
+
 bool LittleFsFileStore::writeText(const std::string& path, const std::string& content) {
+  if (!ready_) {
+    return false;
+  }
+
   if (!ensureParentDirectory(path)) {
     return false;
   }
@@ -35,6 +47,10 @@ bool LittleFsFileStore::writeText(const std::string& path, const std::string& co
 }
 
 bool LittleFsFileStore::readText(const std::string& path, std::string& content) const {
+  if (!ready_) {
+    return false;
+  }
+
   File file = filesystem_.open(path.c_str(), FILE_READ);
   if (!file || file.isDirectory()) {
     return false;
@@ -49,11 +65,19 @@ bool LittleFsFileStore::readText(const std::string& path, std::string& content) 
 }
 
 bool LittleFsFileStore::remove(const std::string& path) {
+  if (!ready_) {
+    return false;
+  }
+
   return filesystem_.remove(path.c_str());
 }
 
 std::vector<std::string> LittleFsFileStore::list(const std::string& prefix) const {
   std::vector<std::string> paths;
+  if (!ready_) {
+    return paths;
+  }
+
   File directory = filesystem_.open(prefix.c_str(), FILE_READ);
   if (!directory || !directory.isDirectory()) {
     return paths;
@@ -71,6 +95,10 @@ std::vector<std::string> LittleFsFileStore::list(const std::string& prefix) cons
 }
 
 bool LittleFsFileStore::ensureParentDirectory(const std::string& path) {
+  if (!ready_) {
+    return false;
+  }
+
   const std::string parentDirectory = parentDirectoryForPath(path);
   if (parentDirectory == "/") {
     return true;

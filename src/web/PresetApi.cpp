@@ -112,11 +112,19 @@ std::string buildPresetActivationJson(const lamp::live::runtime::LiveProgramStat
 }  // namespace
 
 PresetApiResponse handleListPresetsRequest(const lamp::live::PresetRepository& repository) {
+  if (!repository.isReady()) {
+    return makeErrorResponse(503, "storage unavailable");
+  }
+
   return makeJsonResponse(200, buildPresetListJson(repository.list()));
 }
 
 PresetApiResponse handleGetPresetRequest(const lamp::live::PresetRepository& repository,
                                          const std::string& presetId) {
+  if (!repository.isReady()) {
+    return makeErrorResponse(503, "storage unavailable");
+  }
+
   lamp::live::PresetModel preset;
   if (!repository.load(presetId, preset)) {
     return makeErrorResponse(404, "preset not found");
@@ -128,6 +136,10 @@ PresetApiResponse handleGetPresetRequest(const lamp::live::PresetRepository& rep
 PresetApiResponse handlePutPresetRequest(lamp::live::PresetRepository& repository,
                                          const std::string& presetId,
                                          const std::string& body) {
+  if (!repository.isReady()) {
+    return makeErrorResponse(503, "storage unavailable");
+  }
+
   lamp::live::PresetModel preset;
   if (!parsePresetUpsertBody(presetId, body, preset)) {
     return makeErrorResponse(400, "invalid preset payload");
@@ -141,6 +153,10 @@ PresetApiResponse handlePutPresetRequest(lamp::live::PresetRepository& repositor
 
 PresetApiResponse handleDeletePresetRequest(lamp::live::PresetRepository& repository,
                                             const std::string& presetId) {
+  if (!repository.isReady()) {
+    return makeErrorResponse(503, "storage unavailable");
+  }
+
   if (!repository.remove(presetId)) {
     return makeErrorResponse(404, "preset not found");
   }
@@ -151,6 +167,10 @@ PresetApiResponse handleDeletePresetRequest(lamp::live::PresetRepository& reposi
 PresetApiResponse handleActivatePresetRequest(
     const lamp::live::PresetRepository& repository,
     lamp::live::runtime::LiveProgramService& runtimeService, const std::string& presetId) {
+  if (!repository.isReady()) {
+    return makeErrorResponse(503, "storage unavailable");
+  }
+
   lamp::live::PresetModel preset;
   if (!repository.load(presetId, preset)) {
     return makeErrorResponse(404, "preset not found");

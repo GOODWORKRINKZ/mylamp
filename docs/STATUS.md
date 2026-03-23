@@ -17,7 +17,9 @@
 
 - локальный frontend на Vite + TypeScript;
 - editor-first UI для написания эффектов;
-- кнопки `Проверить`, `Запустить`, `Сохранить`, `Новый эффект`;
+- быстрые кнопки Wi-Fi, timezone и OTA в шапке;
+- правая tabbed-панель `Идеи` / `Лампа` / `Справка` рядом с редактором;
+- кнопки `Проверить`, `Запустить`, `Сохранить`, `Новый`;
 - mock backend для локальной разработки без железа;
 - сценарии `happy-path`, `autoplay`, `dsl-error`, `offline-ish`, `sensor-missing`.
 
@@ -44,6 +46,7 @@
 - базовый editor workflow есть;
 - blank-template flow есть;
 - сохранение preset-а есть;
+- diagnostics и runtime summary уже подтянуты ближе к редактору;
 - полноценный preset manager UI ещё не собран;
 - полноценный playlist editor UI ещё не собран.
 

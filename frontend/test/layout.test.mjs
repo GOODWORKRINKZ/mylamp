@@ -15,14 +15,24 @@ async function main() {
   });
 
   assert.match(html, /id="network-settings-button"/);
+  assert.match(html, /aria-label="Настройка сети"/);
+  assert.match(html, /title="Настройка сети"/);
   assert.match(html, /id="firmware-settings-button"/);
+  assert.match(html, /aria-label="Прошивка и OTA"/);
+  assert.match(html, /title="Прошивка и OTA"/);
   assert.match(html, /id="time-settings-button"/);
+  assert.match(html, /aria-label="Часовой пояс"/);
+  assert.match(html, /title="Часовой пояс"/);
+  assert.match(html, /header-device-actions/);
+  assert.match(html, /<svg/);
   assert.match(html, /workspace__editor/);
   assert.match(html, /workspace__sidebar/);
   assert.match(html, /sidebar-tabs/);
   assert.match(html, /tab-presets/);
   assert.match(html, /tab-queue/);
   assert.match(html, /tab-help/);
+  assert.match(html, /editor-bar__actions/);
+  assert.match(html, /diagnostics-bar__badge/);
   assert.match(html, /diagnostics-bar/);
   assert.match(html, /id="statusbar-build"/);
   assert.match(html, /id="statusbar-network"/);

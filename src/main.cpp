@@ -105,6 +105,7 @@ void renderFrame(unsigned long nowMs) {
 }
 
 void initializeFileSystem() {
+  g_fileStore.setReady(false);
   g_fileSystemReady = LittleFS.begin(true);
   if (!g_fileSystemReady) {
     Serial.println("filesystem: mount failed");
@@ -116,6 +117,8 @@ void initializeFileSystem() {
     g_fileSystemReady = false;
     return;
   }
+
+  g_fileStore.setReady(true);
 
   const std::vector<std::string> presets = g_fileStore.list(lamp::storage::kPresetsDirectory);
   const std::vector<std::string> playlists = g_fileStore.list(lamp::storage::kPlaylistsDirectory);

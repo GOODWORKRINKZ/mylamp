@@ -12,6 +12,7 @@ class PresetRepository {
  public:
   explicit PresetRepository(storage::IFileStore& fileStore);
 
+  bool isReady() const;
   bool save(const PresetModel& preset);
   bool load(const std::string& id, PresetModel& preset) const;
   std::vector<PresetModel> list() const;
