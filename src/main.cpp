@@ -8,6 +8,8 @@
 #include "network/NetworkPlanner.h"
 #include "network/WiFiManager.h"
 #include "settings/AppSettings.h"
+#include "settings/AppSettingsPersistence.h"
+#include "settings/PreferencesSettingsBackend.h"
 #include "time/TimePlanner.h"
 #include "web/LampWebServer.h"
 #include "web/StatusJsonBuilder.h"
@@ -25,6 +27,8 @@ lamp::effects::AlternatingColumnsEffect g_patternEffect(
   lamp::Rgb{10, 0, 0}, lamp::Rgb{0, 10, 0}, "debug-columns");
 lamp::effects::EffectRegistry g_effectRegistry;
 lamp::settings::AppSettings g_settings;
+lamp::settings::AppSettingsPersistence g_settingsPersistence;
+lamp::settings::PreferencesSettingsBackend g_settingsBackend;
 lamp::network::ArduinoWiFiAdapter g_wifiAdapter;
 lamp::network::WiFiManager g_wifiManager;
 lamp::network::NetworkPlanner g_networkPlanner;
@@ -93,8 +97,7 @@ void printBootBanner() {
 void setup() {
   Serial.begin(115200);
   delay(200);
-  g_settings.network.preferredMode = lamp::network::NetworkMode::kAccessPoint;
-  g_settings.network.accessPointName = lamp::config::kAccessPointPrefix;
+  g_settings = g_settingsPersistence.load(g_settingsBackend);
   const lamp::network::WiFiStartupResult wifiResult =
       g_wifiManager.startup(g_settings.network, g_wifiAdapter);
   const bool internetAvailable = wifiResult.activeMode == lamp::network::NetworkMode::kClient;
