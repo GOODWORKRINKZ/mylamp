@@ -212,7 +212,7 @@ function renderFirmwareModal(): string {
           </div>
           <button class="modal__close" id="firmware-close-button" type="button" aria-label="Закрыть">Закрыть</button>
         </div>
-        <div class="modal__body panel__body--stack">
+        <div class="modal__body">
           <p id="update-summary">Сейчас здесь появится статус OTA, канал обновлений и доступная версия.</p>
           <div class="status-note" id="update-status-note">Пробуем получить OTA-сводку с лампы.</div>
           <div class="key-value"><span>Текущая версия</span><strong id="update-version">-</strong></div>
@@ -934,6 +934,31 @@ function bindEditorFocusHints(): void {
   });
 }
 
+function bindSidebarTabs(): void {
+  const tabs = document.querySelectorAll<HTMLButtonElement>(".sidebar-tab");
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const targetId = tab.dataset.tab;
+      if (!targetId) {
+        return;
+      }
+
+      tabs.forEach((t) => {
+        t.classList.remove("sidebar-tab--active");
+        t.setAttribute("aria-selected", "false");
+      });
+      tab.classList.add("sidebar-tab--active");
+      tab.setAttribute("aria-selected", "true");
+
+      document.querySelectorAll<HTMLElement>(".sidebar-panel").forEach((panel) => {
+        const isTarget = panel.id === `tab-${targetId}`;
+        panel.hidden = !isTarget;
+        panel.classList.toggle("sidebar-panel--active", isTarget);
+      });
+    });
+  });
+}
+
 function bindNetworkSettingsControls(): void {
   const openButton = document.getElementById("network-settings-button") as HTMLButtonElement | null;
   const closeButton = document.getElementById("network-close-button") as HTMLButtonElement | null;
@@ -1208,6 +1233,7 @@ bindFirmwareModalControls();
 bindTimeSettingsControls();
 bindDevScenarioControls();
 bindEditorFocusHints();
+bindSidebarTabs();
 window.setInterval(() => {
   void refreshStatus();
   void refreshUpdateState();

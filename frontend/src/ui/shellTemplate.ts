@@ -11,19 +11,18 @@ export type ShellTemplateOptions = {
 
 export function renderShellMarkup(options: ShellTemplateOptions): string {
   return `
-    <main class="shell shell--workspace">
-      <header class="shell__header shell__header--workspace">
-        <div>
-          <p class="eyebrow">MyLamp</p>
-          <h1>Моя Лампа</h1>
-          <p class="shell__subtitle">Учимся лайвкодить</p>
+    <main class="shell">
+      <header class="shell__header">
+        <div class="shell__brand">
+          <h1 class="shell__title">Моя Лампа</h1>
+          <span class="shell__subtitle">Лайвкодинг огоньков</span>
         </div>
         <div class="shell__header-actions">
           ${options.isDevServer ? `
           <section class="dev-panel">
-            <label class="dev-panel__label" for="dev-scenario-select">Сценарий для проверки</label>
+            <label class="dev-panel__label" for="dev-scenario-select">Сценарий</label>
             <select class="dev-panel__select" id="dev-scenario-select">${options.scenarioOptions}</select>
-            <button class="dev-panel__button" id="dev-reset-button" type="button">Сбросить пример</button>
+            <button class="dev-panel__button" id="dev-reset-button" type="button">Сброс</button>
             <p class="dev-panel__description" id="dev-scenario-description"></p>
           </section>` : ""}
           <div class="header-device-actions">
@@ -33,64 +32,58 @@ export function renderShellMarkup(options: ShellTemplateOptions): string {
         </div>
       </header>
 
-      <section class="panel panel--editor panel--workspace">
-        <div class="panel__header">
-          <h2>Рисуем огоньки</h2>
-          <div class="panel__actions">
-            <button id="new-effect-button" type="button">Новый эффект</button>
-            <button id="validate-button" type="button">Проверить</button>
-            <button id="run-button" type="button">Запустить</button>
-            <button id="save-button" type="button">Сохранить</button>
+      <div class="workspace">
+        <section class="workspace__editor">
+          <div class="editor-bar">
+            <div class="editor-bar__actions">
+              <button id="new-effect-button" type="button">Новый</button>
+              <button id="validate-button" type="button">Проверить</button>
+              <button id="run-button" type="button">Запустить</button>
+              <button id="save-button" type="button">Сохранить</button>
+            </div>
+            <div class="editor-bar__status" id="editor-status">Кликни в код и печатай</div>
           </div>
-        </div>
-        <div class="panel__body panel__body--editor">
-          <div class="editor-toolbar">
-            <div class="editor-toolbar__hint" id="editor-hint">Выбери идею рядом с редактором и подкрути её под себя.</div>
-            <div class="editor-toolbar__status" id="editor-status">Кликни в код и печатай. Курсор появится внутри поля.</div>
+          <div class="editor-wrap">
+            <label class="editor-surface" for="editor-code">
+              <span class="editor-surface__badge">DSL</span>
+              <textarea
+                class="code-editor"
+                id="editor-code"
+                spellcheck="false"
+                autocapitalize="off"
+                autocomplete="off"
+                autocorrect="off"
+                placeholder="effect &quot;my_effect&quot;&#10;&#10;sprite dot {&#10;  bitmap &quot;&quot;&quot;&#10;  #&#10;  &quot;&quot;&quot;&#10;}&#10;&#10;layer paint {&#10;  use dot&#10;  color rgb(255, 120, 80)&#10;  x = 10&#10;  y = 6&#10;  scale = 2&#10;  visible = 1&#10;}"
+              ></textarea>
+            </label>
           </div>
-          <section class="workspace-dock">
-            <details class="workspace-dropdown" id="dropdown-presets" open>
-              <summary>Идеи и пресеты</summary>
-              <div class="workspace-dropdown__body">
-                <ul class="item-list">${options.starterSnippetList}</ul>
-              </div>
-            </details>
-            <details class="workspace-dropdown" id="dropdown-playlist">
-              <summary>Очередь</summary>
-              <div class="workspace-dropdown__body">
-                <div class="key-value"><span>Сейчас включено</span><strong id="runtime-preset">-</strong></div>
-                <div class="key-value"><span>Автосмена</span><strong id="runtime-autoplay">-</strong></div>
-                <div class="key-value"><span>Очередь огоньков</span><strong id="runtime-playlist">-</strong></div>
-                <div class="key-value"><span>Запасной режим</span><strong id="runtime-effect">-</strong></div>
-                <div class="status-note">Очередь и runtime summary теперь живут рядом с редактором, а не в отдельной колонке.</div>
-              </div>
-            </details>
-            <details class="workspace-dropdown" id="dropdown-help">
-              <summary>Шпаргалка</summary>
-              <div class="workspace-dropdown__body workspace-dropdown__body--stack">${options.helpSections}</div>
-            </details>
-            <details class="workspace-dropdown" id="dropdown-diagnostics" open>
-              <summary>Подсказки</summary>
-              <div class="workspace-dropdown__body workspace-dropdown__body--stack">
-                <p id="diagnostics-summary">Здесь появятся подсказки, ошибки в коде и результат проверки.</p>
-                <div class="status-note" id="diagnostics-status">Ждём новости от лампы.</div>
-              </div>
-            </details>
-          </section>
-          <label class="editor-surface" for="editor-code">
-            <span class="editor-surface__badge">DSL</span>
-            <textarea
-              class="code-editor"
-              id="editor-code"
-              spellcheck="false"
-              autocapitalize="off"
-              autocomplete="off"
-              autocorrect="off"
-              placeholder="effect &quot;my_effect&quot;&#10;&#10;sprite dot {&#10;  bitmap &quot;&quot;&quot;&#10;  #&#10;  &quot;&quot;&quot;&#10;}&#10;&#10;layer paint {&#10;  use dot&#10;  color rgb(255, 120, 80)&#10;  x = 10&#10;  y = 6&#10;  scale = 2&#10;  visible = 1&#10;}"
-            ></textarea>
-          </label>
-        </div>
-      </section>
+          <div class="diagnostics-bar">
+            <p class="diagnostics-bar__text" id="diagnostics-summary">Здесь появятся подсказки и результат проверки.</p>
+            <span class="diagnostics-bar__badge" id="diagnostics-status">Готово</span>
+          </div>
+        </section>
+
+        <aside class="workspace__sidebar">
+          <nav class="sidebar-tabs" role="tablist">
+            <button class="sidebar-tab sidebar-tab--active" role="tab" aria-selected="true" data-tab="presets" type="button">Идеи</button>
+            <button class="sidebar-tab" role="tab" aria-selected="false" data-tab="queue" type="button">Лампа</button>
+            <button class="sidebar-tab" role="tab" aria-selected="false" data-tab="help" type="button">Справка</button>
+          </nav>
+          <div class="sidebar-panel sidebar-panel--active" id="tab-presets" role="tabpanel">
+            <p class="sidebar-panel__hint" id="editor-hint">Выбери идею и подкрути под себя.</p>
+            <ul class="item-list">${options.starterSnippetList}</ul>
+          </div>
+          <div class="sidebar-panel" id="tab-queue" role="tabpanel" hidden>
+            <div class="key-value"><span>Сейчас включено</span><strong id="runtime-preset">-</strong></div>
+            <div class="key-value"><span>Автосмена</span><strong id="runtime-autoplay">-</strong></div>
+            <div class="key-value"><span>Очередь огоньков</span><strong id="runtime-playlist">-</strong></div>
+            <div class="key-value"><span>Запасной режим</span><strong id="runtime-effect">-</strong></div>
+          </div>
+          <div class="sidebar-panel" id="tab-help" role="tabpanel" hidden>
+            ${options.helpSections}
+          </div>
+        </aside>
+      </div>
 
       <footer class="statusbar" aria-label="Состояние лампы">
         <div class="statusbar__item"><span>Сборка</span><strong id="statusbar-build">-</strong></div>
