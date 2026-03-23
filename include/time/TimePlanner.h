@@ -9,6 +9,7 @@ namespace lamp::time {
 struct ClockSettings {
   bool enabled = true;
   bool showCachedTimeWhenOffline = true;
+  std::string timezone = "UTC0";
 };
 
 struct PlannedTimeState {

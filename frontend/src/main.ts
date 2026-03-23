@@ -2,11 +2,13 @@ import "./styles/app.css";
 import { editorHelpSections } from "./editor/help";
 import { starterSnippets, type StarterSnippet } from "./editor/snippets";
 import { defaultScenarioId, isScenarioId, scenarioDefinitions } from "./dev/mockScenarios";
+import { renderShellMarkup } from "./ui/shellTemplate";
 import type {
   LiveDiagnosticResponse,
   NetworkSettingsPayload,
   ScenarioId,
   StatusPayload,
+  TimeSettingsPayload,
   UpdateCheckPayload,
   UpdateCurrentPayload,
   UpdateInstallPayload,
@@ -41,12 +43,27 @@ function getSelectedScenario(): ScenarioId {
 let selectedScenario: ScenarioId = getSelectedScenario();
 let currentUpdateSnapshot: UpdateCurrentPayload | null = null;
 let currentNetworkSettings: NetworkSettingsPayload | null = null;
+let currentTimeSettings: TimeSettingsPayload | null = null;
 let updateBusyAction: "" | "check" | "install" | "settings" = "";
 let updateRebootPending = false;
 let networkModalOpen = false;
+let firmwareModalOpen = false;
+let timeModalOpen = false;
 let networkModalLoading = false;
 let networkModalSaving = false;
 let networkSettingsLoaded = false;
+let timeModalLoading = false;
+let timeModalSaving = false;
+let timeSettingsLoaded = false;
+
+const timezoneOptions: Array<{ value: string; label: string }> = [
+  { value: "UTC0", label: "UTC" },
+  { value: "EET-2EEST,M3.5.0/3,M10.5.0/4", label: "Kyiv / EET" },
+  { value: "MSK-3", label: "Moscow / MSK" },
+  { value: "CET-1CEST,M3.5.0,M10.5.0/3", label: "Berlin / CET" },
+  { value: "EST5EDT,M3.2.0/2,M11.1.0/2", label: "New York / EST" },
+  { value: "PST8PDT,M3.2.0/2,M11.1.0/2", label: "Los Angeles / PST" },
+];
 
 const blankEffectTemplate = `effect "new_effect"
 
@@ -177,6 +194,72 @@ function renderNetworkModal(): string {
           <div class="modal__actions">
             <button id="network-save-button" type="button">Сохранить</button>
             <button class="button-secondary" id="network-cancel-button" type="button">Закрыть</button>
+          </div>
+        </div>
+      </section>
+    </div>`;
+}
+
+function renderFirmwareModal(): string {
+  return `
+    <div class="modal" id="firmware-modal" hidden>
+      <div class="modal__backdrop" data-firmware-close="overlay"></div>
+      <section class="modal__dialog" role="dialog" aria-modal="true" aria-labelledby="firmware-modal-title">
+        <div class="modal__header">
+          <div>
+            <p class="eyebrow">Firmware</p>
+            <h2 id="firmware-modal-title">Прошивка и OTA</h2>
+          </div>
+          <button class="modal__close" id="firmware-close-button" type="button" aria-label="Закрыть">Закрыть</button>
+        </div>
+        <div class="modal__body panel__body--stack">
+          <p id="update-summary">Сейчас здесь появится статус OTA, канал обновлений и доступная версия.</p>
+          <div class="status-note" id="update-status-note">Пробуем получить OTA-сводку с лампы.</div>
+          <div class="key-value"><span>Текущая версия</span><strong id="update-version">-</strong></div>
+          <div class="key-value"><span>Канал</span><strong id="update-channel">-</strong></div>
+          <div class="key-value"><span>Состояние</span><strong id="update-runtime-state">-</strong></div>
+          <div class="key-value"><span>Доступная версия</span><strong id="update-available-version">-</strong></div>
+          <div class="key-value"><span>Последняя ошибка</span><strong id="update-error">-</strong></div>
+          <label class="field-stack" for="update-channel-select">
+            <span>Канал обновлений</span>
+            <select id="update-channel-select">
+              <option value="stable">stable</option>
+              <option value="dev">dev</option>
+            </select>
+          </label>
+          <div class="panel__actions panel__actions--wide">
+            <button id="update-check-button" type="button">Проверить обновление</button>
+            <button id="update-install-button" type="button">Установить</button>
+          </div>
+        </div>
+      </section>
+    </div>`;
+}
+
+function renderTimeModal(): string {
+  return `
+    <div class="modal" id="time-modal" hidden>
+      <div class="modal__backdrop" data-time-close="overlay"></div>
+      <section class="modal__dialog" role="dialog" aria-modal="true" aria-labelledby="time-modal-title">
+        <div class="modal__header">
+          <div>
+            <p class="eyebrow">Time</p>
+            <h2 id="time-modal-title">Время и часовой пояс</h2>
+          </div>
+          <button class="modal__close" id="time-close-button" type="button" aria-label="Закрыть">Закрыть</button>
+        </div>
+        <div class="modal__body">
+          <p class="modal__summary" id="time-summary">Открой модалку и лампа подгрузит текущий часовой пояс.</p>
+          <div class="status-note" id="time-settings-status">Ждём запрос к настройкам времени.</div>
+          <label class="field-stack" for="time-timezone-select">
+            <span>Часовой пояс</span>
+            <select id="time-timezone-select">
+              ${timezoneOptions.map((option) => `<option value="${option.value}">${option.label}</option>`).join("")}
+            </select>
+          </label>
+          <div class="modal__actions">
+            <button id="time-save-button" type="button">Сохранить</button>
+            <button class="button-secondary" id="time-cancel-button" type="button">Закрыть</button>
           </div>
         </div>
       </section>
@@ -718,160 +801,21 @@ function bindUpdateControls(): void {
   syncUpdateControls();
 }
 
-app.innerHTML = `
-  <main class="shell">
-    <header class="shell__header">
-      <div>
-        <p class="eyebrow">MyLamp</p>
-        <h1>Моя Лампа</h1>
-        <p class="shell__subtitle">Учимся лайвкодить</p>
-      </div>
-      <div class="shell__header-actions">
-        ${isDevServer ? `
-        <section class="dev-panel">
-          <label class="dev-panel__label" for="dev-scenario-select">Сценарий для проверки</label>
-          <select class="dev-panel__select" id="dev-scenario-select">
-            ${scenarioDefinitions
-              .map(
-                (scenario) =>
-                  `<option value="${scenario.id}"${scenario.id === selectedScenario ? " selected" : ""}>${scenario.label}</option>`,
-              )
-              .join("")}
-          </select>
-          <button class="dev-panel__button" id="dev-reset-button" type="button">Сбросить пример</button>
-          <p class="dev-panel__description" id="dev-scenario-description"></p>
-        </section>` : ""}
-        <div class="status-pill" id="build-pill">Загрузка статуса...</div>
-      </div>
-    </header>
-
-    <section class="shell__grid">
-      <section class="panel panel--editor">
-        <div class="panel__header">
-          <h2>Рисуем огоньки</h2>
-          <div class="panel__actions">
-            <button id="new-effect-button" type="button">Новый эффект</button>
-            <button id="validate-button" type="button">Проверить</button>
-            <button id="run-button" type="button">Запустить</button>
-            <button id="save-button" type="button">Сохранить</button>
-          </div>
-        </div>
-        <div class="panel__body panel__body--editor">
-          <div class="editor-toolbar">
-            <div class="editor-toolbar__hint" id="editor-hint">Выбери идею справа и попробуй поменять цвета, форму или движение.</div>
-            <div class="editor-toolbar__status" id="editor-status">Кликни в код и печатай. Курсор появится внутри поля.</div>
-          </div>
-          <label class="editor-surface" for="editor-code">
-            <span class="editor-surface__badge">DSL</span>
-            <textarea
-              class="code-editor"
-              id="editor-code"
-              spellcheck="false"
-              autocapitalize="off"
-              autocomplete="off"
-              autocorrect="off"
-              placeholder="effect \"my_effect\"&#10;&#10;sprite dot {&#10;  bitmap \"\"\"&#10;  #&#10;  \"\"\"&#10;}&#10;&#10;layer paint {&#10;  use dot&#10;  color rgb(255, 120, 80)&#10;  x = 10&#10;  y = 6&#10;  scale = 2&#10;  visible = 1&#10;}"
-            ></textarea>
-          </label>
-        </div>
-      </section>
-
-      <aside class="sidebar">
-        <section class="panel panel--runtime">
-          <div class="panel__header">
-            <h2>Что сейчас горит</h2>
-          </div>
-          <div class="panel__body panel__body--stack">
-            <div class="key-value"><span>Сейчас включено</span><strong id="runtime-preset">-</strong></div>
-            <div class="key-value"><span>Автосмена</span><strong id="runtime-autoplay">-</strong></div>
-            <div class="key-value"><span>Очередь огоньков</span><strong id="runtime-playlist">-</strong></div>
-            <div class="key-value"><span>Запасной режим</span><strong id="runtime-effect">-</strong></div>
-          </div>
-        </section>
-
-        <section class="panel panel--ota">
-          <div class="panel__header">
-            <h2>Обновление прошивки</h2>
-          </div>
-          <div class="panel__body panel__body--stack">
-            <p id="update-summary">Сейчас здесь появится статус OTA, канал обновлений и доступная версия.</p>
-            <div class="status-note" id="update-status-note">Пробуем получить OTA-сводку с лампы.</div>
-            <div class="key-value"><span>Текущая версия</span><strong id="update-version">-</strong></div>
-            <div class="key-value"><span>Канал</span><strong id="update-channel">-</strong></div>
-            <div class="key-value"><span>Состояние</span><strong id="update-runtime-state">-</strong></div>
-            <div class="key-value"><span>Доступная версия</span><strong id="update-available-version">-</strong></div>
-            <div class="key-value"><span>Последняя ошибка</span><strong id="update-error">-</strong></div>
-            <label class="field-stack" for="update-channel-select">
-              <span>Канал обновлений</span>
-              <select id="update-channel-select">
-                <option value="stable">stable</option>
-                <option value="dev">dev</option>
-              </select>
-            </label>
-            <div class="panel__actions panel__actions--wide">
-              <button id="update-check-button" type="button">Проверить обновление</button>
-              <button id="update-install-button" type="button">Установить</button>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel__header">
-            <h2>Подсказки</h2>
-          </div>
-          <div class="panel__body panel__body--stack">
-            <p id="diagnostics-summary">Здесь появятся подсказки, ошибки в коде и результат проверки.</p>
-            <div class="status-note" id="diagnostics-status">Ждём новости от лампы.</div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel__header">
-            <h2>Готовые идеи</h2>
-          </div>
-          <div class="panel__body">
-            <ul class="item-list">${renderStarterSnippetList()}</ul>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel__header">
-            <h2>Очередь огоньков</h2>
-          </div>
-          <div class="panel__body panel__body--stack">
-            <p>Лампа уже умеет сама переключать эффекты. Скоро здесь можно будет собирать свою очередь огоньков.</p>
-            <div class="status-note">Если запустить эффект вручную, автосмена сразу остановится.</div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel__header">
-            <h2>Шпаргалка по командам</h2>
-          </div>
-          <div class="panel__body panel__body--stack">${renderHelpSections()}</div>
-        </section>
-
-        <section class="panel">
-          <div class="panel__header">
-            <h2>Как себя чувствует лампа</h2>
-          </div>
-          <div class="panel__body panel__body--stack">
-            <div class="key-value"><span>Сеть</span><strong id="lamp-network">-</strong></div>
-            <div class="panel__actions panel__actions--wide">
-              <button id="network-settings-button" type="button">Настроить сеть</button>
-            </div>
-            <div class="key-value"><span>Часы</span><strong id="lamp-clock">-</strong></div>
-            <div class="key-value"><span>Сенсор</span><strong id="lamp-sensor">-</strong></div>
-            <div class="key-value"><span>Температура</span><strong id="lamp-temp">-</strong></div>
-            <div class="key-value"><span>Влажность</span><strong id="lamp-humidity">-</strong></div>
-          </div>
-        </section>
-      </aside>
-    </section>
-
-    ${renderNetworkModal()}
-  </main>
-`;
+app.innerHTML = renderShellMarkup({
+  isDevServer,
+  selectedScenario,
+  scenarioOptions: scenarioDefinitions
+    .map(
+      (scenario) =>
+        `<option value="${scenario.id}"${scenario.id === selectedScenario ? " selected" : ""}>${scenario.label}</option>`,
+    )
+    .join(""),
+  starterSnippetList: renderStarterSnippetList(),
+  helpSections: renderHelpSections(),
+  networkModalMarkup: renderNetworkModal(),
+  firmwareModalMarkup: renderFirmwareModal(),
+  timeModalMarkup: renderTimeModal(),
+});
 
 function setText(id: string, value: string): void {
   const node = document.getElementById(id);
@@ -1032,6 +976,181 @@ function bindNetworkSettingsControls(): void {
   syncNetworkModeFields();
 }
 
+function syncTimeSettingsControls(): void {
+  const lockForm = timeModalLoading || timeModalSaving || !timeSettingsLoaded;
+  setElementDisabled("time-timezone-select", lockForm);
+  setElementDisabled("time-save-button", lockForm);
+  setElementDisabled("time-cancel-button", timeModalSaving);
+  setElementDisabled("time-close-button", timeModalSaving);
+}
+
+function applyTimeSettingsToForm(settings: TimeSettingsPayload): void {
+  currentTimeSettings = settings;
+  setInputValue("time-timezone-select", settings.timezone);
+  syncTimeSettingsControls();
+}
+
+function openTimeModalShell(): void {
+  timeModalOpen = true;
+  timeSettingsLoaded = false;
+  toggleElementHidden("time-modal", false);
+  syncTimeSettingsControls();
+}
+
+function closeTimeModal(): void {
+  if (timeModalSaving) {
+    return;
+  }
+
+  timeModalOpen = false;
+  toggleElementHidden("time-modal", true);
+}
+
+async function refreshTimeSettings(): Promise<void> {
+  timeModalLoading = true;
+  timeSettingsLoaded = false;
+  syncTimeSettingsControls();
+  setText("time-summary", "Читаем текущий часовой пояс с лампы...");
+  setText("time-settings-status", "Загружаем настройки времени");
+
+  try {
+    const response = await fetch("/api/settings/time", { headers: buildApiHeaders() });
+    const payload = (await response.json()) as TimeSettingsPayload & { error?: string };
+    if (!response.ok) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    applyTimeSettingsToForm(payload);
+    timeSettingsLoaded = true;
+    setText("time-summary", "Часовой пояс загружен. Можно выбрать новый и сохранить его на лампе.");
+    setText("time-settings-status", payload.timezone);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    setText("time-summary", `Не удалось загрузить настройки времени: ${message}`);
+    setText("time-settings-status", "Настройки времени недоступны");
+  } finally {
+    timeModalLoading = false;
+    syncTimeSettingsControls();
+  }
+}
+
+async function openTimeSettingsModal(): Promise<void> {
+  openTimeModalShell();
+  await refreshTimeSettings();
+}
+
+async function saveTimeSettings(): Promise<void> {
+  if (!timeSettingsLoaded) {
+    setText("time-summary", "Сначала дождись успешной загрузки текущих настроек времени.");
+    setText("time-settings-status", "Сохранение заблокировано до успешного чтения");
+    return;
+  }
+
+  const timezone = (document.getElementById("time-timezone-select") as HTMLSelectElement | null)?.value || "UTC0";
+
+  timeModalSaving = true;
+  syncTimeSettingsControls();
+  setText("time-summary", "Сохраняем часовой пояс и просим лампу пересчитать время.");
+  setText("time-settings-status", "Отправляем настройки времени");
+
+  try {
+    const response = await fetch("/api/settings/time", {
+      method: "POST",
+      headers: buildFormHeaders(),
+      body: buildFormBody({ timezone }),
+    });
+    const payload = (await response.json()) as TimeSettingsPayload & { error?: string };
+    if (!response.ok) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    applyTimeSettingsToForm(payload);
+    timeSettingsLoaded = true;
+    setText("time-summary", `Часовой пояс сохранён: ${payload.timezone}.`);
+    setText("time-settings-status", "Настройки времени сохранены");
+    void refreshStatus();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    setText("time-summary", `Не удалось сохранить время: ${message}`);
+    setText("time-settings-status", "Ошибка при сохранении времени");
+  } finally {
+    timeModalSaving = false;
+    syncTimeSettingsControls();
+  }
+}
+
+function openFirmwareModal(): void {
+  firmwareModalOpen = true;
+  toggleElementHidden("firmware-modal", false);
+}
+
+function closeFirmwareModal(): void {
+  firmwareModalOpen = false;
+  toggleElementHidden("firmware-modal", true);
+}
+
+function bindFirmwareModalControls(): void {
+  const openButton = document.getElementById("firmware-settings-button") as HTMLButtonElement | null;
+  const closeButton = document.getElementById("firmware-close-button") as HTMLButtonElement | null;
+  const modal = document.getElementById("firmware-modal") as HTMLDivElement | null;
+  const backdrop = modal?.querySelector<HTMLElement>("[data-firmware-close='overlay']") ?? null;
+
+  openButton?.addEventListener("click", () => {
+    openFirmwareModal();
+  });
+
+  closeButton?.addEventListener("click", () => {
+    closeFirmwareModal();
+  });
+
+  backdrop?.addEventListener("click", () => {
+    closeFirmwareModal();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && firmwareModalOpen) {
+      closeFirmwareModal();
+    }
+  });
+}
+
+function bindTimeSettingsControls(): void {
+  const openButton = document.getElementById("statusbar-clock-action") as HTMLButtonElement | null;
+  const closeButton = document.getElementById("time-close-button") as HTMLButtonElement | null;
+  const cancelButton = document.getElementById("time-cancel-button") as HTMLButtonElement | null;
+  const saveButton = document.getElementById("time-save-button") as HTMLButtonElement | null;
+  const modal = document.getElementById("time-modal") as HTMLDivElement | null;
+  const backdrop = modal?.querySelector<HTMLElement>("[data-time-close='overlay']") ?? null;
+
+  openButton?.addEventListener("click", () => {
+    void openTimeSettingsModal();
+  });
+
+  closeButton?.addEventListener("click", () => {
+    closeTimeModal();
+  });
+
+  cancelButton?.addEventListener("click", () => {
+    closeTimeModal();
+  });
+
+  saveButton?.addEventListener("click", () => {
+    void saveTimeSettings();
+  });
+
+  backdrop?.addEventListener("click", () => {
+    closeTimeModal();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && timeModalOpen) {
+      closeTimeModal();
+    }
+  });
+
+  syncTimeSettingsControls();
+}
+
 function formatNumber(value: number | null, suffix: string): string {
   if (value === null || Number.isNaN(value)) {
     return "-";
@@ -1041,7 +1160,15 @@ function formatNumber(value: number | null, suffix: string): string {
 }
 
 function renderStatus(status: StatusPayload): void {
-  setText("build-pill", `${status.version} · ${status.channel}`);
+  setText("statusbar-build", `${status.version} · ${status.channel}`);
+  setText("statusbar-preset", status.activePresetName || status.activePresetId || "Пусто");
+  setText("statusbar-autoplay", status.autoplayEnabled ? "Вкл" : "Выкл");
+  setText("statusbar-playlist", status.activePlaylistId || "Нет");
+  setText("statusbar-network", status.networkStatus || status.networkMode || "-");
+  setText("statusbar-clock", status.currentTime || status.clockStatus || "-");
+  setText("statusbar-sensor", status.sensorStatus || "-");
+  setText("statusbar-temp", formatNumber(status.temperatureC, " °C"));
+  setText("statusbar-humidity", formatNumber(status.humidityPercent, " %"));
   setText("runtime-preset", status.activePresetName || status.activePresetId || "Пока ничего не выбрано");
   setText("runtime-autoplay", status.autoplayEnabled ? "Включено" : "Выключено");
   setText("runtime-playlist", status.activePlaylistId || "Очередь пока не включена");
@@ -1051,11 +1178,6 @@ function renderStatus(status: StatusPayload): void {
     status.liveErrorSummary || "Пока всё спокойно. Можно пробовать новые идеи и смотреть, как они оживают.",
   );
   setText("diagnostics-status", status.liveErrorSummary ? "Нужно чуть поправить код" : "Лампа готова показывать новые огоньки");
-  setText("lamp-network", status.networkStatus || status.networkMode || "-");
-  setText("lamp-clock", status.currentTime || status.clockStatus || "-");
-  setText("lamp-sensor", status.sensorStatus || "-");
-  setText("lamp-temp", formatNumber(status.temperatureC, " °C"));
-  setText("lamp-humidity", formatNumber(status.humidityPercent, " %"));
 }
 
 async function refreshStatus(): Promise<void> {
@@ -1069,7 +1191,7 @@ async function refreshStatus(): Promise<void> {
     renderStatus(status);
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown error";
-    setText("build-pill", "Статус недоступен");
+    setText("statusbar-build", "Статус недоступен");
     setText("diagnostics-summary", "Не получилось поговорить с лампой и обновить статус.");
     setText("diagnostics-status", message);
   }
@@ -1082,6 +1204,8 @@ bindSnippetButtons();
 bindActionButtons();
 bindUpdateControls();
 bindNetworkSettingsControls();
+bindFirmwareModalControls();
+bindTimeSettingsControls();
 bindDevScenarioControls();
 bindEditorFocusHints();
 window.setInterval(() => {

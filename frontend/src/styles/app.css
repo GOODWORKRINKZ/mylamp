@@ -69,6 +69,10 @@ button:focus-visible,
   padding: 2rem;
 }
 
+.shell--workspace {
+  padding-bottom: 8rem;
+}
+
 .shell__header {
   display: flex;
   justify-content: space-between;
@@ -81,6 +85,12 @@ button:focus-visible,
   display: flex;
   align-items: flex-start;
   gap: 1rem;
+}
+
+.header-device-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .eyebrow {
@@ -120,6 +130,24 @@ h2 {
   background: var(--accent-soft);
   color: var(--accent);
   font-weight: 700;
+}
+
+.icon-button {
+  width: 3.35rem;
+  height: 3.35rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(214, 85, 47, 0.18);
+  background: rgba(255, 250, 242, 0.9);
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.icon-button:hover {
+  background: rgba(255, 236, 220, 0.98);
 }
 
 .dev-panel {
@@ -183,6 +211,10 @@ h2 {
   min-height: 74vh;
 }
 
+.panel--workspace {
+  min-height: auto;
+}
+
 .panel__header {
   display: flex;
   justify-content: space-between;
@@ -236,6 +268,48 @@ h2 {
   color: var(--accent);
   font-size: 0.84rem;
   font-weight: 600;
+}
+
+.workspace-dock {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.85rem;
+  padding: 0.95rem 1.2rem;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 248, 239, 0.74);
+}
+
+.workspace-dropdown {
+  border: 1px solid rgba(214, 85, 47, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 251, 245, 0.82);
+  overflow: hidden;
+}
+
+.workspace-dropdown summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.9rem 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.workspace-dropdown summary::-webkit-details-marker {
+  display: none;
+}
+
+.workspace-dropdown[open] summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.workspace-dropdown__body {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem 1rem;
+}
+
+.workspace-dropdown__body--stack {
+  gap: 0.85rem;
 }
 
 .panel--runtime {
@@ -401,6 +475,62 @@ button:disabled {
   flex: 1 1 180px;
 }
 
+.statusbar {
+  position: fixed;
+  left: 1rem;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 15;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.55rem;
+  padding: 0.7rem;
+  border-radius: 24px;
+  border: 1px solid rgba(56, 43, 28, 0.12);
+  background: rgba(255, 251, 245, 0.92);
+  box-shadow: 0 22px 60px rgba(39, 25, 12, 0.18);
+  backdrop-filter: blur(10px);
+}
+
+.statusbar__item {
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 16px;
+  background: rgba(255, 244, 235, 0.92);
+}
+
+.statusbar__action {
+  border: 1px solid rgba(214, 85, 47, 0.12);
+  text-align: left;
+  color: var(--text);
+}
+
+.statusbar__action:hover {
+  background: rgba(255, 234, 220, 0.98);
+  box-shadow: 0 12px 24px rgba(73, 50, 23, 0.12);
+}
+
+.statusbar__action span,
+.statusbar__action strong {
+  text-align: left;
+}
+
+.statusbar__item span {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.statusbar__item strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
 .editor-surface {
   position: relative;
   display: block;
@@ -529,12 +659,20 @@ button:disabled {
     align-items: stretch;
   }
 
-  .shell__grid {
-    grid-template-columns: 1fr;
-  }
-
   .panel--editor {
     min-height: auto;
+  }
+
+  .workspace-dock {
+    grid-template-columns: 1fr;
+    padding: 0.8rem 1rem;
+  }
+
+  .statusbar {
+    left: 0.6rem;
+    right: 0.6rem;
+    bottom: 0.6rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .modal {

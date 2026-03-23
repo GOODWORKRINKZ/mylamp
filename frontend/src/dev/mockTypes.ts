@@ -74,6 +74,10 @@ export type NetworkSettingsPayload = {
   clientSsid: string;
 };
 
+export type TimeSettingsPayload = {
+  timezone: string;
+};
+
 export type PresetPayload = {
   id: string;
   name: string;
@@ -108,6 +112,7 @@ export type ScenarioDefinition = {
 export type MockState = {
   status: StatusPayload;
   networkSettings: NetworkSettingsPayload;
+  timeSettings: TimeSettingsPayload;
   presets: PresetPayload[];
   playlists: PlaylistPayload[];
 };

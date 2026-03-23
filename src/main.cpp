@@ -134,7 +134,7 @@ void refreshRuntimeState(const lamp::network::WiFiStartupResult& wifiResult) {
   g_networkState = g_networkPlanner.planStartup(
       g_settings.network, clientActive, clientActive, wifiResult.ipAddress);
   g_timeState = g_timePlanner.plan(g_settings.clock, g_networkState, g_timeSource.hasValidTime());
-  g_runtimeTimeState = g_timeRuntimeService.refresh(g_timeState, g_timeSource);
+  g_runtimeTimeState = g_timeRuntimeService.refresh(g_settings.clock, g_timeState, g_timeSource);
   g_webServer.setStatusSnapshot(buildStatusSnapshot());
 }
 
@@ -185,10 +185,16 @@ void saveAndApplySettings(const lamp::settings::AppSettings& settings) {
                               settings.network.accessPointName != g_settings.network.accessPointName ||
                               settings.network.clientSsid != g_settings.network.clientSsid ||
                               settings.network.clientPassword != g_settings.network.clientPassword;
+  const bool clockChanged = settings.clock.enabled != g_settings.clock.enabled ||
+                            settings.clock.showCachedTimeWhenOffline != g_settings.clock.showCachedTimeWhenOffline ||
+                            settings.clock.timezone != g_settings.clock.timezone;
   g_settings = settings;
   g_settingsPersistence.save(g_settings, g_settingsBackend);
+  g_timeState = g_timePlanner.plan(g_settings.clock, g_networkState, g_timeSource.hasValidTime());
+  g_runtimeTimeState = g_timeRuntimeService.refresh(g_settings.clock, g_timeState, g_timeSource);
   g_webServer.setStatusSnapshot(buildStatusSnapshot());
   g_networkReconfigureRequested = networkChanged;
+  (void)clockChanged;
 }
 
 lamp::update::FirmwareReleaseInfo checkForFirmwareUpdates(const std::string& channelOverride) {
@@ -306,7 +312,7 @@ void loop() {
                               g_liveProgramService, playlistDiagnostics);
   if (now - g_lastTimeRefreshMs >= lamp::config::kTimeRefreshIntervalMs) {
     g_lastTimeRefreshMs = now;
-    g_runtimeTimeState = g_timeRuntimeService.refresh(g_timeState, g_timeSource);
+    g_runtimeTimeState = g_timeRuntimeService.refresh(g_settings.clock, g_timeState, g_timeSource);
     g_webServer.setStatusSnapshot(buildStatusSnapshot());
   }
   if (now - g_lastSensorRefreshMs >= lamp::config::kSensorRefreshIntervalMs) {

@@ -1,5 +1,13 @@
 import { starterSnippets } from "../editor/snippets";
-import type { MockState, NetworkSettingsPayload, PlaylistPayload, PresetPayload, ScenarioDefinition, ScenarioId } from "./mockTypes";
+import type {
+  MockState,
+  NetworkSettingsPayload,
+  PlaylistPayload,
+  PresetPayload,
+  ScenarioDefinition,
+  ScenarioId,
+  TimeSettingsPayload,
+} from "./mockTypes";
 
 const now = "2026-03-23T18:45:00Z";
 
@@ -32,6 +40,13 @@ function makeNetworkSettings(overrides: Partial<NetworkSettingsPayload> = {}): N
     mode: "ap",
     accessPointName: "MYLAMP-DEV",
     clientSsid: "",
+    ...overrides,
+  };
+}
+
+function makeTimeSettings(overrides: Partial<TimeSettingsPayload> = {}): TimeSettingsPayload {
+  return {
+    timezone: "UTC0",
     ...overrides,
   };
 }
@@ -77,6 +92,7 @@ export function createMockState(scenarioId: ScenarioId): MockState {
     case "autoplay":
       return {
         networkSettings: makeNetworkSettings(),
+        timeSettings: makeTimeSettings({ timezone: "EET-2EEST,M3.5.0/3,M10.5.0/4" }),
         presets,
         playlists,
         status: {
@@ -95,6 +111,7 @@ export function createMockState(scenarioId: ScenarioId): MockState {
     case "dsl-error":
       return {
         networkSettings: makeNetworkSettings(),
+        timeSettings: makeTimeSettings({ timezone: "MSK-3" }),
         presets,
         playlists,
         status: {
@@ -113,6 +130,7 @@ export function createMockState(scenarioId: ScenarioId): MockState {
     case "offline-ish":
       return {
         networkSettings: makeNetworkSettings({ mode: "client", clientSsid: "OfficeWiFi" }),
+        timeSettings: makeTimeSettings({ timezone: "CET-1CEST,M3.5.0,M10.5.0/3" }),
         presets,
         playlists,
         status: {
@@ -131,6 +149,7 @@ export function createMockState(scenarioId: ScenarioId): MockState {
     case "sensor-missing":
       return {
         networkSettings: makeNetworkSettings(),
+        timeSettings: makeTimeSettings(),
         presets,
         playlists,
         status: {
@@ -150,6 +169,7 @@ export function createMockState(scenarioId: ScenarioId): MockState {
     default:
       return {
         networkSettings: makeNetworkSettings(),
+        timeSettings: makeTimeSettings(),
         presets,
         playlists,
         status: {

@@ -10,6 +10,7 @@ constexpr char kNetworkClientSsidKey[] = "network.clientSsid";
 constexpr char kNetworkClientPasswordKey[] = "network.clientPassword";
 constexpr char kClockEnabledKey[] = "clock.enabled";
 constexpr char kClockCachedOfflineKey[] = "clock.cachedOffline";
+constexpr char kClockTimezoneKey[] = "clock.timezone";
 constexpr char kUpdateChannelKey[] = "update.channel";
 
 }  // namespace
@@ -38,6 +39,9 @@ AppSettings AppSettingsPersistence::load(const ISettingsBackend& backend) const 
   if (backend.getBool(kClockCachedOfflineKey, boolValue)) {
     settings.clock.showCachedTimeWhenOffline = boolValue;
   }
+  if (backend.getString(kClockTimezoneKey, stringValue)) {
+    settings.clock.timezone = normalizeTimezone(stringValue);
+  }
   if (backend.getString(kUpdateChannelKey, stringValue)) {
     settings.update.channel = normalizeUpdateChannel(stringValue);
   }
@@ -52,6 +56,7 @@ void AppSettingsPersistence::save(const AppSettings& settings, ISettingsBackend&
   backend.putString(kNetworkClientPasswordKey, settings.network.clientPassword);
   backend.putBool(kClockEnabledKey, settings.clock.enabled);
   backend.putBool(kClockCachedOfflineKey, settings.clock.showCachedTimeWhenOffline);
+  backend.putString(kClockTimezoneKey, normalizeTimezone(settings.clock.timezone));
   backend.putString(kUpdateChannelKey, normalizeUpdateChannel(settings.update.channel));
 }
 
@@ -61,6 +66,25 @@ const char* AppSettingsPersistence::networkModeToString(network::NetworkMode mod
 
 network::NetworkMode AppSettingsPersistence::networkModeFromString(const std::string& value) {
   return value == "client" ? network::NetworkMode::kClient : network::NetworkMode::kAccessPoint;
+}
+
+std::string AppSettingsPersistence::normalizeTimezone(const std::string& value) {
+  static constexpr const char* kSupportedTimezones[] = {
+      "UTC0",
+      "EET-2EEST,M3.5.0/3,M10.5.0/4",
+      "MSK-3",
+      "CET-1CEST,M3.5.0,M10.5.0/3",
+      "EST5EDT,M3.2.0/2,M11.1.0/2",
+      "PST8PDT,M3.2.0/2,M11.1.0/2",
+  };
+
+  for (const char* supported : kSupportedTimezones) {
+    if (value == supported) {
+      return value;
+    }
+  }
+
+  return config::kTimeZone;
 }
 
 std::string AppSettingsPersistence::normalizeUpdateChannel(const std::string& value) {

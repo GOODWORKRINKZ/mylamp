@@ -108,6 +108,13 @@ function makeNetworkSettings(overrides = {}) {
   };
 }
 
+function makeTimeSettings(overrides = {}) {
+  return {
+    timezone: "UTC0",
+    ...overrides,
+  };
+}
+
 function createMockState(scenarioId) {
   const presets = [
     makePreset("warm-waves", "Теплые волны", snippetSources["warm-waves"], ["warm", "ambient"]),
@@ -129,6 +136,7 @@ function createMockState(scenarioId) {
     case "autoplay":
       return {
         networkSettings: makeNetworkSettings(),
+        timeSettings: makeTimeSettings({ timezone: "EET-2EEST,M3.5.0/3,M10.5.0/4" }),
         presets,
         playlists,
         status: {
@@ -151,6 +159,7 @@ function createMockState(scenarioId) {
     case "dsl-error":
       return {
         networkSettings: makeNetworkSettings(),
+        timeSettings: makeTimeSettings({ timezone: "MSK-3" }),
         presets,
         playlists,
         status: {
@@ -174,6 +183,7 @@ function createMockState(scenarioId) {
     case "offline-ish":
       return {
         networkSettings: makeNetworkSettings({ mode: "client", clientSsid: "OfficeWiFi", clientPassword: "secret123" }),
+        timeSettings: makeTimeSettings({ timezone: "CET-1CEST,M3.5.0,M10.5.0/3" }),
         presets,
         playlists,
         status: {
@@ -197,6 +207,7 @@ function createMockState(scenarioId) {
     case "sensor-missing":
       return {
         networkSettings: makeNetworkSettings(),
+        timeSettings: makeTimeSettings(),
         presets,
         playlists,
         status: {
@@ -220,6 +231,7 @@ function createMockState(scenarioId) {
     default:
       return {
         networkSettings: makeNetworkSettings(),
+        timeSettings: makeTimeSettings(),
         presets,
         playlists,
         status: {
@@ -385,6 +397,25 @@ export async function handleApi(req, res) {
       accessPointName: state.networkSettings.accessPointName,
       clientSsid: state.networkSettings.clientSsid,
     });
+    return true;
+  }
+
+  if (pathname === "/api/settings/time" && method === "GET") {
+    sendJson(res, 200, { timezone: state.timeSettings.timezone });
+    return true;
+  }
+
+  if (pathname === "/api/settings/time" && method === "POST") {
+    const payload = parseRequestBody(await readBody(req));
+    const timezone = payload && typeof payload.timezone === "string" ? payload.timezone : "";
+    if (!timezone) {
+      sendJson(res, 400, { error: "invalid timezone" });
+      return true;
+    }
+
+    state.timeSettings.timezone = timezone;
+    state.status.clockStatus = `Clock: ${timezone}`;
+    sendJson(res, 200, { timezone: state.timeSettings.timezone });
     return true;
   }
 

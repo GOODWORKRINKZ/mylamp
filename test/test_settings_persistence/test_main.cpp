@@ -47,8 +47,19 @@ template <typename T>
 struct has_update_channel<T, std::void_t<decltype(std::declval<T>().update.channel)>>
     : std::true_type {};
 
+template <typename T, typename = void>
+struct has_clock_timezone : std::false_type {};
+
+template <typename T>
+struct has_clock_timezone<T, std::void_t<decltype(std::declval<T>().clock.timezone)>>
+  : std::true_type {};
+
 void test_app_settings_exposes_update_channel() {
   TEST_ASSERT_TRUE(has_update_channel<lamp::settings::AppSettings>::value);
+}
+
+void test_app_settings_exposes_clock_timezone() {
+  TEST_ASSERT_TRUE(has_clock_timezone<lamp::settings::AppSettings>::value);
 }
 
 void test_load_uses_defaults_when_storage_is_empty() {
@@ -61,6 +72,7 @@ void test_load_uses_defaults_when_storage_is_empty() {
                         static_cast<int>(settings.network.preferredMode));
   TEST_ASSERT_EQUAL_STRING("MYLAMP", settings.network.accessPointName.c_str());
   TEST_ASSERT_TRUE(settings.clock.enabled);
+  TEST_ASSERT_EQUAL_STRING("UTC0", settings.clock.timezone.c_str());
   TEST_ASSERT_EQUAL_STRING("stable", settings.update.channel.c_str());
 }
 
@@ -72,6 +84,7 @@ void test_load_reads_saved_network_clock_and_update_settings() {
   backend.values["network.clientPassword"] = "secret";
   backend.values["clock.enabled"] = "false";
   backend.values["clock.cachedOffline"] = "false";
+  backend.values["clock.timezone"] = "MSK-3";
   backend.values["update.channel"] = "dev";
 
   lamp::settings::AppSettingsPersistence persistence;
@@ -83,6 +96,7 @@ void test_load_reads_saved_network_clock_and_update_settings() {
   TEST_ASSERT_EQUAL_STRING("HomeWiFi", settings.network.clientSsid.c_str());
   TEST_ASSERT_FALSE(settings.clock.enabled);
   TEST_ASSERT_FALSE(settings.clock.showCachedTimeWhenOffline);
+  TEST_ASSERT_EQUAL_STRING("MSK-3", settings.clock.timezone.c_str());
   TEST_ASSERT_EQUAL_STRING("dev", settings.update.channel.c_str());
 }
 
@@ -105,6 +119,7 @@ void test_save_persists_network_clock_and_update_settings() {
   settings.network.clientPassword = "secret";
   settings.clock.enabled = true;
   settings.clock.showCachedTimeWhenOffline = false;
+  settings.clock.timezone = "MSK-3";
   settings.update.channel = "dev";
 
   lamp::settings::AppSettingsPersistence persistence;
@@ -116,6 +131,7 @@ void test_save_persists_network_clock_and_update_settings() {
   TEST_ASSERT_EQUAL_STRING("secret", backend.values["network.clientPassword"].c_str());
   TEST_ASSERT_EQUAL_STRING("true", backend.values["clock.enabled"].c_str());
   TEST_ASSERT_EQUAL_STRING("false", backend.values["clock.cachedOffline"].c_str());
+  TEST_ASSERT_EQUAL_STRING("MSK-3", backend.values["clock.timezone"].c_str());
   TEST_ASSERT_EQUAL_STRING("dev", backend.values["update.channel"].c_str());
 }
 
@@ -137,6 +153,7 @@ int main(int argc, char** argv) {
   (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_app_settings_exposes_update_channel);
+  RUN_TEST(test_app_settings_exposes_clock_timezone);
   RUN_TEST(test_load_uses_defaults_when_storage_is_empty);
   RUN_TEST(test_load_reads_saved_network_clock_and_update_settings);
   RUN_TEST(test_load_normalizes_invalid_update_channel_to_stable);

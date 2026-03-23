@@ -16,6 +16,7 @@ class ArduinoNtpTimeSource : public ITimeSource {
  private:
   bool configured_ = false;
   bool validTime_ = false;
+  std::string configuredTimezone_;
   std::string cachedFormattedTime_;
 };
 

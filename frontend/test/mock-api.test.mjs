@@ -206,6 +206,31 @@ async function main() {
     assert.equal(networkApFallbackResponse.statusCode, 200);
     assert.equal(networkApFallbackResponse.payload.mode, "ap");
     assert.equal(networkApFallbackResponse.payload.accessPointName, "MYLAMP");
+
+    const timeSettingsResponse = await requestJson(baseUrl, "/api/settings/time", "GET", null, {
+      "X-Dev-Scenario": "happy-path",
+    });
+    assert.equal(timeSettingsResponse.statusCode, 200);
+    assert.equal(typeof timeSettingsResponse.payload.timezone, "string");
+
+    const timeSettingsSaveResponse = await requestJson(
+      baseUrl,
+      "/api/settings/time",
+      "POST",
+      "timezone=MSK-3",
+      {
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "X-Dev-Scenario": "happy-path",
+      },
+    );
+    assert.equal(timeSettingsSaveResponse.statusCode, 200);
+    assert.equal(timeSettingsSaveResponse.payload.timezone, "MSK-3");
+
+    const timeSettingsReadback = await requestJson(baseUrl, "/api/settings/time", "GET", null, {
+      "X-Dev-Scenario": "happy-path",
+    });
+    assert.equal(timeSettingsReadback.statusCode, 200);
+    assert.equal(timeSettingsReadback.payload.timezone, "MSK-3");
   } finally {
     await cleanup();
   }

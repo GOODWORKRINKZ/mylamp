@@ -17,6 +17,7 @@
 #include "web/PlaylistApi.h"
 #include "web/PresetApi.h"
 #include "web/StatusJsonBuilder.h"
+#include "web/TimeSettingsJson.h"
 
 namespace lamp::web {
 
@@ -51,6 +52,8 @@ class LampWebServer {
   void handleStatus();
   void handleGetNetworkSettings();
   void handleUpdateNetworkSettings();
+  void handleGetTimeSettings();
+  void handleUpdateTimeSettings();
   void handleGetUpdateSettings();
   void handleUpdateSettings();
   void handleCurrentUpdate();
