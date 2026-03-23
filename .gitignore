@@ -2,3 +2,6 @@
 .vscode/
 .worktrees/
 worktrees/
+frontend/node_modules/
+resources/dist/
+test/__pycache__/

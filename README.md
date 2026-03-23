@@ -36,6 +36,7 @@
 - effect engine;
 - overlays для часов и датчиков;
 - WiFi/settings/web API;
+- embedded frontend resources для editor-first управления;
 - OTA и release/versioning.
 
 ## Стартовый каркас репозитория
@@ -53,6 +54,7 @@
 - generic skills копируются в `.agents/skills` и живут внутри проекта;
 - robot-specific skills из исходного проекта не переносятся без адаптации;
 - release engineering будет строиться по паттерну microbbox: draft-first release, stable/dev каналы и OTA через GitHub Releases.
+- текущий `GET /` в прошивке временный; он будет заменен встроенными frontend-ресурсами, собранными из `frontend/` и встроенными в firmware.
 
 ## Важные аппаратные замечания
 
@@ -69,8 +71,8 @@
 - добавлен стартовый layout-модуль для цилиндрической логики.
 
 Следующие шаги:
-1. добавить framebuffer и базовый effect engine;
-2. ввести WiFi/settings/web API слой;
-3. подключить AHT30 и NTP;
+1. собрать editor-first frontend shell и встроить его в прошивку;
+2. добавить presets/playlists storage слой;
+3. подключить DSL runtime для live coding;
 4. добавить OTA и CI/CD workflow.
 
