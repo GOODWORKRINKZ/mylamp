@@ -27,5 +27,6 @@ static constexpr char kNtpSecondaryServer[] = "time.nist.gov";
 static constexpr uint32_t kWiFiConnectTimeoutMs = 10000;
 static constexpr uint16_t kWiFiPollIntervalMs = 250;
 static constexpr uint32_t kTimeRefreshIntervalMs = 30000;
+static constexpr uint32_t kSensorRefreshIntervalMs = 5000;
 
 }  // namespace lamp::config

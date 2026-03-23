@@ -15,6 +15,10 @@ void test_status_json_contains_build_and_runtime_fields() {
   snapshot.networkStatus = "AP: MYLAMP";
   snapshot.clockStatus = "Clock: unavailable";
   snapshot.currentTime = "";
+  snapshot.sensorStatus = "Sensor: unavailable";
+  snapshot.sensorAvailable = false;
+  snapshot.temperatureC = 0.0f;
+  snapshot.humidityPercent = 0.0f;
   snapshot.activeEffect = "boot-solid";
 
   const std::string json = lamp::web::buildStatusJson(snapshot);
@@ -22,6 +26,9 @@ void test_status_json_contains_build_and_runtime_fields() {
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"version\":\"0.1.0-dev\"")));
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"channel\":\"dev\"")));
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"networkMode\":\"ap\"")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"sensorStatus\":\"Sensor: unavailable\"")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"temperatureC\":null")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"humidityPercent\":null")));
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"activeEffect\":\"boot-solid\"")));
 }
 
@@ -34,6 +41,10 @@ void test_status_json_escapes_quotes_and_backslashes() {
   snapshot.networkStatus = "IP: \"192.168.1.55\"";
   snapshot.clockStatus = "Clock: NTP";
   snapshot.currentTime = "12:34:56";
+  snapshot.sensorStatus = "Sensor: ok";
+  snapshot.sensorAvailable = true;
+  snapshot.temperatureC = 23.5f;
+  snapshot.humidityPercent = 48.25f;
   snapshot.activeEffect = "debug-columns";
 
   const std::string json = lamp::web::buildStatusJson(snapshot);
@@ -41,6 +52,8 @@ void test_status_json_escapes_quotes_and_backslashes() {
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("esp32-c3\\\\mini")));
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\\\"192.168.1.55\\\"")));
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"currentTime\":\"12:34:56\"")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"temperatureC\":23.5")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"humidityPercent\":48.25")));
 }
 
 }  // namespace

@@ -4,9 +4,16 @@
 #include "BuildInfo.h"
 #include "FrameBuffer.h"
 #include "MatrixLayout.h"
+#include "effects/AlternatingColumnsEffect.h"
+#include "effects/EffectContext.h"
+#include "effects/EffectRegistry.h"
+#include "effects/SolidColorEffect.h"
 #include "network/ArduinoWiFiAdapter.h"
 #include "network/NetworkPlanner.h"
 #include "network/WiFiManager.h"
+#include "sensors/ArduinoAht30SensorSource.h"
+#include "sensors/ISensorSource.h"
+#include "sensors/SensorRuntimeService.h"
 #include "settings/AppSettings.h"
 #include "settings/AppSettingsPersistence.h"
 #include "settings/PreferencesSettingsBackend.h"
@@ -16,10 +23,6 @@
 #include "time/TimeRuntimeService.h"
 #include "web/LampWebServer.h"
 #include "web/StatusJsonBuilder.h"
-#include "effects/AlternatingColumnsEffect.h"
-#include "effects/EffectContext.h"
-#include "effects/EffectRegistry.h"
-#include "effects/SolidColorEffect.h"
 
 namespace {
 
@@ -41,13 +44,21 @@ lamp::time::TimePlanner g_timePlanner;
 lamp::time::PlannedTimeState g_timeState;
 lamp::time::TimeRuntimeService g_timeRuntimeService;
 lamp::time::RuntimeTimeState g_runtimeTimeState;
+lamp::sensors::ArduinoAht30SensorSource g_sensorSource;
+lamp::sensors::SensorRuntimeService g_sensorRuntimeService;
+lamp::sensors::RuntimeSensorState g_sensorState;
 lamp::web::LampWebServer g_webServer;
 unsigned long g_lastHeartbeatMs = 0;
 unsigned long g_lastTimeRefreshMs = 0;
+unsigned long g_lastSensorRefreshMs = 0;
 bool g_usePatternEffect = false;
 bool g_networkReconfigureRequested = false;
 
 lamp::web::StatusSnapshot buildStatusSnapshot();
+
+void refreshSensorState() {
+  g_sensorState = g_sensorRuntimeService.refresh(g_sensorState, g_sensorSource);
+}
 
 void refreshRuntimeState(const lamp::network::WiFiStartupResult& wifiResult) {
   const bool clientActive = wifiResult.activeMode == lamp::network::NetworkMode::kClient;
@@ -68,6 +79,10 @@ lamp::web::StatusSnapshot buildStatusSnapshot() {
   snapshot.networkStatus = g_networkState.statusLine;
   snapshot.clockStatus = g_timeState.statusLine;
   snapshot.currentTime = g_runtimeTimeState.currentTime;
+  snapshot.sensorStatus = g_sensorState.statusLine;
+  snapshot.sensorAvailable = g_sensorState.available;
+  snapshot.temperatureC = g_sensorState.temperatureC;
+  snapshot.humidityPercent = g_sensorState.humidityPercent;
   if (const lamp::effects::IEffect* effect = g_effectRegistry.active()) {
     snapshot.activeEffect = effect->name();
   }
@@ -122,6 +137,14 @@ void printBootBanner() {
   Serial.println(g_timeState.statusLine.c_str());
   Serial.print("current time: ");
   Serial.println(g_runtimeTimeState.currentTime.c_str());
+  Serial.print("sensor state: ");
+  Serial.println(g_sensorState.statusLine.c_str());
+  if (g_sensorState.available) {
+    Serial.print("temperature C: ");
+    Serial.println(g_sensorState.temperatureC);
+    Serial.print("humidity %: ");
+    Serial.println(g_sensorState.humidityPercent);
+  }
 }
 
 }  // namespace
@@ -133,9 +156,11 @@ void setup() {
     g_webServer.setSettingsCallbacks(getCurrentSettings, saveAndApplySettings);
   const lamp::network::WiFiStartupResult wifiResult =
       g_wifiManager.startup(g_settings.network, g_wifiAdapter);
-    refreshRuntimeState(wifiResult);
+  refreshRuntimeState(wifiResult);
   g_effectRegistry.add(g_bootEffect);
   g_effectRegistry.add(g_patternEffect);
+  refreshSensorState();
+  g_webServer.setStatusSnapshot(buildStatusSnapshot());
   g_webServer.begin();
   lamp::effects::EffectContext context{0, g_frameBuffer};
   g_effectRegistry.renderActive(context);
@@ -156,6 +181,11 @@ void loop() {
     g_runtimeTimeState = g_timeRuntimeService.refresh(g_timeState, g_timeSource);
     g_webServer.setStatusSnapshot(buildStatusSnapshot());
   }
+  if (now - g_lastSensorRefreshMs >= lamp::config::kSensorRefreshIntervalMs) {
+    g_lastSensorRefreshMs = now;
+    refreshSensorState();
+    g_webServer.setStatusSnapshot(buildStatusSnapshot());
+  }
   if (now - g_lastHeartbeatMs >= 5000UL) {
     g_lastHeartbeatMs = now;
     g_usePatternEffect = !g_usePatternEffect;
@@ -173,5 +203,7 @@ void loop() {
     Serial.println(g_networkState.statusLine.c_str());
     Serial.print("clock state: ");
     Serial.println(g_timeState.statusLine.c_str());
+    Serial.print("sensor state: ");
+    Serial.println(g_sensorState.statusLine.c_str());
   }
 }

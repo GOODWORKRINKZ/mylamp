@@ -1,5 +1,8 @@
 #include "web/StatusJsonBuilder.h"
 
+#include <iomanip>
+#include <sstream>
+
 namespace lamp::web {
 
 namespace {
@@ -45,6 +48,33 @@ void appendField(std::string& json, const char* key, const std::string& value, b
   }
 }
 
+std::string formatFloat(float value) {
+  std::ostringstream stream;
+  stream << std::fixed << std::setprecision(2) << value;
+  std::string formatted = stream.str();
+
+  while (!formatted.empty() && formatted.back() == '0') {
+    formatted.pop_back();
+  }
+
+  if (!formatted.empty() && formatted.back() == '.') {
+    formatted.pop_back();
+  }
+
+  return formatted;
+}
+
+void appendFloatField(std::string& json, const char* key, bool available, float value,
+                      bool trailingComma) {
+  json += '"';
+  json += key;
+  json += "\":";
+  json += available ? formatFloat(value) : "null";
+  if (trailingComma) {
+    json += ',';
+  }
+}
+
 }  // namespace
 
 std::string buildStatusJson(const StatusSnapshot& snapshot) {
@@ -56,6 +86,10 @@ std::string buildStatusJson(const StatusSnapshot& snapshot) {
   appendField(json, "networkStatus", snapshot.networkStatus, true);
   appendField(json, "clockStatus", snapshot.clockStatus, true);
   appendField(json, "currentTime", snapshot.currentTime, true);
+  appendField(json, "sensorStatus", snapshot.sensorStatus, true);
+  appendFloatField(json, "temperatureC", snapshot.sensorAvailable, snapshot.temperatureC, true);
+  appendFloatField(json, "humidityPercent", snapshot.sensorAvailable, snapshot.humidityPercent,
+                   true);
   appendField(json, "activeEffect", snapshot.activeEffect, false);
   json += '}';
   return json;

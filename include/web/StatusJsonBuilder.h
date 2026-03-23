@@ -12,6 +12,10 @@ struct StatusSnapshot {
   std::string networkStatus;
   std::string clockStatus;
   std::string currentTime;
+  std::string sensorStatus;
+  bool sensorAvailable = false;
+  float temperatureC = 0.0f;
+  float humidityPercent = 0.0f;
   std::string activeEffect;
 };
 
