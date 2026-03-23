@@ -1,4 +1,6 @@
 import "./styles/app.css";
+import { editorHelpSections } from "./editor/help";
+import { starterSnippets, type StarterSnippet } from "./editor/snippets";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -25,6 +27,36 @@ type StatusPayload = {
   liveErrorSummary: string;
 };
 
+function renderStarterSnippetList(): string {
+  return starterSnippets
+    .map(
+      (snippet) => `
+        <li class="snippet-item">
+          <button class="snippet-button" data-snippet-id="${snippet.id}" type="button">
+            <strong>${snippet.name}</strong>
+            <span>${snippet.description}</span>
+          </button>
+        </li>`,
+    )
+    .join("");
+}
+
+function renderHelpSections(): string {
+  return editorHelpSections
+    .map(
+      (section) => `
+        <section class="help-card">
+          <h3>${section.title}</h3>
+          <ul class="item-list item-list--compact">
+            ${section.items
+              .map((item) => `<li><strong>${item.term}</strong> - ${item.description}</li>`)
+              .join("")}
+          </ul>
+        </section>`,
+    )
+    .join("");
+}
+
 app.innerHTML = `
   <main class="shell">
     <header class="shell__header">
@@ -46,12 +78,10 @@ app.innerHTML = `
           </div>
         </div>
         <div class="panel__body panel__body--editor">
-          <pre class="code-block">effect "warm_waves"
-
-brightness 0.4
-speed 1.0
-
-pixel hsv(nx + t * 0.1, 1.0, 1.0)</pre>
+          <div class="editor-toolbar">
+            <div class="editor-toolbar__hint" id="editor-hint">Выбери шаблон справа, чтобы быстро начать.</div>
+          </div>
+          <pre class="code-block" id="editor-code"></pre>
         </div>
       </section>
 
@@ -83,11 +113,7 @@ pixel hsv(nx + t * 0.1, 1.0, 1.0)</pre>
             <h2>Пресеты</h2>
           </div>
           <div class="panel__body">
-            <ul class="item-list">
-              <li>Радуга</li>
-              <li>Теплые волны</li>
-              <li>Летающее сердечко</li>
-            </ul>
+            <ul class="item-list">${renderStarterSnippetList()}</ul>
           </div>
         </section>
 
@@ -95,9 +121,17 @@ pixel hsv(nx + t * 0.1, 1.0, 1.0)</pre>
           <div class="panel__header">
             <h2>Плейлист</h2>
           </div>
-          <div class="panel__body">
-            <p>Автопереключение пресетов по таймеру появится здесь.</p>
+          <div class="panel__body panel__body--stack">
+            <p>Автопереключение уже работает на устройстве. Здесь появится редактирование очереди и durations.</p>
+            <div class="status-note">Manual Run по-прежнему останавливает autoplay сразу.</div>
           </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel__header">
+            <h2>Справка DSL</h2>
+          </div>
+          <div class="panel__body panel__body--stack">${renderHelpSections()}</div>
         </section>
 
         <section class="panel">
@@ -122,6 +156,33 @@ function setText(id: string, value: string): void {
   if (node) {
     node.textContent = value;
   }
+}
+
+function findSnippetById(snippetId: string): StarterSnippet | undefined {
+  return starterSnippets.find((snippet) => snippet.id === snippetId);
+}
+
+function applySnippet(snippet: StarterSnippet): void {
+  setText("editor-code", snippet.source);
+  setText("editor-hint", `${snippet.name}: ${snippet.description}`);
+  setText("diagnostics-summary", `Шаблон загружен: ${snippet.name}. Проверь expressions и нажми «Запустить».`);
+}
+
+function bindSnippetButtons(): void {
+  const buttons = document.querySelectorAll<HTMLButtonElement>("[data-snippet-id]");
+  buttons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const snippetId = button.dataset.snippetId;
+      if (!snippetId) {
+        return;
+      }
+
+      const snippet = findSnippetById(snippetId);
+      if (snippet) {
+        applySnippet(snippet);
+      }
+    });
+  });
 }
 
 function formatNumber(value: number | null, suffix: string): string {
@@ -168,6 +229,8 @@ async function refreshStatus(): Promise<void> {
 }
 
 void refreshStatus();
+applySnippet(starterSnippets[0]);
+bindSnippetButtons();
 window.setInterval(() => {
   void refreshStatus();
 }, 5000);
