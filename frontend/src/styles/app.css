@@ -34,6 +34,30 @@ button {
   background: var(--accent);
   color: #fff7f1;
   font: inherit;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    background-color 140ms ease,
+    opacity 140ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(214, 85, 47, 0.22);
+}
+
+button:active {
+  transform: translateY(1px) scale(0.99);
+  box-shadow: 0 6px 14px rgba(214, 85, 47, 0.16);
+}
+
+button:focus-visible,
+.snippet-button:focus-visible,
+.dev-panel__select:focus-visible,
+.code-editor:focus-visible {
+  outline: 2px solid rgba(214, 85, 47, 0.55);
+  outline-offset: 2px;
 }
 
 .shell {
@@ -48,6 +72,12 @@ button {
   align-items: center;
   gap: 1rem;
   margin-bottom: 1.5rem;
+}
+
+.shell__header-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
 }
 
 .eyebrow {
@@ -71,6 +101,12 @@ h1 {
   line-height: 0.95;
 }
 
+.shell__subtitle {
+  margin-top: 0.55rem;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
 h2 {
   font-size: 1rem;
 }
@@ -81,6 +117,44 @@ h2 {
   background: var(--accent-soft);
   color: var(--accent);
   font-weight: 700;
+}
+
+.dev-panel {
+  min-width: 240px;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 18px;
+  background: rgba(255, 251, 245, 0.92);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.dev-panel__label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.dev-panel__select {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  padding: 0.65rem 0.75rem;
+  background: #fffdf9;
+  color: var(--text);
+  font: inherit;
+}
+
+.dev-panel__button {
+  background: #2d2217;
+  color: #fff6ee;
+}
+
+.dev-panel__description {
+  font-size: 0.84rem;
+  color: var(--muted);
 }
 
 .shell__grid {
@@ -140,6 +214,8 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
   padding: 0.9rem 1.2rem;
   border-bottom: 1px solid var(--line);
   background: rgba(255, 250, 242, 0.72);
@@ -148,6 +224,15 @@ h2 {
 .editor-toolbar__hint {
   color: var(--muted);
   font-size: 0.92rem;
+}
+
+.editor-toolbar__status {
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(214, 85, 47, 0.12);
+  color: var(--accent);
+  font-size: 0.84rem;
+  font-weight: 600;
 }
 
 .panel--runtime {
@@ -180,15 +265,54 @@ h2 {
   color: var(--text);
 }
 
-.code-block {
+.editor-surface {
+  position: relative;
+  display: block;
   min-height: 100%;
-  padding: 1.4rem;
-  overflow: auto;
   background: linear-gradient(180deg, #2d241e 0%, #17110f 100%);
+}
+
+.editor-surface__badge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 228, 190, 0.18);
+  background: rgba(255, 248, 236, 0.08);
+  color: #ffdcb5;
+  font-size: 0.73rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.code-editor {
+  width: 100%;
+  min-height: calc(74vh - 72px);
+  padding: 1.4rem;
+  padding-top: 2.9rem;
+  border: 0;
+  resize: vertical;
+  overflow: auto;
+  background: transparent;
   color: #f8e8d4;
   font-family: "IBM Plex Mono", "Fira Code", monospace;
   font-size: 0.95rem;
   line-height: 1.55;
+  caret-color: #ff9a63;
+  white-space: pre;
+  tab-size: 2;
+}
+
+.code-editor::placeholder {
+  color: rgba(248, 232, 212, 0.42);
+}
+
+.editor-surface:focus-within {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 163, 114, 0.18),
+    inset 0 0 0 3px rgba(214, 85, 47, 0.16);
 }
 
 .item-list {
@@ -218,6 +342,11 @@ h2 {
   border: 1px solid rgba(214, 85, 47, 0.18);
   background: rgba(255, 244, 235, 0.86);
   color: var(--text);
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    border-color 140ms ease,
+    background-color 140ms ease;
 }
 
 .snippet-button strong {
@@ -231,6 +360,13 @@ h2 {
 
 .snippet-button:hover {
   background: rgba(255, 232, 215, 0.98);
+  border-color: rgba(214, 85, 47, 0.42);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px rgba(73, 50, 23, 0.14);
+}
+
+.snippet-button:active {
+  transform: translateY(0);
 }
 
 .help-card {
@@ -249,6 +385,12 @@ h2 {
 @media (max-width: 980px) {
   .shell {
     padding: 1rem;
+  }
+
+  .shell__header,
+  .shell__header-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .shell__grid {

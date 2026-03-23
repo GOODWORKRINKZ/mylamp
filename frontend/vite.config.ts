@@ -1,8 +1,10 @@
 import path from "path";
 
 import { defineConfig } from "vite";
+import { mockApiPlugin } from "./mockApi.mjs";
 
 export default defineConfig({
+  plugins: [mockApiPlugin()],
   base: "./",
   build: {
     outDir: "../resources/dist",

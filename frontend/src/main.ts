@@ -1,6 +1,8 @@
 import "./styles/app.css";
 import { editorHelpSections } from "./editor/help";
 import { starterSnippets, type StarterSnippet } from "./editor/snippets";
+import { defaultScenarioId, isScenarioId, scenarioDefinitions } from "./dev/mockScenarios";
+import type { ScenarioId, StatusPayload } from "./dev/mockTypes";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -8,24 +10,27 @@ if (!app) {
   throw new Error("App root not found");
 }
 
-type StatusPayload = {
-  version: string;
-  channel: string;
-  board: string;
-  networkMode: string;
-  networkStatus: string;
-  clockStatus: string;
-  currentTime: string;
-  sensorStatus: string;
-  temperatureC: number | null;
-  humidityPercent: number | null;
-  activeEffect: string;
-  activePresetId: string;
-  activePresetName: string;
-  autoplayEnabled: boolean;
-  activePlaylistId: string;
-  liveErrorSummary: string;
-};
+const devScenarioStorageKey = "mylamp-dev-scenario";
+const isDevServer = import.meta.env.DEV;
+
+function readScenarioFromUrl(): ScenarioId | null {
+  const params = new URLSearchParams(window.location.search);
+  const scenario = params.get("scenario");
+  return scenario && isScenarioId(scenario) ? scenario : null;
+}
+
+function getSelectedScenario(): ScenarioId {
+  const urlScenario = readScenarioFromUrl();
+  if (urlScenario) {
+    localStorage.setItem(devScenarioStorageKey, urlScenario);
+    return urlScenario;
+  }
+
+  const storedScenario = localStorage.getItem(devScenarioStorageKey);
+  return storedScenario && isScenarioId(storedScenario) ? storedScenario : defaultScenarioId;
+}
+
+let selectedScenario: ScenarioId = getSelectedScenario();
 
 function renderStarterSnippetList(): string {
   return starterSnippets
@@ -61,16 +66,33 @@ app.innerHTML = `
   <main class="shell">
     <header class="shell__header">
       <div>
-        <p class="eyebrow">mylamp live coding</p>
-        <h1>Editor-first shell</h1>
+        <p class="eyebrow">MyLamp</p>
+        <h1>Моя Лампа</h1>
+        <p class="shell__subtitle">Учимся лайвкодить</p>
       </div>
-      <div class="status-pill" id="build-pill">Загрузка статуса...</div>
+      <div class="shell__header-actions">
+        ${isDevServer ? `
+        <section class="dev-panel">
+          <label class="dev-panel__label" for="dev-scenario-select">Сценарий для проверки</label>
+          <select class="dev-panel__select" id="dev-scenario-select">
+            ${scenarioDefinitions
+              .map(
+                (scenario) =>
+                  `<option value="${scenario.id}"${scenario.id === selectedScenario ? " selected" : ""}>${scenario.label}</option>`,
+              )
+              .join("")}
+          </select>
+          <button class="dev-panel__button" id="dev-reset-button" type="button">Сбросить пример</button>
+          <p class="dev-panel__description" id="dev-scenario-description"></p>
+        </section>` : ""}
+        <div class="status-pill" id="build-pill">Загрузка статуса...</div>
+      </div>
     </header>
 
     <section class="shell__grid">
       <section class="panel panel--editor">
         <div class="panel__header">
-          <h2>Редактор эффекта</h2>
+          <h2>Рисуем огоньки</h2>
           <div class="panel__actions">
             <button type="button">Проверить</button>
             <button type="button">Запустить</button>
@@ -79,38 +101,50 @@ app.innerHTML = `
         </div>
         <div class="panel__body panel__body--editor">
           <div class="editor-toolbar">
-            <div class="editor-toolbar__hint" id="editor-hint">Выбери шаблон справа, чтобы быстро начать.</div>
+            <div class="editor-toolbar__hint" id="editor-hint">Выбери идею справа и попробуй поменять цвета, форму или движение.</div>
+            <div class="editor-toolbar__status" id="editor-status">Кликни в код и печатай. Курсор появится внутри поля.</div>
           </div>
-          <pre class="code-block" id="editor-code"></pre>
+          <label class="editor-surface" for="editor-code">
+            <span class="editor-surface__badge">DSL</span>
+            <textarea
+              class="code-editor"
+              id="editor-code"
+              spellcheck="false"
+              autocapitalize="off"
+              autocomplete="off"
+              autocorrect="off"
+              placeholder="effect \"my_effect\"&#10;&#10;sprite dot {&#10;  bitmap \"\"\"&#10;  #&#10;  \"\"\"&#10;}&#10;&#10;layer paint {&#10;  use dot&#10;  color rgb(255, 120, 80)&#10;  x = 10&#10;  y = 6&#10;  scale = 2&#10;  visible = 1&#10;}"
+            ></textarea>
+          </label>
         </div>
       </section>
 
       <aside class="sidebar">
         <section class="panel panel--runtime">
           <div class="panel__header">
-            <h2>Live runtime</h2>
+            <h2>Что сейчас горит</h2>
           </div>
           <div class="panel__body panel__body--stack">
-            <div class="key-value"><span>Активный preset</span><strong id="runtime-preset">-</strong></div>
-            <div class="key-value"><span>Автовоспроизведение</span><strong id="runtime-autoplay">-</strong></div>
-            <div class="key-value"><span>Плейлист</span><strong id="runtime-playlist">-</strong></div>
-            <div class="key-value"><span>Эффект fallback</span><strong id="runtime-effect">-</strong></div>
+            <div class="key-value"><span>Сейчас включено</span><strong id="runtime-preset">-</strong></div>
+            <div class="key-value"><span>Автосмена</span><strong id="runtime-autoplay">-</strong></div>
+            <div class="key-value"><span>Очередь огоньков</span><strong id="runtime-playlist">-</strong></div>
+            <div class="key-value"><span>Запасной режим</span><strong id="runtime-effect">-</strong></div>
           </div>
         </section>
 
         <section class="panel">
           <div class="panel__header">
-            <h2>Диагностика</h2>
+            <h2>Подсказки</h2>
           </div>
           <div class="panel__body panel__body--stack">
-            <p id="diagnostics-summary">Здесь появятся ошибки DSL, подсказки и статус компиляции.</p>
-            <div class="status-note" id="diagnostics-status">Ожидаем данные от лампы.</div>
+            <p id="diagnostics-summary">Здесь появятся подсказки, ошибки в коде и результат проверки.</p>
+            <div class="status-note" id="diagnostics-status">Ждём новости от лампы.</div>
           </div>
         </section>
 
         <section class="panel">
           <div class="panel__header">
-            <h2>Пресеты</h2>
+            <h2>Готовые идеи</h2>
           </div>
           <div class="panel__body">
             <ul class="item-list">${renderStarterSnippetList()}</ul>
@@ -119,24 +153,24 @@ app.innerHTML = `
 
         <section class="panel">
           <div class="panel__header">
-            <h2>Плейлист</h2>
+            <h2>Очередь огоньков</h2>
           </div>
           <div class="panel__body panel__body--stack">
-            <p>Автопереключение уже работает на устройстве. Здесь появится редактирование очереди и durations.</p>
-            <div class="status-note">Manual Run по-прежнему останавливает autoplay сразу.</div>
+            <p>Лампа уже умеет сама переключать эффекты. Скоро здесь можно будет собирать свою очередь огоньков.</p>
+            <div class="status-note">Если запустить эффект вручную, автосмена сразу остановится.</div>
           </div>
         </section>
 
         <section class="panel">
           <div class="panel__header">
-            <h2>Справка DSL</h2>
+            <h2>Шпаргалка по командам</h2>
           </div>
           <div class="panel__body panel__body--stack">${renderHelpSections()}</div>
         </section>
 
         <section class="panel">
           <div class="panel__header">
-            <h2>Настройки лампы</h2>
+            <h2>Как себя чувствует лампа</h2>
           </div>
           <div class="panel__body panel__body--stack">
             <div class="key-value"><span>Сеть</span><strong id="lamp-network">-</strong></div>
@@ -158,14 +192,41 @@ function setText(id: string, value: string): void {
   }
 }
 
+function setEditorValue(value: string): void {
+  const editor = document.getElementById("editor-code") as HTMLTextAreaElement | null;
+  if (editor) {
+    editor.value = value;
+  }
+}
+
+function setSelectedScenario(nextScenario: ScenarioId): void {
+  selectedScenario = nextScenario;
+  localStorage.setItem(devScenarioStorageKey, nextScenario);
+  const url = new URL(window.location.href);
+  url.searchParams.set("scenario", nextScenario);
+  window.history.replaceState({}, "", url);
+}
+
+function buildApiHeaders(): HeadersInit {
+  if (!isDevServer) {
+    return { Accept: "application/json" };
+  }
+
+  return {
+    Accept: "application/json",
+    "X-Dev-Scenario": selectedScenario,
+  };
+}
+
 function findSnippetById(snippetId: string): StarterSnippet | undefined {
   return starterSnippets.find((snippet) => snippet.id === snippetId);
 }
 
 function applySnippet(snippet: StarterSnippet): void {
-  setText("editor-code", snippet.source);
+  setEditorValue(snippet.source);
   setText("editor-hint", `${snippet.name}: ${snippet.description}`);
-  setText("diagnostics-summary", `Шаблон загружен: ${snippet.name}. Проверь expressions и нажми «Запустить».`);
+  setText("editor-status", "Идея загружена. Теперь можно менять код и смотреть, что получится.");
+  setText("diagnostics-summary", `Загружена идея «${snippet.name}». Проверь код и нажми «Запустить», когда будешь готов.`);
 }
 
 function bindSnippetButtons(): void {
@@ -185,6 +246,60 @@ function bindSnippetButtons(): void {
   });
 }
 
+function renderScenarioDescription(): void {
+  const description = scenarioDefinitions.find((scenario) => scenario.id === selectedScenario)?.description;
+  setText("dev-scenario-description", description ?? "");
+}
+
+function bindDevScenarioControls(): void {
+  if (!isDevServer) {
+    return;
+  }
+
+  renderScenarioDescription();
+
+  const select = document.getElementById("dev-scenario-select") as HTMLSelectElement | null;
+  const resetButton = document.getElementById("dev-reset-button") as HTMLButtonElement | null;
+
+  select?.addEventListener("change", () => {
+    const nextValue = select.value;
+    if (!isScenarioId(nextValue)) {
+      return;
+    }
+
+    setSelectedScenario(nextValue);
+    renderScenarioDescription();
+    void refreshStatus();
+  });
+
+  resetButton?.addEventListener("click", async () => {
+    await fetch("/__dev/reset", {
+      method: "POST",
+      headers: buildApiHeaders(),
+    });
+    void refreshStatus();
+  });
+}
+
+function bindEditorFocusHints(): void {
+  const editor = document.getElementById("editor-code") as HTMLTextAreaElement | null;
+  if (!editor) {
+    return;
+  }
+
+  editor.addEventListener("focus", () => {
+    setText("editor-status", "Можно печатать. Курсор уже в коде.");
+  });
+
+  editor.addEventListener("blur", () => {
+    setText("editor-status", "Редактор не выбран. Кликни в код, чтобы продолжить.");
+  });
+
+  editor.addEventListener("input", () => {
+    setText("editor-status", "Есть новые правки. Можно проверить, запустить или сохранить идею.");
+  });
+}
+
 function formatNumber(value: number | null, suffix: string): string {
   if (value === null || Number.isNaN(value)) {
     return "-";
@@ -195,15 +310,15 @@ function formatNumber(value: number | null, suffix: string): string {
 
 function renderStatus(status: StatusPayload): void {
   setText("build-pill", `${status.version} · ${status.channel}`);
-  setText("runtime-preset", status.activePresetName || status.activePresetId || "Временный запуск / нет preset");
+  setText("runtime-preset", status.activePresetName || status.activePresetId || "Пока ничего не выбрано");
   setText("runtime-autoplay", status.autoplayEnabled ? "Включено" : "Выключено");
-  setText("runtime-playlist", status.activePlaylistId || "Нет активного playlist");
+  setText("runtime-playlist", status.activePlaylistId || "Очередь пока не включена");
   setText("runtime-effect", status.activeEffect || "- ");
   setText(
     "diagnostics-summary",
-    status.liveErrorSummary || "Ошибок live runtime нет. Следующий шаг: привязать validate/run/save к редактору.",
+    status.liveErrorSummary || "Пока всё спокойно. Можно пробовать новые идеи и смотреть, как они оживают.",
   );
-  setText("diagnostics-status", status.liveErrorSummary ? "Требуется исправление DSL" : "Runtime готов к запуску preset и autoplay");
+  setText("diagnostics-status", status.liveErrorSummary ? "Нужно чуть поправить код" : "Лампа готова показывать новые огоньки");
   setText("lamp-network", status.networkStatus || status.networkMode || "-");
   setText("lamp-clock", status.currentTime || status.clockStatus || "-");
   setText("lamp-sensor", status.sensorStatus || "-");
@@ -213,7 +328,7 @@ function renderStatus(status: StatusPayload): void {
 
 async function refreshStatus(): Promise<void> {
   try {
-    const response = await fetch("/api/status", { headers: { Accept: "application/json" } });
+    const response = await fetch("/api/status", { headers: buildApiHeaders() });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -223,7 +338,7 @@ async function refreshStatus(): Promise<void> {
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown error";
     setText("build-pill", "Статус недоступен");
-    setText("diagnostics-summary", "Не удалось получить /api/status");
+    setText("diagnostics-summary", "Не получилось поговорить с лампой и обновить статус.");
     setText("diagnostics-status", message);
   }
 }
@@ -231,6 +346,8 @@ async function refreshStatus(): Promise<void> {
 void refreshStatus();
 applySnippet(starterSnippets[0]);
 bindSnippetButtons();
+bindDevScenarioControls();
+bindEditorFocusHints();
 window.setInterval(() => {
   void refreshStatus();
 }, 5000);

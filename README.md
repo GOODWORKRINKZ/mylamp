@@ -76,3 +76,37 @@
 3. подключить DSL runtime для live coding;
 4. добавить OTA и CI/CD workflow.
 
+## Локальная разработка frontend
+
+Для работы над frontend без ESP32 доступен локальный Vite dev server со стабовым backend.
+
+Команды:
+
+```bash
+cd frontend
+npm run dev
+```
+
+Что даёт dev mode:
+- отвечает на `/api/status`, `/api/live/*`, `/api/presets/*`, `/api/playlists/*` без железа;
+- поддерживает несколько сценариев состояния лампы;
+- позволяет переключать сценарий прямо из UI.
+
+Доступные сценарии:
+- `happy-path`
+- `autoplay`
+- `dsl-error`
+- `offline-ish`
+- `sensor-missing`
+
+Сценарий можно выбрать:
+- через dev-панель в интерфейсе;
+- через query param, например `http://127.0.0.1:5173/?scenario=autoplay`.
+
+Продакшен-сборка остаётся прежней:
+
+```bash
+cd frontend
+npm run build
+```
+
