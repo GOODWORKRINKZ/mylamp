@@ -38,6 +38,17 @@ lamp::time::PlannedTimeState g_timeState;
 lamp::web::LampWebServer g_webServer;
 unsigned long g_lastHeartbeatMs = 0;
 bool g_usePatternEffect = false;
+bool g_networkReconfigureRequested = false;
+
+lamp::web::StatusSnapshot buildStatusSnapshot();
+
+void refreshRuntimeState(const lamp::network::WiFiStartupResult& wifiResult) {
+  const bool clientActive = wifiResult.activeMode == lamp::network::NetworkMode::kClient;
+  g_networkState = g_networkPlanner.planStartup(
+      g_settings.network, clientActive, clientActive, wifiResult.ipAddress);
+  g_timeState = g_timePlanner.plan(g_settings.clock, g_networkState, false);
+  g_webServer.setStatusSnapshot(buildStatusSnapshot());
+}
 
 lamp::web::StatusSnapshot buildStatusSnapshot() {
   lamp::web::StatusSnapshot snapshot;
@@ -52,6 +63,16 @@ lamp::web::StatusSnapshot buildStatusSnapshot() {
     snapshot.activeEffect = effect->name();
   }
   return snapshot;
+}
+
+lamp::settings::AppSettings getCurrentSettings() {
+  return g_settings;
+}
+
+void saveAndApplySettings(const lamp::settings::AppSettings& settings) {
+  g_settings = settings;
+  g_settingsPersistence.save(g_settings, g_settingsBackend);
+  g_networkReconfigureRequested = true;
 }
 
 void printBootBanner() {
@@ -98,16 +119,12 @@ void setup() {
   Serial.begin(115200);
   delay(200);
   g_settings = g_settingsPersistence.load(g_settingsBackend);
+    g_webServer.setSettingsCallbacks(getCurrentSettings, saveAndApplySettings);
   const lamp::network::WiFiStartupResult wifiResult =
       g_wifiManager.startup(g_settings.network, g_wifiAdapter);
-  const bool internetAvailable = wifiResult.activeMode == lamp::network::NetworkMode::kClient;
-  g_networkState = g_networkPlanner.planStartup(
-      g_settings.network, wifiResult.activeMode == lamp::network::NetworkMode::kClient,
-      internetAvailable, wifiResult.ipAddress);
-  g_timeState = g_timePlanner.plan(g_settings.clock, g_networkState, false);
+    refreshRuntimeState(wifiResult);
   g_effectRegistry.add(g_bootEffect);
   g_effectRegistry.add(g_patternEffect);
-  g_webServer.setStatusSnapshot(buildStatusSnapshot());
   g_webServer.begin();
   lamp::effects::EffectContext context{0, g_frameBuffer};
   g_effectRegistry.renderActive(context);
@@ -116,6 +133,12 @@ void setup() {
 
 void loop() {
   g_webServer.loop();
+  if (g_networkReconfigureRequested) {
+    g_networkReconfigureRequested = false;
+    const lamp::network::WiFiStartupResult wifiResult =
+        g_wifiManager.startup(g_settings.network, g_wifiAdapter);
+    refreshRuntimeState(wifiResult);
+  }
   const unsigned long now = millis();
   if (now - g_lastHeartbeatMs >= 5000UL) {
     g_lastHeartbeatMs = now;

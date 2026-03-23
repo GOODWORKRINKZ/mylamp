@@ -17,9 +17,16 @@ void LampWebServer::setStatusSnapshot(StatusSnapshot snapshot) {
   snapshot_ = snapshot;
 }
 
+void LampWebServer::setSettingsCallbacks(SettingsGetter getter, SettingsSaver saver) {
+  getSettings_ = getter;
+  saveSettings_ = saver;
+}
+
 void LampWebServer::registerRoutes() {
   server_.on("/", [this]() { handleRoot(); });
   server_.on("/api/status", [this]() { handleStatus(); });
+  server_.on("/api/settings/network", HTTP_GET, [this]() { handleGetNetworkSettings(); });
+  server_.on("/api/settings/network", HTTP_POST, [this]() { handleUpdateNetworkSettings(); });
 }
 
 void LampWebServer::handleRoot() {
@@ -28,6 +35,34 @@ void LampWebServer::handleRoot() {
 
 void LampWebServer::handleStatus() {
   server_.send(200, "application/json", buildStatusJson(snapshot_).c_str());
+}
+
+void LampWebServer::handleGetNetworkSettings() {
+  if (!getSettings_) {
+    server_.send(500, "application/json", "{\"error\":\"settings unavailable\"}");
+    return;
+  }
+
+  server_.send(200, "application/json", buildNetworkSettingsJson(getSettings_()).c_str());
+}
+
+void LampWebServer::handleUpdateNetworkSettings() {
+  if (!getSettings_ || !saveSettings_) {
+    server_.send(500, "application/json", "{\"error\":\"settings unavailable\"}");
+    return;
+  }
+
+  settings::AppSettings settings = getSettings_();
+  const bool applied = applyNetworkSettingsUpdate(
+      server_.arg("mode").c_str(), server_.arg("accessPointName").c_str(),
+      server_.arg("clientSsid").c_str(), server_.arg("clientPassword").c_str(), settings);
+  if (!applied) {
+    server_.send(400, "application/json", "{\"error\":\"invalid mode\"}");
+    return;
+  }
+
+  saveSettings_(settings);
+  server_.send(200, "application/json", buildNetworkSettingsJson(settings).c_str());
 }
 
 }  // namespace lamp::web
