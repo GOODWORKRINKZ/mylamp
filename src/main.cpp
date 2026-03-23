@@ -10,7 +10,10 @@
 #include "settings/AppSettings.h"
 #include "settings/AppSettingsPersistence.h"
 #include "settings/PreferencesSettingsBackend.h"
+#include "time/ArduinoNtpTimeSource.h"
+#include "time/ITimeSource.h"
 #include "time/TimePlanner.h"
+#include "time/TimeRuntimeService.h"
 #include "web/LampWebServer.h"
 #include "web/StatusJsonBuilder.h"
 #include "effects/AlternatingColumnsEffect.h"
@@ -33,10 +36,14 @@ lamp::network::ArduinoWiFiAdapter g_wifiAdapter;
 lamp::network::WiFiManager g_wifiManager;
 lamp::network::NetworkPlanner g_networkPlanner;
 lamp::network::PlannedNetworkState g_networkState;
+lamp::time::ArduinoNtpTimeSource g_timeSource;
 lamp::time::TimePlanner g_timePlanner;
 lamp::time::PlannedTimeState g_timeState;
+lamp::time::TimeRuntimeService g_timeRuntimeService;
+lamp::time::RuntimeTimeState g_runtimeTimeState;
 lamp::web::LampWebServer g_webServer;
 unsigned long g_lastHeartbeatMs = 0;
+unsigned long g_lastTimeRefreshMs = 0;
 bool g_usePatternEffect = false;
 bool g_networkReconfigureRequested = false;
 
@@ -46,7 +53,8 @@ void refreshRuntimeState(const lamp::network::WiFiStartupResult& wifiResult) {
   const bool clientActive = wifiResult.activeMode == lamp::network::NetworkMode::kClient;
   g_networkState = g_networkPlanner.planStartup(
       g_settings.network, clientActive, clientActive, wifiResult.ipAddress);
-  g_timeState = g_timePlanner.plan(g_settings.clock, g_networkState, false);
+  g_timeState = g_timePlanner.plan(g_settings.clock, g_networkState, g_timeSource.hasValidTime());
+  g_runtimeTimeState = g_timeRuntimeService.refresh(g_timeState, g_timeSource);
   g_webServer.setStatusSnapshot(buildStatusSnapshot());
 }
 
@@ -59,6 +67,7 @@ lamp::web::StatusSnapshot buildStatusSnapshot() {
       g_networkState.activeMode == lamp::network::NetworkMode::kClient ? "client" : "ap";
   snapshot.networkStatus = g_networkState.statusLine;
   snapshot.clockStatus = g_timeState.statusLine;
+  snapshot.currentTime = g_runtimeTimeState.currentTime;
   if (const lamp::effects::IEffect* effect = g_effectRegistry.active()) {
     snapshot.activeEffect = effect->name();
   }
@@ -111,6 +120,8 @@ void printBootBanner() {
   Serial.println(g_networkState.timeSyncAllowed ? "enabled" : "disabled");
   Serial.print("clock state: ");
   Serial.println(g_timeState.statusLine.c_str());
+  Serial.print("current time: ");
+  Serial.println(g_runtimeTimeState.currentTime.c_str());
 }
 
 }  // namespace
@@ -140,6 +151,11 @@ void loop() {
     refreshRuntimeState(wifiResult);
   }
   const unsigned long now = millis();
+  if (now - g_lastTimeRefreshMs >= lamp::config::kTimeRefreshIntervalMs) {
+    g_lastTimeRefreshMs = now;
+    g_runtimeTimeState = g_timeRuntimeService.refresh(g_timeState, g_timeSource);
+    g_webServer.setStatusSnapshot(buildStatusSnapshot());
+  }
   if (now - g_lastHeartbeatMs >= 5000UL) {
     g_lastHeartbeatMs = now;
     g_usePatternEffect = !g_usePatternEffect;

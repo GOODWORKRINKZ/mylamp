@@ -55,6 +55,7 @@ std::string buildStatusJson(const StatusSnapshot& snapshot) {
   appendField(json, "networkMode", snapshot.networkMode, true);
   appendField(json, "networkStatus", snapshot.networkStatus, true);
   appendField(json, "clockStatus", snapshot.clockStatus, true);
+  appendField(json, "currentTime", snapshot.currentTime, true);
   appendField(json, "activeEffect", snapshot.activeEffect, false);
   json += '}';
   return json;

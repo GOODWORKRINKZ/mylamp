@@ -14,6 +14,7 @@ void test_status_json_contains_build_and_runtime_fields() {
   snapshot.networkMode = "ap";
   snapshot.networkStatus = "AP: MYLAMP";
   snapshot.clockStatus = "Clock: unavailable";
+  snapshot.currentTime = "";
   snapshot.activeEffect = "boot-solid";
 
   const std::string json = lamp::web::buildStatusJson(snapshot);
@@ -32,12 +33,14 @@ void test_status_json_escapes_quotes_and_backslashes() {
   snapshot.networkMode = "client";
   snapshot.networkStatus = "IP: \"192.168.1.55\"";
   snapshot.clockStatus = "Clock: NTP";
+  snapshot.currentTime = "12:34:56";
   snapshot.activeEffect = "debug-columns";
 
   const std::string json = lamp::web::buildStatusJson(snapshot);
 
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("esp32-c3\\\\mini")));
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\\\"192.168.1.55\\\"")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"currentTime\":\"12:34:56\"")));
 }
 
 }  // namespace

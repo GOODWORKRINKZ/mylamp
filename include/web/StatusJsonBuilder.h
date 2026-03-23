@@ -11,6 +11,7 @@ struct StatusSnapshot {
   std::string networkMode;
   std::string networkStatus;
   std::string clockStatus;
+  std::string currentTime;
   std::string activeEffect;
 };
 
