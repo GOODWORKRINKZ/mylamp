@@ -26,8 +26,9 @@ export function renderShellMarkup(options: ShellTemplateOptions): string {
             <p class="dev-panel__description" id="dev-scenario-description"></p>
           </section>` : ""}
           <div class="header-device-actions">
-            <button class="icon-button" id="network-settings-button" type="button" aria-label="Настройка сети">WiFi</button>
-            <button class="icon-button" id="firmware-settings-button" type="button" aria-label="Информация о прошивке">FW</button>
+            <button class="icon-button" id="network-settings-button" type="button" aria-label="Настройка сети" title="Настройка сети"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1"/></svg></button>
+            <button class="icon-button" id="time-settings-button" type="button" aria-label="Часовой пояс" title="Часовой пояс"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></button>
+            <button class="icon-button" id="firmware-settings-button" type="button" aria-label="Прошивка и OTA" title="Прошивка и OTA"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
           </div>
         </div>
       </header>

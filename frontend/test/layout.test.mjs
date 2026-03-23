@@ -16,12 +16,14 @@ async function main() {
 
   assert.match(html, /id="network-settings-button"/);
   assert.match(html, /id="firmware-settings-button"/);
-  assert.match(html, /workspace-dock/);
-  assert.match(html, /workspace-dropdown/);
-  assert.match(html, /dropdown-presets/);
-  assert.match(html, /dropdown-playlist/);
-  assert.match(html, /dropdown-help/);
-  assert.match(html, /dropdown-diagnostics/);
+  assert.match(html, /id="time-settings-button"/);
+  assert.match(html, /workspace__editor/);
+  assert.match(html, /workspace__sidebar/);
+  assert.match(html, /sidebar-tabs/);
+  assert.match(html, /tab-presets/);
+  assert.match(html, /tab-queue/);
+  assert.match(html, /tab-help/);
+  assert.match(html, /diagnostics-bar/);
   assert.match(html, /id="statusbar-build"/);
   assert.match(html, /id="statusbar-network"/);
   assert.match(html, /id="statusbar-playlist"/);

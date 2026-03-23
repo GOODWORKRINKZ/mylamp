@@ -116,6 +116,7 @@ button:disabled, .field-stack input:disabled, .field-stack select:disabled {
   font-weight: 700;
   letter-spacing: 0.04em;
 }
+.icon-button svg { display: block; }
 .icon-button:hover { background: rgba(255,236,220,0.98); }
 
 /* ===== DEV PANEL ===== */

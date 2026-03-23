@@ -1141,6 +1141,7 @@ function bindFirmwareModalControls(): void {
 
 function bindTimeSettingsControls(): void {
   const openButton = document.getElementById("statusbar-clock-action") as HTMLButtonElement | null;
+  const headerOpenButton = document.getElementById("time-settings-button") as HTMLButtonElement | null;
   const closeButton = document.getElementById("time-close-button") as HTMLButtonElement | null;
   const cancelButton = document.getElementById("time-cancel-button") as HTMLButtonElement | null;
   const saveButton = document.getElementById("time-save-button") as HTMLButtonElement | null;
@@ -1148,6 +1149,10 @@ function bindTimeSettingsControls(): void {
   const backdrop = modal?.querySelector<HTMLElement>("[data-time-close='overlay']") ?? null;
 
   openButton?.addEventListener("click", () => {
+    void openTimeSettingsModal();
+  });
+
+  headerOpenButton?.addEventListener("click", () => {
     void openTimeSettingsModal();
   });
 
