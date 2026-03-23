@@ -81,6 +81,39 @@ git commit -m "Add embedded frontend resource pipeline"
 
 ### Task 3: Introduce LittleFS content storage
 
+### Follow-up Task: Gzip embedded web resources
+
+**Files:**
+- Modify: `scripts/embed_resources.py`
+- Modify: `include/embedded_resources.h` (generated)
+- Modify: `include/web/LampWebServer.h`
+- Modify: `src/web/LampWebServer.cpp`
+- Test: `~/.platformio/penv/bin/platformio run --environment esp32-c3-supermini-dev`
+
+**Step 1: Add the failing delivery expectation**
+
+Document that embedded HTML, JS, and CSS should be stored in compressed form and served with the correct HTTP headers.
+
+**Step 2: Compress assets during embedding**
+
+Update `embed_resources.py` so it substitutes placeholders first, then gzip-compresses text assets before generating `include/embedded_resources.h`.
+
+**Step 3: Serve gzip assets correctly**
+
+Teach `LampWebServer` to send `Content-Encoding: gzip` and keep the original MIME type for embedded frontend resources.
+
+**Step 4: Verify firmware build**
+
+Run: `~/.platformio/penv/bin/platformio run --environment esp32-c3-supermini-dev`
+Expected: build succeeds, embedded resources are regenerated, and firmware size does not grow unexpectedly.
+
+**Step 5: Commit**
+
+```bash
+git add docs/plans/2026-03-23-live-coding-frontend-implementation.md scripts/embed_resources.py include/web/LampWebServer.h src/web/LampWebServer.cpp include/embedded_resources.h
+git commit -m "Compress embedded web resources"
+```
+
 **Files:**
 - Create: `include/storage/IFileStore.h`
 - Create: `include/storage/ContentPaths.h`
