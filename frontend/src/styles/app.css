@@ -127,8 +127,43 @@ h2 {
   color: var(--muted);
 }
 
+.panel__body--stack {
+  display: grid;
+  gap: 0.85rem;
+}
+
 .panel__body--editor {
   padding: 0;
+}
+
+.panel--runtime {
+  background:
+    linear-gradient(135deg, rgba(214, 85, 47, 0.12), rgba(255, 230, 205, 0.72)),
+    var(--panel);
+}
+
+.key-value {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.key-value span {
+  color: var(--muted);
+}
+
+.key-value strong {
+  text-align: right;
+  color: var(--text);
+}
+
+.status-note {
+  padding: 0.8rem 0.9rem;
+  border-radius: 16px;
+  background: rgba(214, 85, 47, 0.08);
+  color: var(--text);
 }
 
 .code-block {

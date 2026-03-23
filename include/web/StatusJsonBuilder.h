@@ -17,6 +17,11 @@ struct StatusSnapshot {
   float temperatureC = 0.0f;
   float humidityPercent = 0.0f;
   std::string activeEffect;
+  std::string activePresetId;
+  std::string activePresetName;
+  bool autoplayEnabled = false;
+  std::string activePlaylistId;
+  std::string liveErrorSummary;
 };
 
 std::string buildStatusJson(const StatusSnapshot& snapshot);

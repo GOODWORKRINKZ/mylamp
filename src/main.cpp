@@ -69,6 +69,7 @@ unsigned long g_lastRenderMs = 0;
 bool g_usePatternEffect = false;
 bool g_networkReconfigureRequested = false;
 bool g_fileSystemReady = false;
+std::string g_liveErrorSummary;
 
 lamp::web::StatusSnapshot buildStatusSnapshot();
 
@@ -135,6 +136,17 @@ lamp::web::StatusSnapshot buildStatusSnapshot() {
   if (const lamp::effects::IEffect* effect = g_effectRegistry.active()) {
     snapshot.activeEffect = effect->name();
   }
+  const lamp::live::runtime::LiveProgramState liveState = g_liveProgramService.state();
+  snapshot.activePresetId = liveState.activePresetId;
+  if (!snapshot.activePresetId.empty()) {
+    lamp::live::PresetModel preset;
+    if (g_presetRepository.load(snapshot.activePresetId, preset)) {
+      snapshot.activePresetName = preset.name;
+    }
+  }
+  snapshot.autoplayEnabled = liveState.autoplayActive;
+  snapshot.activePlaylistId = g_playlistScheduler.state().activePlaylistId;
+  snapshot.liveErrorSummary = g_liveErrorSummary;
   return snapshot;
 }
 

@@ -20,6 +20,11 @@ void test_status_json_contains_build_and_runtime_fields() {
   snapshot.temperatureC = 0.0f;
   snapshot.humidityPercent = 0.0f;
   snapshot.activeEffect = "boot-solid";
+  snapshot.activePresetId = "warm_waves";
+  snapshot.activePresetName = "Warm Waves";
+  snapshot.autoplayEnabled = true;
+  snapshot.activePlaylistId = "evening";
+  snapshot.liveErrorSummary = "";
 
   const std::string json = lamp::web::buildStatusJson(snapshot);
 
@@ -30,6 +35,11 @@ void test_status_json_contains_build_and_runtime_fields() {
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"temperatureC\":null")));
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"humidityPercent\":null")));
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"activeEffect\":\"boot-solid\"")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"activePresetId\":\"warm_waves\"")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"activePresetName\":\"Warm Waves\"")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"autoplayEnabled\":true")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"activePlaylistId\":\"evening\"")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"liveErrorSummary\":\"\"")));
 }
 
 void test_status_json_escapes_quotes_and_backslashes() {
@@ -46,6 +56,11 @@ void test_status_json_escapes_quotes_and_backslashes() {
   snapshot.temperatureC = 23.5f;
   snapshot.humidityPercent = 48.25f;
   snapshot.activeEffect = "debug-columns";
+  snapshot.activePresetId = "soft_clock";
+  snapshot.activePresetName = "Soft \"Clock\"";
+  snapshot.autoplayEnabled = false;
+  snapshot.activePlaylistId = "";
+  snapshot.liveErrorSummary = "Ошибка в строке 4: hum()\\hint";
 
   const std::string json = lamp::web::buildStatusJson(snapshot);
 
@@ -54,6 +69,9 @@ void test_status_json_escapes_quotes_and_backslashes() {
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"currentTime\":\"12:34:56\"")));
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"temperatureC\":23.5")));
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"humidityPercent\":48.25")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"activePresetName\":\"Soft \\\"Clock\\\"\"")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"autoplayEnabled\":false")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("Ошибка в строке 4: hum()\\\\hint")));
 }
 
 }  // namespace

@@ -48,6 +48,16 @@ void appendField(std::string& json, const char* key, const std::string& value, b
   }
 }
 
+void appendBoolField(std::string& json, const char* key, bool value, bool trailingComma) {
+  json += '"';
+  json += key;
+  json += "\":";
+  json += value ? "true" : "false";
+  if (trailingComma) {
+    json += ',';
+  }
+}
+
 std::string formatFloat(float value) {
   std::ostringstream stream;
   stream << std::fixed << std::setprecision(2) << value;
@@ -90,7 +100,12 @@ std::string buildStatusJson(const StatusSnapshot& snapshot) {
   appendFloatField(json, "temperatureC", snapshot.sensorAvailable, snapshot.temperatureC, true);
   appendFloatField(json, "humidityPercent", snapshot.sensorAvailable, snapshot.humidityPercent,
                    true);
-  appendField(json, "activeEffect", snapshot.activeEffect, false);
+  appendField(json, "activeEffect", snapshot.activeEffect, true);
+  appendField(json, "activePresetId", snapshot.activePresetId, true);
+  appendField(json, "activePresetName", snapshot.activePresetName, true);
+  appendBoolField(json, "autoplayEnabled", snapshot.autoplayEnabled, true);
+  appendField(json, "activePlaylistId", snapshot.activePlaylistId, true);
+  appendField(json, "liveErrorSummary", snapshot.liveErrorSummary, false);
   json += '}';
   return json;
 }

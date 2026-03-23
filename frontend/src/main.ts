@@ -6,6 +6,25 @@ if (!app) {
   throw new Error("App root not found");
 }
 
+type StatusPayload = {
+  version: string;
+  channel: string;
+  board: string;
+  networkMode: string;
+  networkStatus: string;
+  clockStatus: string;
+  currentTime: string;
+  sensorStatus: string;
+  temperatureC: number | null;
+  humidityPercent: number | null;
+  activeEffect: string;
+  activePresetId: string;
+  activePresetName: string;
+  autoplayEnabled: boolean;
+  activePlaylistId: string;
+  liveErrorSummary: string;
+};
+
 app.innerHTML = `
   <main class="shell">
     <header class="shell__header">
@@ -13,7 +32,7 @@ app.innerHTML = `
         <p class="eyebrow">mylamp live coding</p>
         <h1>Editor-first shell</h1>
       </div>
-      <div class="status-pill">v1 scaffold</div>
+      <div class="status-pill" id="build-pill">Загрузка статуса...</div>
     </header>
 
     <section class="shell__grid">
@@ -37,12 +56,25 @@ pixel hsv(nx + t * 0.1, 1.0, 1.0)</pre>
       </section>
 
       <aside class="sidebar">
+        <section class="panel panel--runtime">
+          <div class="panel__header">
+            <h2>Live runtime</h2>
+          </div>
+          <div class="panel__body panel__body--stack">
+            <div class="key-value"><span>Активный preset</span><strong id="runtime-preset">-</strong></div>
+            <div class="key-value"><span>Автовоспроизведение</span><strong id="runtime-autoplay">-</strong></div>
+            <div class="key-value"><span>Плейлист</span><strong id="runtime-playlist">-</strong></div>
+            <div class="key-value"><span>Эффект fallback</span><strong id="runtime-effect">-</strong></div>
+          </div>
+        </section>
+
         <section class="panel">
           <div class="panel__header">
             <h2>Диагностика</h2>
           </div>
-          <div class="panel__body">
-            <p>Здесь появятся ошибки DSL, подсказки и статус компиляции.</p>
+          <div class="panel__body panel__body--stack">
+            <p id="diagnostics-summary">Здесь появятся ошибки DSL, подсказки и статус компиляции.</p>
+            <div class="status-note" id="diagnostics-status">Ожидаем данные от лампы.</div>
           </div>
         </section>
 
@@ -72,11 +104,70 @@ pixel hsv(nx + t * 0.1, 1.0, 1.0)</pre>
           <div class="panel__header">
             <h2>Настройки лампы</h2>
           </div>
-          <div class="panel__body">
-            <p>Сеть, время, яркость и служебный статус будут собраны в этом блоке.</p>
+          <div class="panel__body panel__body--stack">
+            <div class="key-value"><span>Сеть</span><strong id="lamp-network">-</strong></div>
+            <div class="key-value"><span>Часы</span><strong id="lamp-clock">-</strong></div>
+            <div class="key-value"><span>Сенсор</span><strong id="lamp-sensor">-</strong></div>
+            <div class="key-value"><span>Температура</span><strong id="lamp-temp">-</strong></div>
+            <div class="key-value"><span>Влажность</span><strong id="lamp-humidity">-</strong></div>
           </div>
         </section>
       </aside>
     </section>
   </main>
 `;
+
+function setText(id: string, value: string): void {
+  const node = document.getElementById(id);
+  if (node) {
+    node.textContent = value;
+  }
+}
+
+function formatNumber(value: number | null, suffix: string): string {
+  if (value === null || Number.isNaN(value)) {
+    return "-";
+  }
+
+  return `${value}${suffix}`;
+}
+
+function renderStatus(status: StatusPayload): void {
+  setText("build-pill", `${status.version} · ${status.channel}`);
+  setText("runtime-preset", status.activePresetName || status.activePresetId || "Временный запуск / нет preset");
+  setText("runtime-autoplay", status.autoplayEnabled ? "Включено" : "Выключено");
+  setText("runtime-playlist", status.activePlaylistId || "Нет активного playlist");
+  setText("runtime-effect", status.activeEffect || "- ");
+  setText(
+    "diagnostics-summary",
+    status.liveErrorSummary || "Ошибок live runtime нет. Следующий шаг: привязать validate/run/save к редактору.",
+  );
+  setText("diagnostics-status", status.liveErrorSummary ? "Требуется исправление DSL" : "Runtime готов к запуску preset и autoplay");
+  setText("lamp-network", status.networkStatus || status.networkMode || "-");
+  setText("lamp-clock", status.currentTime || status.clockStatus || "-");
+  setText("lamp-sensor", status.sensorStatus || "-");
+  setText("lamp-temp", formatNumber(status.temperatureC, " °C"));
+  setText("lamp-humidity", formatNumber(status.humidityPercent, " %"));
+}
+
+async function refreshStatus(): Promise<void> {
+  try {
+    const response = await fetch("/api/status", { headers: { Accept: "application/json" } });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const status = (await response.json()) as StatusPayload;
+    renderStatus(status);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown error";
+    setText("build-pill", "Статус недоступен");
+    setText("diagnostics-summary", "Не удалось получить /api/status");
+    setText("diagnostics-status", message);
+  }
+}
+
+void refreshStatus();
+window.setInterval(() => {
+  void refreshStatus();
+}, 5000);
