@@ -95,8 +95,12 @@ export function renderShellMarkup(options: ShellTemplateOptions): string {
             <section class="playlist-library" aria-labelledby="saved-playlists-title">
               <div class="playlist-library__header">
                 <h2 id="saved-playlists-title" class="playlist-library__title">Плейлисты</h2>
-                <span class="playlist-library__meta" id="saved-playlists-meta">Загружаем...</span>
+                <div class="playlist-library__header-actions">
+                  <span class="playlist-library__meta" id="saved-playlists-meta">Загружаем...</span>
+                  <button id="new-playlist-button" class="playlist-item__button playlist-item__button--secondary" type="button">Новый</button>
+                </div>
               </div>
+              <div class="playlist-editor-host" id="playlist-editor-host"></div>
               <div class="playlist-library__list" id="saved-playlists-list"></div>
             </section>
           </div>

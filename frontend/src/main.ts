@@ -6,6 +6,7 @@ import { renderShellMarkup } from "./ui/shellTemplate";
 import type {
   LiveDiagnosticResponse,
   NetworkSettingsPayload,
+  PlaylistEntryPayload,
   PlaylistPayload,
   PresetListItem,
   PresetPayload,
@@ -65,6 +66,8 @@ let playlistItems: PlaylistPayload[] = [];
 let playlistListLoading = false;
 let activeEditingPresetId = "";
 let activeEditingEffectName = "";
+let activeEditingPlaylistId = "";
+let playlistEditorDraft: PlaylistPayload | null = null;
 
 const timezoneOptions: Array<{ value: string; label: string }> = [
   { value: "UTC0", label: "UTC" },
@@ -174,6 +177,36 @@ function formatPlaylistSummary(playlist: PlaylistPayload): string {
   return `${enabledCount}/${playlist.entries.length} активны · ${minutes} · ${playlist.repeat ? "повтор" : "один круг"}`;
 }
 
+function buildPlaylistId(name: string): string {
+  return buildPresetId(name);
+}
+
+function clonePlaylist(playlist: PlaylistPayload): PlaylistPayload {
+  return {
+    id: playlist.id,
+    name: playlist.name,
+    repeat: playlist.repeat,
+    entries: playlist.entries.map((entry) => ({ ...entry })),
+  };
+}
+
+function createDefaultPlaylistEntry(): PlaylistEntryPayload {
+  return {
+    presetId: presetListItems[0]?.id || "",
+    durationSec: 60,
+    enabled: true,
+  };
+}
+
+function createEmptyPlaylistDraft(): PlaylistPayload {
+  return {
+    id: "",
+    name: "",
+    repeat: true,
+    entries: [createDefaultPlaylistEntry()],
+  };
+}
+
 function getPlaylistNameById(playlistId: string): string {
   if (!playlistId) {
     return "";
@@ -258,12 +291,259 @@ function renderPlaylistPanel(): void {
             <span class="playlist-item__summary">${escapeHtml(formatPlaylistSummary(playlist))}</span>
           </div>
           <div class="playlist-item__actions">
+            <button class="playlist-item__button playlist-item__button--secondary" data-playlist-action="edit" data-playlist-id="${escapeHtml(playlist.id)}" type="button">Редактировать</button>
             <button class="playlist-item__button" data-playlist-action="start" data-playlist-id="${escapeHtml(playlist.id)}" type="button">Запустить</button>
             <button class="playlist-item__button preset-item__button--danger" data-playlist-action="delete" data-playlist-id="${escapeHtml(playlist.id)}" data-playlist-name="${escapeHtml(playlist.name)}" type="button">Удалить</button>
           </div>
         </article>`;
     })
     .join("");
+}
+
+function renderPlaylistEditor(): void {
+  const host = document.getElementById("playlist-editor-host");
+  if (!host) {
+    return;
+  }
+
+  if (!playlistEditorDraft) {
+    host.innerHTML = "";
+    return;
+  }
+
+  const title = activeEditingPlaylistId ? `Редактирование «${playlistEditorDraft.name || activeEditingPlaylistId}»` : "Новый playlist";
+  const optionsMarkup = presetListItems
+    .map(
+      (preset) =>
+        `<option value="${escapeHtml(preset.id)}">${escapeHtml(preset.name)}</option>`,
+    )
+    .join("");
+
+  host.innerHTML = `
+    <section class="playlist-editor" aria-labelledby="playlist-editor-title">
+      <div class="playlist-editor__header">
+        <div>
+          <div id="playlist-editor-title" class="playlist-editor__title">${escapeHtml(title)}</div>
+          <div class="playlist-editor__hint">Собери очередь из сохранённых preset-ов, укажи длительности и сохрани на лампу.</div>
+        </div>
+      </div>
+      <div class="playlist-editor__grid">
+        <label class="field-stack" for="playlist-name-input">
+          <span>Имя playlist-а</span>
+          <input id="playlist-name-input" type="text" value="${escapeHtml(playlistEditorDraft.name)}" placeholder="Например: Evening Loop" />
+        </label>
+        <label class="playlist-entry__toggle" for="playlist-repeat-input">
+          <input id="playlist-repeat-input" type="checkbox"${playlistEditorDraft.repeat ? " checked" : ""} />
+          <span>Повторять playlist по кругу</span>
+        </label>
+      </div>
+      <div class="playlist-editor__entries" id="playlist-editor-entries">
+        ${playlistEditorDraft.entries.length === 0 ? `<div class="playlist-editor__empty">Список пуст. Добавь хотя бы один entry.</div>` : ""}
+        ${playlistEditorDraft.entries
+          .map(
+            (entry, index) => `
+              <section class="playlist-entry">
+                <div class="playlist-entry__header">
+                  <strong class="playlist-entry__title">Entry ${index + 1}</strong>
+                  <button class="playlist-item__button preset-item__button--danger" data-playlist-editor-action="remove-entry" data-entry-index="${index}" type="button">Убрать</button>
+                </div>
+                <div class="playlist-entry__grid">
+                  <label class="field-stack">
+                    <span>Preset</span>
+                    <select data-entry-field="presetId" data-entry-index="${index}">
+                      <option value="">Выбери preset</option>
+                      ${optionsMarkup.replace(`value="${escapeHtml(entry.presetId)}"`, `value="${escapeHtml(entry.presetId)}" selected`)}
+                    </select>
+                  </label>
+                  <label class="field-stack">
+                    <span>Длительность, сек</span>
+                    <input data-entry-field="durationSec" data-entry-index="${index}" type="number" min="1" step="1" value="${entry.durationSec}" />
+                  </label>
+                  <label class="playlist-entry__toggle">
+                    <input data-entry-field="enabled" data-entry-index="${index}" type="checkbox"${entry.enabled ? " checked" : ""} />
+                    <span>Активен</span>
+                  </label>
+                </div>
+              </section>`,
+          )
+          .join("")}
+      </div>
+      <div class="playlist-editor__actions">
+        <button class="playlist-item__button playlist-item__button--secondary" data-playlist-editor-action="add-entry" type="button">Добавить entry</button>
+        <button class="playlist-item__button" data-playlist-editor-action="save" type="button">Сохранить playlist</button>
+        <button class="playlist-item__button playlist-item__button--secondary" data-playlist-editor-action="cancel" type="button">Отмена</button>
+      </div>
+    </section>`;
+}
+
+function readPlaylistDraftFromForm(): PlaylistPayload | null {
+  if (!playlistEditorDraft) {
+    return null;
+  }
+
+  const nameInput = document.getElementById("playlist-name-input") as HTMLInputElement | null;
+  const repeatInput = document.getElementById("playlist-repeat-input") as HTMLInputElement | null;
+  const entryNodes = Array.from(document.querySelectorAll<HTMLElement>("[data-entry-index][data-entry-field='presetId']"));
+
+  const entries = entryNodes.map((node) => {
+    const index = Number(node.dataset.entryIndex || -1);
+    const presetSelect = document.querySelector<HTMLSelectElement>(`[data-entry-field='presetId'][data-entry-index='${index}']`);
+    const durationInput = document.querySelector<HTMLInputElement>(`[data-entry-field='durationSec'][data-entry-index='${index}']`);
+    const enabledInput = document.querySelector<HTMLInputElement>(`[data-entry-field='enabled'][data-entry-index='${index}']`);
+
+    const entry: PlaylistEntryPayload = {
+      presetId: presetSelect?.value || "",
+      durationSec: Number(durationInput?.value || 0),
+      enabled: Boolean(enabledInput?.checked),
+    };
+
+    return entry;
+  });
+
+  return {
+    id: activeEditingPlaylistId || playlistEditorDraft.id,
+    name: nameInput?.value.trim() || "",
+    repeat: Boolean(repeatInput?.checked),
+    entries,
+  };
+}
+
+function closePlaylistEditor(): void {
+  activeEditingPlaylistId = "";
+  playlistEditorDraft = null;
+  renderPlaylistEditor();
+}
+
+function openNewPlaylistEditor(): void {
+  activeEditingPlaylistId = "";
+  playlistEditorDraft = createEmptyPlaylistDraft();
+  renderPlaylistEditor();
+}
+
+function openPlaylistEditor(playlistId: string): void {
+  const playlist = playlistItems.find((item) => item.id === playlistId);
+  if (!playlist) {
+    setText("diagnostics-summary", `Не удалось найти playlist ${playlistId} для редактирования.`);
+    setText("diagnostics-status", "Playlist не найден");
+    return;
+  }
+
+  activeEditingPlaylistId = playlist.id;
+  playlistEditorDraft = clonePlaylist(playlist);
+  renderPlaylistEditor();
+}
+
+function appendPlaylistEntry(): void {
+  const draft = readPlaylistDraftFromForm();
+  if (!draft) {
+    return;
+  }
+
+  draft.entries.push(createDefaultPlaylistEntry());
+  playlistEditorDraft = draft;
+  renderPlaylistEditor();
+}
+
+function removePlaylistEntry(index: number): void {
+  const draft = readPlaylistDraftFromForm();
+  if (!draft) {
+    return;
+  }
+
+  draft.entries = draft.entries.filter((_, entryIndex) => entryIndex !== index);
+  playlistEditorDraft = draft;
+  renderPlaylistEditor();
+}
+
+function validatePlaylistDraft(draft: PlaylistPayload): string | null {
+  if (presetListItems.length === 0) {
+    return "Сначала сохрани хотя бы один preset. Плейлист собирается только из сохранённых эффектов.";
+  }
+
+  if (!draft.name.trim()) {
+    return "Укажи имя playlist-а.";
+  }
+
+  const nextPlaylistId = activeEditingPlaylistId || buildPlaylistId(draft.name);
+  if (!nextPlaylistId) {
+    return "Не удалось собрать id playlist-а из имени.";
+  }
+
+  if (draft.entries.length === 0) {
+    return "Добавь хотя бы один entry в playlist.";
+  }
+
+  for (let index = 0; index < draft.entries.length; index += 1) {
+    const entry = draft.entries[index];
+    if (!entry.presetId) {
+      return `Entry ${index + 1}: выбери preset.`;
+    }
+    if (!presetListItems.some((preset) => preset.id === entry.presetId)) {
+      return `Entry ${index + 1}: выбранный preset уже недоступен.`;
+    }
+    if (!Number.isFinite(entry.durationSec) || entry.durationSec < 1) {
+      return `Entry ${index + 1}: длительность должна быть не меньше 1 секунды.`;
+    }
+  }
+
+  return null;
+}
+
+async function savePlaylistDraft(): Promise<void> {
+  const draft = readPlaylistDraftFromForm();
+  if (!draft) {
+    return;
+  }
+
+  const validationMessage = validatePlaylistDraft(draft);
+  if (validationMessage) {
+    setText("editor-status", "Playlist заполнен не до конца.");
+    setText("diagnostics-summary", validationMessage);
+    setText("diagnostics-status", "Проверь playlist");
+    return;
+  }
+
+  const playlistId = activeEditingPlaylistId || buildPlaylistId(draft.name);
+  const payload: PlaylistPayload = {
+    id: playlistId,
+    name: draft.name.trim(),
+    repeat: draft.repeat,
+    entries: draft.entries.map((entry) => ({
+      presetId: entry.presetId,
+      durationSec: Math.max(1, Math.round(entry.durationSec)),
+      enabled: entry.enabled,
+    })),
+  };
+
+  setText("editor-status", "Сохраняем playlist...");
+
+  try {
+    const response = await fetch(`/api/playlists/${encodeURIComponent(playlistId)}`, {
+      method: "PUT",
+      headers: buildJsonHeaders(),
+      body: JSON.stringify({
+        name: payload.name,
+        repeat: payload.repeat,
+        entries: payload.entries,
+      }),
+    });
+    const result = (await response.json()) as PlaylistPayload & { error?: string };
+    if (!response.ok) {
+      throw new Error(result.error || `HTTP ${response.status}`);
+    }
+
+    setText("editor-status", "Playlist сохранён.");
+    setText("diagnostics-summary", `Playlist «${payload.name}» сохранён. Теперь его можно запускать на лампе.`);
+    setText("diagnostics-status", `Playlist id: ${playlistId}`);
+    closePlaylistEditor();
+    await loadPlaylistList();
+    await refreshStatus();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    setText("editor-status", "Не удалось сохранить playlist.");
+    setText("diagnostics-summary", `Не удалось сохранить playlist: ${message}`);
+    setText("diagnostics-status", "Сохранение не удалось");
+  }
 }
 
 function buildJsonHeaders(): Record<string, string> {
@@ -734,6 +1014,9 @@ async function deletePlaylist(playlistId: string, playlistName: string): Promise
     setText("editor-status", "Playlist удалён.");
     setText("diagnostics-summary", `Playlist «${playlistName}» удалён.`);
     setText("diagnostics-status", "Playlist удалён");
+    if (activeEditingPlaylistId === playlistId) {
+      closePlaylistEditor();
+    }
     await loadPlaylistList();
     await refreshStatus();
   } catch (error) {
@@ -782,6 +1065,8 @@ function bindPresetListActions(): void {
 function bindPlaylistActions(): void {
   const container = document.getElementById("saved-playlists-list");
   const stopButton = document.getElementById("stop-playlist-button") as HTMLButtonElement | null;
+  const newPlaylistButton = document.getElementById("new-playlist-button") as HTMLButtonElement | null;
+  const editorHost = document.getElementById("playlist-editor-host");
 
   container?.addEventListener("click", (event) => {
     const target = event.target;
@@ -800,6 +1085,11 @@ function bindPlaylistActions(): void {
       return;
     }
 
+    if (action === "edit") {
+      openPlaylistEditor(playlistId);
+      return;
+    }
+
     if (action === "start") {
       void startPlaylist(playlistId);
       return;
@@ -812,6 +1102,49 @@ function bindPlaylistActions(): void {
 
   stopButton?.addEventListener("click", () => {
     void stopPlaylist();
+  });
+
+  newPlaylistButton?.addEventListener("click", () => {
+    openNewPlaylistEditor();
+  });
+
+  editorHost?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+
+    const button = target.closest<HTMLButtonElement>("[data-playlist-editor-action]");
+    if (!button) {
+      return;
+    }
+
+    const action = button.dataset.playlistEditorAction;
+    if (!action) {
+      return;
+    }
+
+    if (action === "add-entry") {
+      appendPlaylistEntry();
+      return;
+    }
+
+    if (action === "remove-entry") {
+      const index = Number(button.dataset.entryIndex || -1);
+      if (index >= 0) {
+        removePlaylistEntry(index);
+      }
+      return;
+    }
+
+    if (action === "save") {
+      void savePlaylistDraft();
+      return;
+    }
+
+    if (action === "cancel") {
+      closePlaylistEditor();
+    }
   });
 }
 
