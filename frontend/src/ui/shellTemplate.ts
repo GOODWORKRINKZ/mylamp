@@ -46,21 +46,30 @@ export function renderShellMarkup(options: ShellTemplateOptions): string {
           </div>
           <div class="editor-wrap">
             <label class="editor-surface" for="editor-code">
-              <span class="editor-surface__badge">DSL</span>
-              <textarea
-                class="code-editor"
-                id="editor-code"
-                spellcheck="false"
-                autocapitalize="off"
-                autocomplete="off"
-                autocorrect="off"
-                placeholder="effect &quot;my_effect&quot;&#10;&#10;sprite dot {&#10;  bitmap &quot;&quot;&quot;&#10;  #&#10;  &quot;&quot;&quot;&#10;}&#10;&#10;layer paint {&#10;  use dot&#10;  color rgb(255, 120, 80)&#10;  x = 10&#10;  y = 6&#10;  scale = 2&#10;  visible = 1&#10;}"
-              ></textarea>
+              <span class="editor-surface__badge">Lux</span>
+              <div class="editor-container">
+                <div class="editor-gutter" id="editor-gutter" aria-hidden="true"><div class="editor-gutter__line">1</div></div>
+                <div class="editor-code-area">
+                  <pre class="editor-highlight" id="editor-highlight" aria-hidden="true"><code id="editor-highlight-code"></code></pre>
+                  <textarea
+                    class="code-editor"
+                    id="editor-code"
+                    spellcheck="false"
+                    autocapitalize="off"
+                    autocomplete="off"
+                    autocorrect="off"
+                    placeholder="effect &quot;my_effect&quot;&#10;&#10;sprite dot {&#10;  bitmap &quot;&quot;&quot;&#10;  #&#10;  &quot;&quot;&quot;&#10;}&#10;&#10;layer paint {&#10;  use dot&#10;  color rgb(255, 120, 80)&#10;  x = 10&#10;  y = 6&#10;  scale = 2&#10;  visible = 1&#10;}"
+                  ></textarea>
+                </div>
+              </div>
             </label>
           </div>
-          <div class="diagnostics-bar">
-            <p class="diagnostics-bar__text" id="diagnostics-summary">Здесь появятся подсказки и результат проверки.</p>
-            <span class="diagnostics-bar__badge" id="diagnostics-status">Готово</span>
+          <div class="error-console" id="error-console">
+            <div class="error-console__header">
+              <span class="error-console__title">Консоль</span>
+              <span class="error-console__badge" id="diagnostics-status">Готово</span>
+            </div>
+            <div class="error-console__body" id="diagnostics-summary">Здесь появятся подсказки и результат проверки.</div>
           </div>
         </section>
 

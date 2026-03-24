@@ -1,5 +1,6 @@
 import "./styles/app.css";
 import { editorHelpSections } from "./editor/help";
+import { highlightLux } from "./editor/luxHighlight";
 import { starterSnippets, type StarterSnippet } from "./editor/snippets";
 import { defaultScenarioId, isScenarioId, scenarioDefinitions } from "./dev/mockScenarios";
 import { renderShellMarkup } from "./ui/shellTemplate";
@@ -696,7 +697,7 @@ async function postLiveAction(endpoint: "/api/live/validate" | "/api/live/run"):
   const effectName = readEffectName(source);
 
   if (!source) {
-    setText("diagnostics-summary", "Сначала напиши код эффекта, потом запускай действие.");
+    setDiagnosticsText("Сначала напиши код эффекта, потом запускай действие.");
     setText("diagnostics-status", "Редактор пустой");
     return;
   }
@@ -715,7 +716,7 @@ async function postLiveAction(endpoint: "/api/live/validate" | "/api/live/run"):
 
     const payload = (await response.json()) as LiveDiagnosticResponse;
 
-    setText("diagnostics-summary", formatDiagnostics(payload));
+    renderDiagnosticsConsole(payload);
     setText(
       "diagnostics-status",
       payload.ok
@@ -736,7 +737,7 @@ async function postLiveAction(endpoint: "/api/live/validate" | "/api/live/run"):
     void refreshStatus();
   } catch (error) {
     const message = error instanceof Error ? error.message : "Неизвестная ошибка";
-    setText("diagnostics-summary", message);
+    setDiagnosticsText(message);
     setText("diagnostics-status", "Не удалось выполнить запрос");
     setText("editor-status", "Запрос завершился с ошибкой.");
   }
@@ -1656,7 +1657,106 @@ function setEditorValue(value: string): void {
   const editor = document.getElementById("editor-code") as HTMLTextAreaElement | null;
   if (editor) {
     editor.value = value;
+    updateEditorHighlight();
   }
+}
+
+/* ===== EDITOR ENHANCEMENTS: line numbers, syntax highlighting, scroll sync ===== */
+
+function getActiveLine(textarea: HTMLTextAreaElement): number {
+  const text = textarea.value.slice(0, textarea.selectionStart);
+  return (text.match(/\n/g) || []).length;
+}
+
+function updateEditorHighlight(): void {
+  const textarea = document.getElementById("editor-code") as HTMLTextAreaElement | null;
+  const highlightCode = document.getElementById("editor-highlight-code");
+  const gutter = document.getElementById("editor-gutter");
+  if (!textarea || !highlightCode || !gutter) return;
+
+  const source = textarea.value;
+  const activeLine = textarea === document.activeElement ? getActiveLine(textarea) : -1;
+
+  // Syntax highlighting
+  highlightCode.innerHTML = highlightLux(source, activeLine);
+
+  // Line numbers
+  const lineCount = (source.match(/\n/g) || []).length + 1;
+  let gutterHtml = "";
+  for (let i = 1; i <= lineCount; i++) {
+    const cls = i === activeLine + 1 ? "editor-gutter__line editor-gutter__line--active" : "editor-gutter__line";
+    gutterHtml += `<div class="${cls}">${i}</div>`;
+  }
+  gutter.innerHTML = gutterHtml;
+}
+
+function syncEditorScroll(): void {
+  const textarea = document.getElementById("editor-code") as HTMLTextAreaElement | null;
+  const highlight = document.getElementById("editor-highlight");
+  const gutter = document.getElementById("editor-gutter");
+  if (!textarea) return;
+
+  if (highlight) {
+    highlight.scrollTop = textarea.scrollTop;
+    highlight.scrollLeft = textarea.scrollLeft;
+  }
+  if (gutter) {
+    gutter.scrollTop = textarea.scrollTop;
+  }
+}
+
+function setDiagnosticsText(text: string): void {
+  const body = document.getElementById("diagnostics-summary");
+  if (body) {
+    body.textContent = text;
+  }
+}
+
+function renderDiagnosticsConsole(response: LiveDiagnosticResponse): void {
+  const body = document.getElementById("diagnostics-summary");
+  if (!body) return;
+
+  if (response.ok || response.errors.length === 0) {
+    body.textContent = "Ошибок не найдено. ✓";
+    return;
+  }
+
+  // Clear and build structured error entries
+  body.textContent = "";
+  for (const error of response.errors) {
+    const entry = document.createElement("div");
+    entry.className = "error-console__entry error-console__entry--error";
+
+    const loc = document.createElement("span");
+    loc.className = "error-console__loc";
+    loc.textContent = `Строка ${error.line}:${error.column}`;
+    entry.appendChild(loc);
+
+    const msg = document.createTextNode(error.message);
+    entry.appendChild(msg);
+
+    // Click to jump to the error line in editor
+    const line = error.line;
+    entry.addEventListener("click", () => {
+      jumpToLine(line);
+    });
+
+    body.appendChild(entry);
+  }
+}
+
+function jumpToLine(line: number): void {
+  const textarea = document.getElementById("editor-code") as HTMLTextAreaElement | null;
+  if (!textarea) return;
+
+  const lines = textarea.value.split("\n");
+  let pos = 0;
+  for (let i = 0; i < Math.min(line - 1, lines.length); i++) {
+    pos += lines[i].length + 1;
+  }
+  textarea.focus();
+  textarea.setSelectionRange(pos, pos);
+  updateEditorHighlight();
 }
 
 function setSelectedScenario(nextScenario: ScenarioId): void {
@@ -1757,15 +1857,27 @@ function bindEditorFocusHints(): void {
 
   editor.addEventListener("focus", () => {
     setText("editor-status", "Можно печатать. Курсор уже в коде.");
+    updateEditorHighlight();
   });
 
   editor.addEventListener("blur", () => {
     setText("editor-status", "Редактор не выбран. Кликни в код, чтобы продолжить.");
+    updateEditorHighlight();
   });
 
   editor.addEventListener("input", () => {
     setText("editor-status", "Есть новые правки. Можно проверить, запустить или сохранить идею.");
+    updateEditorHighlight();
   });
+
+  editor.addEventListener("scroll", syncEditorScroll);
+
+  // Track cursor movement for current line highlight
+  editor.addEventListener("keyup", updateEditorHighlight);
+  editor.addEventListener("click", updateEditorHighlight);
+
+  // Initial highlight
+  updateEditorHighlight();
 }
 
 function bindSidebarTabs(): void {

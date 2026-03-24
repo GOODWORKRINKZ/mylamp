@@ -64,7 +64,7 @@ function seedPresets(): PresetPayload[] {
 export const scenarioDefinitions: ScenarioDefinition[] = [
   { id: "happy-path", label: "Happy Path", description: "Лампа онлайн, preset активен, ошибок нет." },
   { id: "autoplay", label: "Autoplay", description: "Активен playlist и включено автопереключение." },
-  { id: "dsl-error", label: "DSL Error", description: "Валидация и запуск возвращают русские diagnostics." },
+  { id: "dsl-error", label: "Lux Error", description: "Валидация и запуск возвращают русские diagnostics." },
   { id: "offline-ish", label: "Offline-ish", description: "Сеть нестабильна, статус деградирован, но UI жив." },
   { id: "ota-error", label: "OTA Error", description: "Проверка обновлений проходит, но установка заканчивается ошибкой checksum." },
   { id: "sensor-missing", label: "Sensor Missing", description: "Датчик не отвечает, temperature/humidity пустые." },

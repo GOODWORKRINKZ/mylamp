@@ -32,10 +32,12 @@ export const editorHelpSections: HelpSection[] = [
   {
     title: "Директивы",
     items: [
-      { term: "effect \"name\"", description: "Имя текущего DSL-эффекта." },
+      { term: "effect \"name\"", description: "Имя текущего Lux-эффекта." },
       { term: "sprite ... bitmap", description: "Форма, которой потом пользуются слои." },
+      { term: "text name \"...\"", description: "Текстовый спрайт из строки (лат. + кирилица)." },
       { term: "layer ... use", description: "Слой выбирает sprite и задаёт анимацию." },
       { term: "color rgb(...) / hsv(...)", description: "Цвет слоя через RGB или HSV." },
+      { term: "rotation / blend", description: "Вращение и режим наложения (normal, add, multiply, screen)." },
       { term: "visible", description: "0 скрывает слой, 1 показывает, дробные значения пригодятся позже." },
     ],
   },

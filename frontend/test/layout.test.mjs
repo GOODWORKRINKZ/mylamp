@@ -32,8 +32,10 @@ async function main() {
   assert.match(html, /tab-queue/);
   assert.match(html, /tab-help/);
   assert.match(html, /editor-bar__actions/);
-  assert.match(html, /diagnostics-bar__badge/);
-  assert.match(html, /diagnostics-bar/);
+  assert.match(html, /error-console__badge/);
+  assert.match(html, /error-console/);
+  assert.match(html, /editor-gutter/);
+  assert.match(html, /editor-highlight/);
   assert.match(html, /id="statusbar-build"/);
   assert.match(html, /id="statusbar-network"/);
   assert.match(html, /id="statusbar-playlist"/);

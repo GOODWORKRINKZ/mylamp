@@ -210,7 +210,7 @@ button:disabled, .field-stack input:disabled, .field-stack select:disabled {
   position: absolute;
   top: 0.7rem;
   right: 0.7rem;
-  z-index: 1;
+  z-index: 2;
   padding: 0.2rem 0.45rem;
   border-radius: 999px;
   border: 1px solid rgba(255,228,190,0.18);
@@ -220,57 +220,173 @@ button:disabled, .field-stack input:disabled, .field-stack select:disabled {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+/* editor container: gutter + code area side by side */
+.editor-container {
+  display: flex;
+  height: 100%;
+}
+
+/* line numbers gutter */
+.editor-gutter {
+  flex-shrink: 0;
+  width: 3.2rem;
+  padding-top: 1.2rem;
+  padding-right: 0.5rem;
+  overflow: hidden;
+  text-align: right;
+  user-select: none;
+  color: rgba(255,220,181,0.25);
+  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+.editor-gutter__line {
+  height: calc(0.9rem * 1.55);
+}
+.editor-gutter__line--active {
+  color: #ff9a63;
+  font-weight: 600;
+}
+
+/* code area: stacked highlight + textarea */
+.editor-code-area {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* syntax highlight overlay (behind textarea) */
+.editor-highlight {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 1.2rem 1.2rem 1.2rem 0.4rem;
+  overflow: hidden;
+  pointer-events: none;
+  background: transparent;
+  color: transparent;
+  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  white-space: pre;
+  word-wrap: normal;
+  word-break: normal;
+  tab-size: 2;
+}
+.editor-highlight code {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  tab-size: inherit;
+}
+
+/* textarea on top of highlight */
 .code-editor {
+  position: relative;
+  z-index: 1;
+  display: block;
   width: 100%;
   height: 100%;
-  padding: 1.2rem;
-  padding-top: 2.4rem;
+  padding: 1.2rem 1.2rem 1.2rem 0.4rem;
   border: 0;
   resize: none;
   overflow: auto;
   background: transparent;
-  color: #f8e8d4;
+  color: transparent;
+  caret-color: #ff9a63;
   font-family: "IBM Plex Mono", "Fira Code", monospace;
   font-size: 0.9rem;
   line-height: 1.55;
-  caret-color: #ff9a63;
   white-space: pre;
   tab-size: 2;
 }
 .code-editor::placeholder { color: rgba(248,232,212,0.38); }
+.code-editor::selection { background: rgba(255,154,99,0.25); }
 .editor-surface:focus-within {
   box-shadow: inset 0 0 0 2px rgba(214,85,47,0.2);
 }
 
-/* diagnostics strip below editor */
-.diagnostics-bar {
+/* current line highlight (inside highlight pre) */
+.editor-line--active {
+  background: rgba(255,154,99,0.07);
+  display: block;
+}
+
+/* syntax token colors */
+.tok-keyword  { color: #ff9a63; font-weight: 600; }
+.tok-string   { color: #a8db8f; }
+.tok-number   { color: #d4a0ff; }
+.tok-comment  { color: rgba(248,232,212,0.35); font-style: italic; }
+.tok-function { color: #7dcfff; }
+.tok-property { color: #ffdcb5; }
+.tok-operator { color: #f0c080; }
+.tok-name     { color: #e8d0b8; }
+.tok-plain    { color: #f8e8d4; }
+.tok-bitmap   { color: rgba(248,232,212,0.55); }
+
+/* error console below editor */
+.error-console {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+  background: #1a1410;
+  max-height: 10rem;
+  min-height: 2rem;
+}
+.error-console__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.6rem;
-  padding: 0.45rem 0.85rem;
-  border-top: 1px solid var(--line);
-  background: rgba(255,248,239,0.8);
-  font-size: 0.82rem;
+  padding: 0.3rem 0.7rem;
+  background: rgba(255,248,239,0.06);
+  border-bottom: 1px solid rgba(255,228,190,0.08);
 }
-.diagnostics-bar__text {
-  color: var(--muted);
-  min-width: 0;
-  overflow: auto;
-  white-space: pre-line;
-  max-height: 6rem;
-  font-family: monospace;
-  font-size: 0.78rem;
-  line-height: 1.45;
+.error-console__title {
+  color: rgba(255,220,181,0.5);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
-.diagnostics-bar__badge {
+.error-console__badge {
   flex-shrink: 0;
-  padding: 0.2rem 0.55rem;
+  padding: 0.15rem 0.45rem;
   border-radius: 999px;
   background: rgba(214,85,47,0.1);
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
+}
+.error-console__badge--ok {
+  background: rgba(80,180,80,0.12);
+  color: #7dba7d;
+}
+.error-console__body {
+  flex: 1;
+  overflow: auto;
+  padding: 0.4rem 0.7rem;
+  color: rgba(248,232,212,0.7);
+  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.error-console__entry {
+  padding: 0.15rem 0;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.error-console__entry:hover {
+  background: rgba(255,154,99,0.08);
+}
+.error-console__entry--error {
+  color: #ff8a6a;
+}
+.error-console__loc {
+  color: rgba(255,220,181,0.45);
+  margin-right: 0.4rem;
 }
 
 /* ===== SIDEBAR ===== */
