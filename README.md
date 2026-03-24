@@ -1,57 +1,52 @@
-# mylamp
+# MYLAMP
 
-Пиксельная лампа на ESP32-C3 Super Mini: две матрицы WS2812B 16x16 складываются в цилиндр, а поверх этого работают firmware, web UI и live-coding workflow для собственных эффектов.
+Пиксельная лампа-цилиндр из двух матриц WS2812B 16×16 на ESP32-C3 Super Mini. Пишешь эффект в браузере — он сразу работает на лампе.
 
-## Что это
+---
 
-`mylamp` нужен для трёх вещей:
+## Идея
 
-- собрать прошивку для лампы на ESP32-C3;
-- настраивать устройство через встроенный web UI;
-- придумывать и запускать эффекты через маленький DSL, не копаясь каждый раз в C++.
+Две LED-панели склеиваются в цилиндр — получается экран 32×16 пикселей. Внутри ESP32-C3, датчик температуры/влажности и Wi-Fi. Лампа поднимает свою точку доступа, ты подключаешься с телефона или ноутбука и открываешь встроенный редактор прямо в браузере.
 
-Проект специально разделён на две части:
+Эффекты описываются на маленьком DSL — без C++, без перепрошивки. Написал, нажал «Запустить» — лампа показывает результат. Если что-то не так, валидатор покажет ошибку с номером строки.
 
-- `firmware` на PlatformIO + Arduino/C++;
-- `frontend` на Vite + TypeScript, который можно гонять локально даже без железа.
+Вот так выглядит простой эффект:
 
-## Что уже есть
+```
+effect "heartbeat"
 
-Сейчас в репозитории уже собраны базовые кирпичи:
+sprite heart {
+  bitmap """
+  .##.##.
+  #######
+  #######
+  .#####.
+  ..###..
+  ...#...
+  """
+}
 
-- логический canvas `32x16` поверх двух панелей `16x16`;
-- firmware-скелет под ESP32-C3 Super Mini;
-- web API статуса, preset-ов и playlist-ов;
-- web UI с editor-first workflow;
-- local dev режим со стабовым backend без реальной лампы;
-- базовый DSL-контракт для live coding;
-- работа с временем, Wi-Fi состоянием и AHT30 внутри runtime.
-
-Быстрый честный статус проекта лежит отдельно:
-
-- [docs/STATUS.md](docs/STATUS.md)
+layer love {
+  use heart
+  color rgb(255, 30 + 20 * sin(t * 5), 80)
+  x = 10 + sin(t) * 4
+  y = 4 + cos(t * 1.2) * 2
+  scale = 1 + abs(sin(t * 2))
+  visible = 1
+}
+```
 
 ## Быстрый старт
 
-### Firmware build
+### Собрать и залить прошивку
 
 ```bash
-pio run -e esp32-c3-supermini-dev
+pio run -e esp32-c3-supermini-dev           # собрать
+pio run -e esp32-c3-supermini-dev -t upload  # залить на устройство
+pio device monitor -b 115200                 # посмотреть логи
 ```
 
-### Upload на устройство
-
-```bash
-pio run -e esp32-c3-supermini-dev -t upload
-```
-
-### Serial monitor
-
-```bash
-pio device monitor -b 115200
-```
-
-### Локальная разработка frontend без железа
+### Разработка UI без лампы
 
 ```bash
 cd frontend
@@ -59,161 +54,129 @@ npm install
 npm run dev
 ```
 
-В dev-режиме поднимается Vite и mock backend. Через него можно гонять UI, проверять editor workflow и сценарии без ESP32.
+Поднимается Vite с mock-бэкендом — можно гонять весь UI, писать эффекты и тестировать сценарии, даже если лампы нет под рукой.
 
-### Frontend production build
+### Собрать frontend для прошивки
 
 ```bash
 cd frontend
 npm run build
 ```
 
-Собранные ресурсы попадают в `resources/dist/` и потом встраиваются в firmware.
+Результат попадает в `resources/dist/` и автоматически встраивается в firmware при следующей сборке.
+
+## Как пользоваться
+
+1. Подключаешься к Wi-Fi лампы (или настраиваешь свою сеть через UI).
+2. Открываешь веб-интерфейс — сразу попадаешь в редактор.
+3. Пишешь эффект на DSL или берёшь готовый из панели «Идеи».
+4. **Проверить** — валидация кода с диагностикой ошибок.
+5. **Запустить** — лампа сразу показывает эффект.
+6. **Сохранить** — эффект остаётся в памяти лампы как preset.
+
+В шапке — быстрые настройки: Wi-Fi, часовой пояс, OTA-обновления. Справа — табы с подсказками, статусом лампы и готовыми идеями.
+
+## Что умеет DSL
+
+Язык специально маленький: три сущности (`effect`, `sprite`, `layer`), математика, сенсоры и два цветовых режима.
+
+**Переменные:** `t` (время), `dt` (дельта), `x`, `y`, `nx`, `ny` (координаты пикселя).
+
+**Функции:** `sin`, `cos`, `abs`, `min`, `max`, `clamp`, `temp()`, `humidity()`.
+
+**Операторы:** `+`, `-`, `*`, `/`, `%`.
+
+**Цвет:** `rgb(r, g, b)` или `hsv(h, s, v)`.
+
+Полная спецификация: [docs/DSL.md](docs/DSL.md). Готовый промпт для генерации эффектов через LLM: [docs/LLM_EFFECT_PROMPT.md](docs/LLM_EFFECT_PROMPT.md).
 
 ## Железо
 
-Целевая плата:
-
-- ESP32-C3 Super Mini
-
-Периферия:
-
-- 2x WS2812B 16x16
-- AHT30 по I2C
-
-Логическая поверхность:
-
-| Параметр | Значение |
+| | |
 | --- | --- |
-| Ширина | `32` |
-| Высота | `16` |
-| Всего пикселей | `512` |
+| Плата | ESP32-C3 Super Mini |
+| Матрицы | 2× WS2812B 16×16, цепочкой |
+| Датчик | AHT30 (I2C) |
+| Экран | 32×16 = 512 пикселей |
 
-Текущие firmware-константы:
+### Распиновка
 
-| Назначение | Значение |
+| Сигнал | Пин |
 | --- | --- |
-| LED data | `GPIO2` |
-| I2C SDA | `GPIO8` |
-| I2C SCL | `GPIO9` |
-| Brightness default | `32` |
-| Brightness cap | `96` |
+| LED data | GPIO2 |
+| I2C SDA | GPIO8 |
+| I2C SCL | GPIO9 |
 
-## Подключение
+### Подключение
 
-Минимальная схема:
+- Матрицы питаются от **внешнего** блока питания (не от USB ESP32!).
+- `DIN` первой матрицы → GPIO2, `DOUT` первой → `DIN` второй.
+- AHT30: SDA → GPIO8, SCL → GPIO9.
+- Общая GND у ESP32, матриц и датчика.
 
-1. Обе матрицы WS2812B питаются от внешнего блока питания.
-2. `DIN` первой матрицы подключается к `GPIO2`.
-3. `DOUT` первой матрицы идёт в `DIN` второй, если панели соединены последовательно.
-4. AHT30 подключается по I2C:
-   - `SDA` -> `GPIO8`
-   - `SCL` -> `GPIO9`
-5. У ESP32, матриц и датчика должна быть общая `GND`.
+Если начинаются глюки — первым делом проверяй питание и землю.
 
-Практические замечания:
+## Разработка
 
-- не стоит питать обе матрицы от USB самой ESP32-C3;
-- если начинаются глюки, сначала проверяй питание и землю;
-- логическое отображение панелей централизовано в `MatrixLayout`, поэтому физические перевороты лучше править в firmware, а не в DSL.
+### Тесты
 
-## Web UI и эффекты
-
-Текущий workflow короткий:
-
-1. Открываешь web UI.
-2. Сразу попадаешь в editor-first экран: код в центре, идеи, runtime и шпаргалка в боковой панели.
-3. При необходимости открываешь быстрые настройки из шапки: Wi-Fi, часовой пояс и OTA.
-4. Нажимаешь `Новый` или загружаешь готовую идею.
-5. Пишешь DSL в редакторе.
-6. В первой строке задаёшь имя:
-
-```txt
-effect "my_effect"
+```bash
+pio test -e native-test
 ```
 
-7. `Проверить` отправляет код на `POST /api/live/validate`.
-8. `Запустить` отправляет код на `POST /api/live/run`.
-9. `Сохранить` сохраняет preset через `PUT /api/presets?id=:presetId`.
+Сейчас 100 тестов в 32 сьютах: парсер, компилятор, executor, API, сетевой стек, хранилище, OTA и многое другое.
 
-В интерфейсе сейчас уже есть:
+### Mock-сценарии
 
-- центральный DSL-редактор без лишнего скролла до первого ввода;
-- правая панель с табами `Идеи`, `Лампа`, `Справка`;
-- нижняя diagnostics-полоска для результата проверки и live-статуса;
-- быстрые кнопки Wi-Fi, timezone и firmware/OTA в шапке.
+При локальной разработке frontend можно переключать поведение бэкенда:
 
-Полная спецификация языка вынесена сюда:
+| Сценарий | Что делает |
+| --- | --- |
+| `happy-path` | Всё работает штатно |
+| `autoplay` | Плейлист крутится |
+| `dsl-error` | Валидация возвращает ошибки |
+| `offline-ish` | Слабое соединение |
+| `sensor-missing` | Датчик не отвечает |
 
-- [docs/DSL.md](docs/DSL.md)
+Переключить можно через dev-панель в UI или через URL: `http://127.0.0.1:3000/?scenario=autoplay`.
 
-Готовый copy-paste prompt для LLM лежит отдельно:
+### Структура проекта
 
-- [docs/LLM_EFFECT_PROMPT.md](docs/LLM_EFFECT_PROMPT.md)
-
-## Local Dev Scenarios
-
-Mock backend поддерживает несколько сценариев:
-
-- `happy-path`
-- `autoplay`
-- `dsl-error`
-- `offline-ish`
-- `sensor-missing`
-
-Сценарий можно выбрать через dev-панель в UI или через query string, например:
-
-```txt
-http://127.0.0.1:3000/?scenario=autoplay
+```
+platformio.ini          — PlatformIO environments (dev, release, native-test)
+include/AppConfig.h     — аппаратные константы
+src/main.cpp            — точка входа firmware
+src/web/                — HTTP API
+src/live/               — DSL парсер, компилятор и runtime
+src/live/dsl/           — лексер и парсер DSL
+src/live/runtime/       — компилятор и executor эффектов
+frontend/               — Vite + TypeScript UI
+frontend/src/dev/       — mock backend и сценарии
+resources/dist/         — собранный frontend для embedding
+test/                   — native-тесты (Unity)
+docs/                   — спецификации DSL, архитектура, статус
 ```
 
-## Основные API
+## API
 
-Ключевые маршруты, вокруг которых уже построен UI:
+| Метод | Путь | Что делает |
+| --- | --- | --- |
+| GET | `/api/status` | Статус лампы, Wi-Fi, сенсоры, текущий эффект |
+| POST | `/api/live/validate` | Проверить DSL-код |
+| POST | `/api/live/run` | Запустить эффект на лампе |
+| GET | `/api/presets` | Список сохранённых эффектов |
+| PUT | `/api/presets?id=:id` | Сохранить эффект |
+| POST | `/api/presets/:id/activate` | Активировать preset |
+| POST | `/api/playlists/:id/start` | Запустить плейлист |
+| POST | `/api/playlists/stop` | Остановить плейлист |
+| GET/POST | `/api/settings/network` | Настройки Wi-Fi |
+| GET/POST | `/api/settings/time` | Часовой пояс и NTP |
+| GET/POST | `/api/update/*` | OTA-обновления |
 
-- `GET /api/status`
-- `POST /api/live/validate`
-- `POST /api/live/run`
-- `GET /api/presets`
-- `PUT /api/presets?id=:id`
-- `POST /api/presets/:id/activate`
-- `POST /api/playlists/:id/start`
-- `POST /api/playlists/stop`
-- `GET /api/settings/network`
-- `POST /api/settings/network`
-- `GET /api/settings/time`
-- `POST /api/settings/time`
-- `GET /api/update/current`
-- `POST /api/update/check`
-- `POST /api/update/install`
-- `GET /api/update/settings`
-- `POST /api/update/settings`
+## Документация
 
-## Структура репозитория
-
-- `platformio.ini` — PlatformIO environments
-- `include/AppConfig.h` — аппаратные и runtime-константы
-- `src/main.cpp` — сборка runtime и сервисов
-- `src/web/` — HTTP API и web-server glue
-- `src/live/` — live coding runtime, DSL и storage services
-- `frontend/` — web UI и local dev tooling
-- `resources/dist/` — frontend build для embedding
-- `docs/` — архитектура, DSL, статус и планы
-
-## Куда читать дальше
-
-- [docs/STATUS.md](docs/STATUS.md) — что уже работает, что ещё не доделано
-- [docs/DSL.md](docs/DSL.md) — синтаксис языка эффектов и примеры
-- [docs/LLM_EFFECT_PROMPT.md](docs/LLM_EFFECT_PROMPT.md) — готовый prompt для генерации эффектов через LLM
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — верхнеуровневая архитектура и направление runtime
-
-## OTA и release direction
-
-Проект целится в release-схему по образцу microbbox:
-
-- GitHub Releases как источник OTA-артефактов;
-- отдельные `dev` и `stable` каналы;
-- версия и канал, вшитые в build flags.
-
-Эта часть ещё не доведена до полного production workflow, но архитектурное направление уже зафиксировано.
+- [docs/DSL.md](docs/DSL.md) — спецификация языка эффектов
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — архитектура проекта
+- [docs/LLM_EFFECT_PROMPT.md](docs/LLM_EFFECT_PROMPT.md) — промпт для генерации эффектов через ChatGPT/Claude
+- [docs/STATUS.md](docs/STATUS.md) — честный статус: что работает, что нет
 
