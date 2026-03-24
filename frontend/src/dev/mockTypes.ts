@@ -90,6 +90,8 @@ export type PresetPayload = {
   };
 };
 
+export type PresetListItem = Pick<PresetPayload, "id" | "name" | "updatedAt">;
+
 export type PlaylistEntryPayload = {
   presetId: string;
   durationSec: number;

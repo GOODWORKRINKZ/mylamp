@@ -6,6 +6,8 @@ import { renderShellMarkup } from "./ui/shellTemplate";
 import type {
   LiveDiagnosticResponse,
   NetworkSettingsPayload,
+  PresetListItem,
+  PresetPayload,
   ScenarioId,
   StatusPayload,
   TimeSettingsPayload,
@@ -44,6 +46,7 @@ let selectedScenario: ScenarioId = getSelectedScenario();
 let currentUpdateSnapshot: UpdateCurrentPayload | null = null;
 let currentNetworkSettings: NetworkSettingsPayload | null = null;
 let currentTimeSettings: TimeSettingsPayload | null = null;
+let currentStatus: StatusPayload | null = null;
 let updateBusyAction: "" | "check" | "install" | "settings" = "";
 let updateRebootPending = false;
 let networkModalOpen = false;
@@ -55,6 +58,10 @@ let networkSettingsLoaded = false;
 let timeModalLoading = false;
 let timeModalSaving = false;
 let timeSettingsLoaded = false;
+let presetListItems: PresetListItem[] = [];
+let presetListLoading = false;
+let activeEditingPresetId = "";
+let activeEditingEffectName = "";
 
 const timezoneOptions: Array<{ value: string; label: string }> = [
   { value: "UTC0", label: "UTC" },
@@ -130,6 +137,69 @@ function buildPresetId(effectName: string): string {
     .replace(/[^\p{L}\p{N}_-]+/gu, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function formatPresetTimestamp(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value || "Без даты";
+  }
+
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parsed);
+}
+
+function renderPresetList(): void {
+  const container = document.getElementById("saved-presets-list");
+  const meta = document.getElementById("saved-presets-meta");
+  if (!container || !meta) {
+    return;
+  }
+
+  if (presetListLoading) {
+    meta.textContent = "Загружаем...";
+    container.innerHTML = `<div class="preset-library__empty">Смотрим, что уже сохранено на лампе.</div>`;
+    return;
+  }
+
+  meta.textContent = presetListItems.length === 0 ? "Пока пусто" : `${presetListItems.length} шт.`;
+
+  if (presetListItems.length === 0) {
+    container.innerHTML = `<div class="preset-library__empty">Пока нет сохранённых preset-ов. Сохрани текущий эффект, и он появится здесь.</div>`;
+    return;
+  }
+
+  const activePresetId = currentStatus?.activePresetId ?? "";
+  container.innerHTML = presetListItems
+    .map((item) => {
+      const activeClass = item.id === activePresetId ? " preset-item--active" : "";
+      return `
+        <article class="preset-item${activeClass}">
+          <div class="preset-item__header">
+            <strong class="preset-item__name">${escapeHtml(item.name)}</strong>
+            <span class="preset-item__date">${escapeHtml(formatPresetTimestamp(item.updatedAt))}</span>
+          </div>
+          <div class="preset-item__actions">
+            <button class="preset-item__button preset-item__button--secondary" data-preset-action="open" data-preset-id="${escapeHtml(item.id)}" type="button">Открыть</button>
+            <button class="preset-item__button" data-preset-action="activate" data-preset-id="${escapeHtml(item.id)}" type="button">На лампу</button>
+            <button class="preset-item__button preset-item__button--danger" data-preset-action="delete" data-preset-id="${escapeHtml(item.id)}" data-preset-name="${escapeHtml(item.name)}" type="button">Удалить</button>
+          </div>
+        </article>`;
+    })
+    .join("");
 }
 
 function buildJsonHeaders(): Record<string, string> {
@@ -330,7 +400,8 @@ async function postLiveAction(endpoint: "/api/live/validate" | "/api/live/run"):
 async function savePreset(): Promise<void> {
   const source = getEditorValue().trim();
   const effectName = readEffectName(source);
-  const presetId = buildPresetId(effectName);
+  const presetId =
+    activeEditingPresetId && activeEditingEffectName === effectName ? activeEditingPresetId : buildPresetId(effectName);
 
   if (!source) {
     setText("diagnostics-summary", "Нечего сохранять: редактор пустой.");
@@ -368,6 +439,9 @@ async function savePreset(): Promise<void> {
     setText("diagnostics-summary", `Эффект «${effectName}» сохранён.`);
     setText("diagnostics-status", `Preset id: ${presetId}`);
     setText("editor-status", "Сохранение завершено.");
+    activeEditingPresetId = presetId;
+    activeEditingEffectName = effectName;
+    await loadPresetList();
     void refreshStatus();
   } catch (error) {
     const message = error instanceof Error ? error.message : "Неизвестная ошибка";
@@ -379,10 +453,159 @@ async function savePreset(): Promise<void> {
 
 function createNewEffect(): void {
   setEditorValue(blankEffectTemplate);
+  activeEditingPresetId = "";
+  activeEditingEffectName = "";
   setText("editor-hint", "Это пустая заготовка. Дай эффекту имя в строке effect \"...\" и начинай рисовать.");
   setText("editor-status", "Создан новый пустой эффект. Теперь можно редактировать, проверить или сохранить его.");
   setText("diagnostics-summary", "Новая заготовка открыта. Поменяй имя, спрайты и слои, потом сохрани эффект.");
   setText("diagnostics-status", "Черновик готов");
+}
+
+async function loadPresetList(): Promise<void> {
+  presetListLoading = true;
+  renderPresetList();
+
+  try {
+    const response = await fetch("/api/presets", { headers: buildApiHeaders() });
+    const payload = (await response.json()) as { items?: PresetListItem[]; error?: string };
+    if (!response.ok) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    presetListItems = Array.isArray(payload.items) ? payload.items : [];
+    renderPresetList();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    presetListItems = [];
+    renderPresetList();
+    setText("editor-status", "Не удалось загрузить preset-ы.");
+    setText("diagnostics-summary", `Не удалось загрузить список preset-ов: ${message}`);
+    setText("diagnostics-status", "Preset-ы недоступны");
+  } finally {
+    presetListLoading = false;
+    renderPresetList();
+  }
+}
+
+async function loadPresetIntoEditor(presetId: string): Promise<void> {
+  setText("editor-status", "Загружаем preset в редактор...");
+
+  try {
+    const response = await fetch(`/api/presets/${encodeURIComponent(presetId)}`, { headers: buildApiHeaders() });
+    const payload = (await response.json()) as PresetPayload & { error?: string };
+    if (!response.ok) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    setEditorValue(payload.source);
+    activeEditingPresetId = payload.id;
+    activeEditingEffectName = readEffectName(payload.source) || payload.name;
+    setText("editor-hint", `Открыт preset «${payload.name}». Можно править код, проверять и пересохранять.`);
+    setText("editor-status", "Preset загружен в редактор.");
+    setText("diagnostics-summary", `Открыт preset «${payload.name}». Теперь можно изменить код и сохранить обновление.`);
+    setText("diagnostics-status", `Preset id: ${payload.id}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    setText("editor-status", "Не удалось открыть preset.");
+    setText("diagnostics-summary", `Не удалось открыть preset: ${message}`);
+    setText("diagnostics-status", "Ошибка загрузки preset-а");
+  }
+}
+
+async function activatePreset(presetId: string): Promise<void> {
+  setText("editor-status", "Активируем preset на лампе...");
+
+  try {
+    const response = await fetch(`/api/presets/${encodeURIComponent(presetId)}/activate`, {
+      method: "POST",
+      headers: buildApiHeaders(),
+    });
+    const payload = (await response.json()) as { ok?: boolean; error?: string; activePresetId?: string };
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    setText("editor-status", "Preset отправлен на лампу.");
+    setText("diagnostics-summary", `Preset «${presetId}» активирован на лампе.`);
+    setText("diagnostics-status", "Preset активирован");
+    await refreshStatus();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    setText("editor-status", "Не удалось активировать preset.");
+    setText("diagnostics-summary", `Не удалось активировать preset: ${message}`);
+    setText("diagnostics-status", "Активация не удалась");
+  }
+}
+
+async function deletePreset(presetId: string, presetName: string): Promise<void> {
+  const confirmed = window.confirm(`Удалить preset «${presetName}»?`);
+  if (!confirmed) {
+    return;
+  }
+
+  setText("editor-status", "Удаляем preset...");
+
+  try {
+    const response = await fetch(`/api/presets/${encodeURIComponent(presetId)}`, {
+      method: "DELETE",
+      headers: buildApiHeaders(),
+    });
+    const payload = (await response.json()) as { ok?: boolean; error?: string };
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    if (activeEditingPresetId === presetId) {
+      activeEditingPresetId = "";
+      activeEditingEffectName = "";
+    }
+
+    setText("editor-status", "Preset удалён.");
+    setText("diagnostics-summary", `Preset «${presetName}» удалён из памяти лампы.`);
+    setText("diagnostics-status", "Preset удалён");
+    await loadPresetList();
+    await refreshStatus();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    setText("editor-status", "Не удалось удалить preset.");
+    setText("diagnostics-summary", `Не удалось удалить preset: ${message}`);
+    setText("diagnostics-status", "Удаление не удалось");
+  }
+}
+
+function bindPresetListActions(): void {
+  const container = document.getElementById("saved-presets-list");
+  container?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+
+    const button = target.closest<HTMLButtonElement>("[data-preset-action]");
+    if (!button) {
+      return;
+    }
+
+    const presetId = button.dataset.presetId;
+    const action = button.dataset.presetAction;
+    if (!presetId || !action) {
+      return;
+    }
+
+    if (action === "open") {
+      void loadPresetIntoEditor(presetId);
+      return;
+    }
+
+    if (action === "activate") {
+      void activatePreset(presetId);
+      return;
+    }
+
+    if (action === "delete") {
+      void deletePreset(presetId, button.dataset.presetName || presetId);
+    }
+  });
 }
 
 function bindActionButtons(): void {
@@ -853,6 +1076,8 @@ function findSnippetById(snippetId: string): StarterSnippet | undefined {
 
 function applySnippet(snippet: StarterSnippet): void {
   setEditorValue(snippet.source);
+  activeEditingPresetId = "";
+  activeEditingEffectName = "";
   setText("editor-hint", `${snippet.name}: ${snippet.description}`);
   setText("editor-status", "Идея загружена. Теперь можно менять код и смотреть, что получится.");
   setText("diagnostics-summary", `Загружена идея «${snippet.name}». Проверь код и нажми «Запустить», когда будешь готов.`);
@@ -898,6 +1123,7 @@ function bindDevScenarioControls(): void {
 
     setSelectedScenario(nextValue);
     renderScenarioDescription();
+    void loadPresetList();
     void refreshStatus();
     void refreshUpdateState();
   });
@@ -907,6 +1133,7 @@ function bindDevScenarioControls(): void {
       method: "POST",
       headers: buildApiHeaders(),
     });
+    void loadPresetList();
     void refreshStatus();
     void refreshUpdateState();
   });
@@ -1187,6 +1414,7 @@ function formatNumber(value: number | null, suffix: string): string {
 }
 
 function renderStatus(status: StatusPayload): void {
+  currentStatus = status;
   setText("statusbar-build", `${status.version} · ${status.channel}`);
   setText("statusbar-preset", status.activePresetName || status.activePresetId || "Пусто");
   setText("statusbar-autoplay", status.autoplayEnabled ? "Вкл" : "Выкл");
@@ -1205,6 +1433,7 @@ function renderStatus(status: StatusPayload): void {
     status.liveErrorSummary || "Пока всё спокойно. Можно пробовать новые идеи и смотреть, как они оживают.",
   );
   setText("diagnostics-status", status.liveErrorSummary ? "Нужно чуть поправить код" : "Лампа готова показывать новые огоньки");
+  renderPresetList();
 }
 
 async function refreshStatus(): Promise<void> {
@@ -1226,9 +1455,11 @@ async function refreshStatus(): Promise<void> {
 
 void refreshStatus();
 void refreshUpdateState();
+void loadPresetList();
 applySnippet(starterSnippets[0]);
 bindSnippetButtons();
 bindActionButtons();
+bindPresetListActions();
 bindUpdateControls();
 bindNetworkSettingsControls();
 bindFirmwareModalControls();

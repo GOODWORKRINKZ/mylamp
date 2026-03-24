@@ -73,6 +73,13 @@ export function renderShellMarkup(options: ShellTemplateOptions): string {
           <div class="sidebar-panel sidebar-panel--active" id="tab-presets" role="tabpanel">
             <p class="sidebar-panel__hint" id="editor-hint">Выбери идею и подкрути под себя.</p>
             <ul class="item-list">${options.starterSnippetList}</ul>
+            <section class="preset-library" aria-labelledby="saved-presets-title">
+              <div class="preset-library__header">
+                <h2 id="saved-presets-title" class="preset-library__title">Сохранённые</h2>
+                <span class="preset-library__meta" id="saved-presets-meta">Загружаем...</span>
+              </div>
+              <div class="preset-library__list" id="saved-presets-list"></div>
+            </section>
           </div>
           <div class="sidebar-panel" id="tab-queue" role="tabpanel" hidden>
             <div class="key-value"><span>Сейчас включено</span><strong id="runtime-preset">-</strong></div>
