@@ -180,4 +180,5 @@ docs/                   — спецификации DSL, архитектура
 - [docs/LLM_EFFECT_PROMPT.md](docs/LLM_EFFECT_PROMPT.md) — промпт для генерации эффектов через ChatGPT/Claude
 - [docs/STATUS.md](docs/STATUS.md) — честный статус: что работает, что нет
 - [docs/ROADMAP.md](docs/ROADMAP.md) — что ещё осталось сделать и как это будем закрывать
+- [docs/RELEASE.md](docs/RELEASE.md) — release contract и OTA-поток для dev/stable
 

@@ -66,6 +66,7 @@ export const scenarioDefinitions: ScenarioDefinition[] = [
   { id: "autoplay", label: "Autoplay", description: "Активен playlist и включено автопереключение." },
   { id: "dsl-error", label: "DSL Error", description: "Валидация и запуск возвращают русские diagnostics." },
   { id: "offline-ish", label: "Offline-ish", description: "Сеть нестабильна, статус деградирован, но UI жив." },
+  { id: "ota-error", label: "OTA Error", description: "Проверка обновлений проходит, но установка заканчивается ошибкой checksum." },
   { id: "sensor-missing", label: "Sensor Missing", description: "Датчик не отвечает, temperature/humidity пустые." },
 ];
 
@@ -158,6 +159,25 @@ export function createMockState(scenarioId: ScenarioId): MockState {
           sensorStatus: "Sensor: unavailable",
           temperatureC: null,
           humidityPercent: null,
+          activePresetId: "warm-waves",
+          activePresetName: "Теплые волны",
+          autoplayEnabled: false,
+          activePlaylistId: "",
+          liveErrorSummary: "",
+        },
+      };
+    case "ota-error":
+      return {
+        networkSettings: makeNetworkSettings(),
+        timeSettings: makeTimeSettings(),
+        presets,
+        playlists,
+        status: {
+          ...common,
+          networkStatus: "AP: MYLAMP-DEV",
+          sensorStatus: "Sensor: ok",
+          temperatureC: 24.0,
+          humidityPercent: 40.4,
           activePresetId: "warm-waves",
           activePresetName: "Теплые волны",
           autoplayEnabled: false,

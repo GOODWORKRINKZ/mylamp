@@ -6,6 +6,7 @@ const validScenarios = new Set([
   "autoplay",
   "dsl-error",
   "offline-ish",
+  "ota-error",
   "sensor-missing",
 ]);
 
@@ -227,6 +228,30 @@ function createMockState(scenarioId) {
           updateState: "idle",
         }),
       };
+    case "ota-error":
+      return {
+        networkSettings: makeNetworkSettings(),
+        timeSettings: makeTimeSettings(),
+        presets,
+        playlists,
+        status: {
+          ...common,
+          networkStatus: "AP: MYLAMP-DEV",
+          sensorStatus: "Sensor: ok",
+          temperatureC: 24.0,
+          humidityPercent: 40.4,
+          activePresetId: "warm-waves",
+          activePresetName: "Теплые волны",
+          autoplayEnabled: false,
+          activePlaylistId: "",
+          liveErrorSummary: "",
+        },
+        update: createUpdateSnapshot(common, {
+          updateChannel: "dev",
+          updateState: "available",
+          availableVersion: "feature-bootstrap-lamp-foundation-a1b2c3d",
+        }),
+      };
     case "happy-path":
     default:
       return {
@@ -420,6 +445,20 @@ export async function handleApi(req, res) {
   }
 
   if (pathname === "/api/update/current" && method === "GET") {
+    if (state.update.rebootPollsRemaining && state.update.rebootPollsRemaining > 0) {
+      state.update.rebootPollsRemaining -= 1;
+      sendJson(res, 503, { error: "device rebooting" });
+      return true;
+    }
+
+    if (state.update.pendingVersion) {
+      state.update.version = state.update.pendingVersion;
+      state.update.availableVersion = "";
+      state.update.updateState = "up-to-date";
+      state.update.updateError = "";
+      state.update.pendingVersion = "";
+    }
+
     sendJson(res, 200, state.update);
     return true;
   }
@@ -490,8 +529,17 @@ export async function handleApi(req, res) {
       return true;
     }
 
+    if (scenarioId === "ota-error") {
+      state.update.updateState = "error";
+      state.update.updateError = "checksum mismatch";
+      sendJson(res, 400, { success: false, error: "checksum mismatch" });
+      return true;
+    }
+
     state.update.updateState = "completed";
     state.update.updateError = "";
+    state.update.pendingVersion = state.update.availableVersion;
+    state.update.rebootPollsRemaining = 2;
     sendJson(res, 200, { success: true, rebooting: true });
     return true;
   }

@@ -3,6 +3,7 @@ export type ScenarioId =
   | "autoplay"
   | "dsl-error"
   | "offline-ish"
+  | "ota-error"
   | "sensor-missing";
 
 export type StatusPayload = {

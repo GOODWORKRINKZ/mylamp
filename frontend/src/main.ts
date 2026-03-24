@@ -51,6 +51,7 @@ let currentTimeSettings: TimeSettingsPayload | null = null;
 let currentStatus: StatusPayload | null = null;
 let updateBusyAction: "" | "check" | "install" | "settings" = "";
 let updateRebootPending = false;
+let updateRebootAttempt = 0;
 let networkModalOpen = false;
 let firmwareModalOpen = false;
 let timeModalOpen = false;
@@ -1191,6 +1192,77 @@ function describeUpdateState(state: UpdateCurrentPayload["updateState"]): string
   }
 }
 
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, milliseconds);
+  });
+}
+
+async function fetchUpdateStateSnapshot(): Promise<UpdateCurrentPayload> {
+  const response = await fetch("/api/update/current", { headers: buildApiHeaders() });
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error || `HTTP ${response.status}`);
+  }
+
+  return (await response.json()) as UpdateCurrentPayload;
+}
+
+function renderUpdateRebootProgress(attempt: number, maxAttempts: number, extraMessage = ""): void {
+  const suffix = extraMessage ? ` ${extraMessage}` : "";
+  setText("update-runtime-state", "Ждём reboot");
+  setText("update-summary", `Лампа применяет OTA и перезагружается. Восстанавливаем связь, попытка ${attempt}/${maxAttempts}.${suffix}`);
+  setText("update-status-note", `Перезагрузка... попытка ${attempt}/${maxAttempts}`);
+  setText("update-error", "Короткая потеря связи после OTA здесь ожидаема.");
+}
+
+async function waitForUpdateRecovery(expectedVersion: string): Promise<void> {
+  const maxAttempts = 5;
+  const pauseMs = 2500;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    updateRebootAttempt = attempt;
+    renderUpdateRebootProgress(attempt, maxAttempts);
+    await wait(pauseMs);
+
+    try {
+      const payload = await fetchUpdateStateSnapshot();
+      renderUpdateState(payload);
+
+      if (payload.version === expectedVersion) {
+        updateRebootPending = false;
+        updateRebootAttempt = 0;
+        setText("update-summary", `Устройство вернулось после перезагрузки. Теперь установлена версия ${payload.version}.`);
+        setText("update-status-note", "OTA завершено, связь восстановлена");
+        setText("update-error", "Ошибок нет.");
+        void refreshStatus();
+        return;
+      }
+
+      if (payload.updateState !== "completed") {
+        updateRebootPending = false;
+        updateRebootAttempt = 0;
+        setText(
+          "update-summary",
+          `Связь восстановилась, но устройство ещё сообщает состояние ${describeUpdateState(payload.updateState).toLowerCase()}. Проверь версию ещё раз вручную.`,
+        );
+        setText("update-status-note", "Устройство снова отвечает");
+        void refreshStatus();
+        return;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "unknown error";
+      renderUpdateRebootProgress(attempt, maxAttempts, `Последний ответ: ${message}.`);
+    }
+  }
+
+  updateRebootPending = false;
+  updateRebootAttempt = 0;
+  setText("update-summary", "Лампа всё ещё не ответила после OTA. Обнови окно позже или проверь устройство вручную.");
+  setText("update-status-note", "Не дождались устройство после reboot");
+  setText("update-error", "Связь не восстановилась за 5 попыток.");
+}
+
 function describeNetworkMode(mode: NetworkSettingsPayload["mode"]): string {
   return mode === "client"
     ? "В режиме клиента лампа подключается к домашнему Wi-Fi и может получать OTA через интернет."
@@ -1411,18 +1483,13 @@ function renderUpdateState(snapshot: UpdateCurrentPayload): void {
 
 async function refreshUpdateState(): Promise<void> {
   try {
-    const response = await fetch("/api/update/current", { headers: buildApiHeaders() });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const payload = (await response.json()) as UpdateCurrentPayload;
+    const payload = await fetchUpdateStateSnapshot();
     renderUpdateState(payload);
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown error";
     if (updateRebootPending) {
-      setText("update-summary", "Лампа перезагружается после установки. Короткая потеря связи здесь ожидаема.");
-      setText("update-status-note", "Ждём устройство после reboot");
+      const attempt = updateRebootAttempt > 0 ? updateRebootAttempt : 1;
+      renderUpdateRebootProgress(attempt, 5, `Последний ответ: ${message}.`);
       setText("update-error", "Связь временно недоступна из-за перезапуска.");
       return;
     }
@@ -1508,6 +1575,8 @@ async function installUpdate(): Promise<void> {
     return;
   }
 
+  const expectedVersion = currentUpdateSnapshot.availableVersion;
+
   updateBusyAction = "install";
   syncUpdateControls();
   setText("update-status-note", "Скачиваем и ставим прошивку...");
@@ -1525,13 +1594,12 @@ async function installUpdate(): Promise<void> {
     setText("update-summary", `Прошивка ${currentUpdateSnapshot.availableVersion} установлена. Устройство перезагружается.`);
     setText("update-status-note", "Ждём перезапуск устройства");
     updateRebootPending = true;
-    await refreshUpdateState();
-    window.setTimeout(() => {
-      void refreshUpdateState();
-      void refreshStatus();
-    }, 1500);
+    updateRebootAttempt = 0;
+    await waitForUpdateRecovery(expectedVersion);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    updateRebootPending = false;
+    updateRebootAttempt = 0;
     setText("update-summary", `Установка не удалась: ${message}`);
     setText("update-status-note", "OTA установка завершилась с ошибкой");
     await refreshUpdateState();
