@@ -10,6 +10,10 @@ namespace {
 
 class MemoryFileStore : public lamp::storage::IFileStore {
  public:
+  bool isReady() const override {
+    return true;
+  }
+
   bool writeText(const std::string& path, const std::string& content) override {
     for (Entry& entry : entries_) {
       if (entry.path == path) {
@@ -64,6 +68,38 @@ class MemoryFileStore : public lamp::storage::IFileStore {
   std::vector<Entry> entries_;
 };
 
+class UnreadyFileStore : public lamp::storage::IFileStore {
+ public:
+  bool isReady() const override {
+    return false;
+  }
+
+  bool writeText(const std::string&, const std::string&) override {
+    ++writeCalls;
+    return false;
+  }
+
+  bool readText(const std::string&, std::string&) const override {
+    ++readCalls;
+    return false;
+  }
+
+  bool remove(const std::string&) override {
+    ++removeCalls;
+    return false;
+  }
+
+  std::vector<std::string> list(const std::string&) const override {
+    ++listCalls;
+    return {};
+  }
+
+  mutable int readCalls = 0;
+  mutable int listCalls = 0;
+  int writeCalls = 0;
+  int removeCalls = 0;
+};
+
 lamp::live::PresetModel makePreset(const char* id, const char* name, float brightnessCap) {
   lamp::live::PresetModel preset;
   preset.id = id;
@@ -109,6 +145,23 @@ void test_preset_repository_overwrites_existing_preset_by_id() {
   TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.45f, loaded.options.brightnessCap);
 }
 
+void test_preset_repository_skips_storage_operations_when_store_is_not_ready() {
+  UnreadyFileStore fileStore;
+  lamp::live::PresetRepository repository(fileStore);
+
+  lamp::live::PresetModel loaded;
+  TEST_ASSERT_FALSE(repository.isReady());
+  TEST_ASSERT_FALSE(repository.save(makePreset("warm_waves", "Warm Waves", 0.35f)));
+  TEST_ASSERT_FALSE(repository.load("warm_waves", loaded));
+  TEST_ASSERT_FALSE(repository.remove("warm_waves"));
+  TEST_ASSERT_EQUAL_UINT32(0U, static_cast<uint32_t>(repository.list().size()));
+
+  TEST_ASSERT_EQUAL_INT(0, fileStore.writeCalls);
+  TEST_ASSERT_EQUAL_INT(0, fileStore.readCalls);
+  TEST_ASSERT_EQUAL_INT(0, fileStore.removeCalls);
+  TEST_ASSERT_EQUAL_INT(0, fileStore.listCalls);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -117,5 +170,6 @@ int main(int argc, char** argv) {
   UNITY_BEGIN();
   RUN_TEST(test_preset_repository_saves_loads_lists_and_removes_presets);
   RUN_TEST(test_preset_repository_overwrites_existing_preset_by_id);
+  RUN_TEST(test_preset_repository_skips_storage_operations_when_store_is_not_ready);
   return UNITY_END();
 }

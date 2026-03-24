@@ -23,6 +23,7 @@
 #include "settings/AppSettings.h"
 #include "settings/AppSettingsPersistence.h"
 #include "settings/PreferencesSettingsBackend.h"
+#include "settings/SettingsAccess.h"
 #include "storage/ContentPaths.h"
 #include "storage/LittleFsFileStore.h"
 #include "storage/StorageBootstrap.h"
@@ -45,7 +46,6 @@ lamp::effects::AlternatingColumnsEffect g_patternEffect(
   lamp::Rgb{10, 0, 0}, lamp::Rgb{0, 10, 0}, "debug-columns");
 lamp::effects::EffectRegistry g_effectRegistry;
 lamp::settings::AppSettings g_settings;
-lamp::settings::AppSettingsPersistence g_settingsPersistence;
 lamp::settings::PreferencesSettingsBackend g_settingsBackend;
 lamp::storage::LittleFsFileStore g_fileStore(LittleFS);
 lamp::live::PresetRepository g_presetRepository(g_fileStore);
@@ -105,6 +105,7 @@ void renderFrame(unsigned long nowMs) {
 }
 
 void initializeFileSystem() {
+  g_fileStore.setReady(false);
   g_fileSystemReady = LittleFS.begin(true);
   if (!g_fileSystemReady) {
     Serial.println("filesystem: mount failed");
@@ -116,6 +117,8 @@ void initializeFileSystem() {
     g_fileSystemReady = false;
     return;
   }
+
+  g_fileStore.setReady(true);
 
   const std::vector<std::string> presets = g_fileStore.list(lamp::storage::kPresetsDirectory);
   const std::vector<std::string> playlists = g_fileStore.list(lamp::storage::kPlaylistsDirectory);
@@ -134,7 +137,7 @@ void refreshRuntimeState(const lamp::network::WiFiStartupResult& wifiResult) {
   g_networkState = g_networkPlanner.planStartup(
       g_settings.network, clientActive, clientActive, wifiResult.ipAddress);
   g_timeState = g_timePlanner.plan(g_settings.clock, g_networkState, g_timeSource.hasValidTime());
-  g_runtimeTimeState = g_timeRuntimeService.refresh(g_timeState, g_timeSource);
+  g_runtimeTimeState = g_timeRuntimeService.refresh(g_settings.clock, g_timeState, g_timeSource);
   g_webServer.setStatusSnapshot(buildStatusSnapshot());
 }
 
@@ -185,10 +188,18 @@ void saveAndApplySettings(const lamp::settings::AppSettings& settings) {
                               settings.network.accessPointName != g_settings.network.accessPointName ||
                               settings.network.clientSsid != g_settings.network.clientSsid ||
                               settings.network.clientPassword != g_settings.network.clientPassword;
+  const bool clockChanged = settings.clock.enabled != g_settings.clock.enabled ||
+                            settings.clock.showCachedTimeWhenOffline != g_settings.clock.showCachedTimeWhenOffline ||
+                            settings.clock.timezone != g_settings.clock.timezone;
   g_settings = settings;
-  g_settingsPersistence.save(g_settings, g_settingsBackend);
+  if (!lamp::settings::saveSettingsIfReady(g_settings, g_settingsBackend)) {
+    Serial.println("settings: save skipped because NVS backend is unavailable");
+  }
+  g_timeState = g_timePlanner.plan(g_settings.clock, g_networkState, g_timeSource.hasValidTime());
+  g_runtimeTimeState = g_timeRuntimeService.refresh(g_settings.clock, g_timeState, g_timeSource);
   g_webServer.setStatusSnapshot(buildStatusSnapshot());
   g_networkReconfigureRequested = networkChanged;
+  (void)clockChanged;
 }
 
 lamp::update::FirmwareReleaseInfo checkForFirmwareUpdates(const std::string& channelOverride) {
@@ -267,7 +278,11 @@ void setup() {
   Serial.begin(115200);
   delay(200);
   initializeFileSystem();
-  g_settings = g_settingsPersistence.load(g_settingsBackend);
+  if (!g_settingsBackend.begin()) {
+    Serial.println("settings: failed to initialize NVS backend, using defaults");
+  } else {
+    lamp::settings::loadSettingsIfReady(g_settingsBackend, g_settings);
+  }
   g_webServer.setSettingsCallbacks(getCurrentSettings, saveAndApplySettings);
   g_webServer.setUpdateCallbacks(checkForFirmwareUpdates, installFirmwareUpdate);
   g_webServer.setPresetServices(&g_presetRepository, &g_liveProgramService);
@@ -306,7 +321,7 @@ void loop() {
                               g_liveProgramService, playlistDiagnostics);
   if (now - g_lastTimeRefreshMs >= lamp::config::kTimeRefreshIntervalMs) {
     g_lastTimeRefreshMs = now;
-    g_runtimeTimeState = g_timeRuntimeService.refresh(g_timeState, g_timeSource);
+    g_runtimeTimeState = g_timeRuntimeService.refresh(g_settings.clock, g_timeState, g_timeSource);
     g_webServer.setStatusSnapshot(buildStatusSnapshot());
   }
   if (now - g_lastSensorRefreshMs >= lamp::config::kSensorRefreshIntervalMs) {

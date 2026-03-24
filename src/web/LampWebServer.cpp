@@ -160,6 +160,8 @@ void LampWebServer::registerRoutes() {
   server_.on("/api/status", [this]() { handleStatus(); });
   server_.on("/api/settings/network", HTTP_GET, [this]() { handleGetNetworkSettings(); });
   server_.on("/api/settings/network", HTTP_POST, [this]() { handleUpdateNetworkSettings(); });
+  server_.on("/api/settings/time", HTTP_GET, [this]() { handleGetTimeSettings(); });
+  server_.on("/api/settings/time", HTTP_POST, [this]() { handleUpdateTimeSettings(); });
   server_.on("/api/update/current", HTTP_GET, [this]() { handleCurrentUpdate(); });
   server_.on("/api/update/check", HTTP_POST, [this]() { handleCheckUpdates(); });
   server_.on("/api/update/install", HTTP_POST, [this]() { handleInstallUpdate(); });
@@ -238,6 +240,31 @@ void LampWebServer::handleUpdateNetworkSettings() {
   server_.send(200, "application/json", buildNetworkSettingsJson(settings).c_str());
 }
 
+void LampWebServer::handleGetTimeSettings() {
+  if (!getSettings_) {
+    server_.send(500, "application/json", "{\"error\":\"settings unavailable\"}");
+    return;
+  }
+
+  server_.send(200, "application/json", buildTimeSettingsJson(getSettings_()).c_str());
+}
+
+void LampWebServer::handleUpdateTimeSettings() {
+  if (!getSettings_ || !saveSettings_) {
+    server_.send(500, "application/json", "{\"error\":\"settings unavailable\"}");
+    return;
+  }
+
+  settings::AppSettings settings = getSettings_();
+  if (!applyTimeSettingsUpdate(server_.arg("timezone").c_str(), settings)) {
+    server_.send(400, "application/json", "{\"error\":\"invalid timezone\"}");
+    return;
+  }
+
+  saveSettings_(settings);
+  server_.send(200, "application/json", buildTimeSettingsJson(settings).c_str());
+}
+
 void LampWebServer::handleGetUpdateSettings() {
   if (!getSettings_) {
     server_.send(500, "application/json", "{\"error\":\"settings unavailable\"}");
@@ -300,31 +327,25 @@ void LampWebServer::handleInstallUpdate() {
 }
 
 void LampWebServer::handleLiveValidate() {
-  lamp::live::LiveRequest request;
-  if (!lamp::live::parseLiveRequestJson(server_.arg("plain").c_str(), request)) {
-    std::vector<lamp::live::Diagnostic> diagnostics;
-    diagnostics.push_back(makeDiagnostic(0U, 0U, "Некорректный JSON запроса"));
-    server_.send(400, "application/json",
-                 lamp::live::buildDiagnosticResponseJson(false, diagnostics).c_str());
+  if (liveProgramService_ == nullptr) {
+    server_.send(500, "application/json", "{\"error\":\"live runtime unavailable\"}");
     return;
   }
 
-  server_.send(200, "application/json",
-               buildNotImplementedLiveResponse("Проверка DSL пока не реализована").c_str());
+  const LiveApiResponse response =
+      handleLiveValidateRequest(*liveProgramService_, server_.arg("plain").c_str());
+  server_.send(response.statusCode, "application/json", response.body.c_str());
 }
 
 void LampWebServer::handleLiveRun() {
-  lamp::live::LiveRequest request;
-  if (!lamp::live::parseLiveRequestJson(server_.arg("plain").c_str(), request)) {
-    std::vector<lamp::live::Diagnostic> diagnostics;
-    diagnostics.push_back(makeDiagnostic(0U, 0U, "Некорректный JSON запроса"));
-    server_.send(400, "application/json",
-                 lamp::live::buildDiagnosticResponseJson(false, diagnostics).c_str());
+  if (liveProgramService_ == nullptr) {
+    server_.send(500, "application/json", "{\"error\":\"live runtime unavailable\"}");
     return;
   }
 
-  server_.send(200, "application/json",
-               buildNotImplementedLiveResponse("Запуск DSL пока не реализован").c_str());
+  const LiveApiResponse response =
+      handleLiveRunRequest(*liveProgramService_, server_.arg("plain").c_str());
+  server_.send(response.statusCode, "application/json", response.body.c_str());
 }
 
 void LampWebServer::handleListPresets() {

@@ -14,6 +14,10 @@ namespace {
 
 class MemoryFileStore : public lamp::storage::IFileStore {
  public:
+  bool isReady() const override {
+    return ready;
+  }
+
   bool writeText(const std::string& path, const std::string& content) override {
     for (Entry& entry : entries_) {
       if (entry.path == path) {
@@ -62,6 +66,8 @@ class MemoryFileStore : public lamp::storage::IFileStore {
   };
 
   std::vector<Entry> entries_;
+ public:
+  bool ready = true;
 };
 
 std::string makeSource() {
@@ -146,6 +152,28 @@ void test_playlist_api_helpers_create_update_delete_start_and_stop() {
   TEST_ASSERT_EQUAL_INT(200, deleteResponse.statusCode);
 }
 
+void test_playlist_api_reports_storage_unavailable_when_store_is_not_ready() {
+  MemoryFileStore fileStore;
+  fileStore.ready = false;
+  lamp::live::PlaylistRepository playlistRepository(fileStore);
+  lamp::live::PresetRepository presetRepository(fileStore);
+  lamp::live::runtime::LiveProgramService runtimeService;
+  lamp::live::runtime::PlaylistScheduler scheduler;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+
+  const lamp::web::PlaylistApiResponse putResponse =
+      lamp::web::handlePutPlaylistRequest(playlistRepository, "evening",
+                                          makePlaylistBody("Evening Loop", true));
+  TEST_ASSERT_EQUAL_INT(503, putResponse.statusCode);
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(putResponse.body.find("storage unavailable")));
+
+  TEST_ASSERT_EQUAL_INT(503, lamp::web::handleDeletePlaylistRequest(playlistRepository, "evening").statusCode);
+  TEST_ASSERT_EQUAL_INT(503, lamp::web::handleStartPlaylistRequest(
+                                    playlistRepository, presetRepository, scheduler, runtimeService,
+                                    "evening", diagnostics)
+                                    .statusCode);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -153,5 +181,6 @@ int main(int argc, char** argv) {
   (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_playlist_api_helpers_create_update_delete_start_and_stop);
+  RUN_TEST(test_playlist_api_reports_storage_unavailable_when_store_is_not_ready);
   return UNITY_END();
 }

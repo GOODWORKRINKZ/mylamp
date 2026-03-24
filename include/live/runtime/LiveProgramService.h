@@ -22,6 +22,7 @@ struct LiveProgramState {
 
 class LiveProgramService {
  public:
+  bool validateSource(const std::string& source, std::vector<lamp::live::Diagnostic>& diagnostics) const;
   bool runTemporary(const std::string& source, std::vector<lamp::live::Diagnostic>& diagnostics);
   bool activatePreset(const lamp::live::PresetModel& preset,
                       std::vector<lamp::live::Diagnostic>& diagnostics);

@@ -18,6 +18,11 @@ struct LayerDeclaration {
   std::string yExpression;
   std::string scaleExpression;
   std::string visibleExpression;
+  uint32_t colorLine = 0;
+  uint32_t xLine = 0;
+  uint32_t yLine = 0;
+  uint32_t scaleLine = 0;
+  uint32_t visibleLine = 0;
 };
 
 struct Program {

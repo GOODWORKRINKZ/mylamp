@@ -10,6 +10,7 @@ class ISettingsBackend {
  public:
   virtual ~ISettingsBackend() = default;
 
+  virtual bool isReady() const = 0;
   virtual bool getString(const char* key, std::string& value) const = 0;
   virtual bool getBool(const char* key, bool& value) const = 0;
   virtual void putString(const char* key, const std::string& value) = 0;
@@ -24,6 +25,7 @@ class AppSettingsPersistence {
  private:
   static const char* networkModeToString(network::NetworkMode mode);
   static network::NetworkMode networkModeFromString(const std::string& value);
+  static std::string normalizeTimezone(const std::string& value);
   static std::string normalizeUpdateChannel(const std::string& value);
 };
 

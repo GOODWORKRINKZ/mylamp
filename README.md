@@ -122,17 +122,26 @@ npm run build
 Текущий workflow короткий:
 
 1. Открываешь web UI.
-2. Нажимаешь `Новый эффект` или загружаешь готовую идею.
-3. Пишешь DSL в редакторе.
-4. В первой строке задаёшь имя:
+2. Сразу попадаешь в editor-first экран: код в центре, идеи, runtime и шпаргалка в боковой панели.
+3. При необходимости открываешь быстрые настройки из шапки: Wi-Fi, часовой пояс и OTA.
+4. Нажимаешь `Новый` или загружаешь готовую идею.
+5. Пишешь DSL в редакторе.
+6. В первой строке задаёшь имя:
 
 ```txt
 effect "my_effect"
 ```
 
-5. `Проверить` отправляет код на `POST /api/live/validate`.
-6. `Запустить` отправляет код на `POST /api/live/run`.
-7. `Сохранить` сохраняет preset через `PUT /api/presets/:presetId`.
+7. `Проверить` отправляет код на `POST /api/live/validate`.
+8. `Запустить` отправляет код на `POST /api/live/run`.
+9. `Сохранить` сохраняет preset через `PUT /api/presets?id=:presetId`.
+
+В интерфейсе сейчас уже есть:
+
+- центральный DSL-редактор без лишнего скролла до первого ввода;
+- правая панель с табами `Идеи`, `Лампа`, `Справка`;
+- нижняя diagnostics-полоска для результата проверки и live-статуса;
+- быстрые кнопки Wi-Fi, timezone и firmware/OTA в шапке.
 
 Полная спецификация языка вынесена сюда:
 
@@ -155,7 +164,7 @@ Mock backend поддерживает несколько сценариев:
 Сценарий можно выбрать через dev-панель в UI или через query string, например:
 
 ```txt
-http://127.0.0.1:5173/?scenario=autoplay
+http://127.0.0.1:3000/?scenario=autoplay
 ```
 
 ## Основные API
@@ -166,10 +175,19 @@ http://127.0.0.1:5173/?scenario=autoplay
 - `POST /api/live/validate`
 - `POST /api/live/run`
 - `GET /api/presets`
-- `PUT /api/presets/:id`
+- `PUT /api/presets?id=:id`
 - `POST /api/presets/:id/activate`
 - `POST /api/playlists/:id/start`
 - `POST /api/playlists/stop`
+- `GET /api/settings/network`
+- `POST /api/settings/network`
+- `GET /api/settings/time`
+- `POST /api/settings/time`
+- `GET /api/update/current`
+- `POST /api/update/check`
+- `POST /api/update/install`
+- `GET /api/update/settings`
+- `POST /api/update/settings`
 
 ## Структура репозитория
 

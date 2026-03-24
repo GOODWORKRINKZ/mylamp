@@ -8,9 +8,11 @@ namespace lamp::time {
 
 bool ArduinoNtpTimeSource::syncTime(const char* timezone, const char* primaryServer,
                                     const char* secondaryServer) {
-  if (!configured_) {
+  const std::string requestedTimezone = timezone ? timezone : "";
+  if (!configured_ || requestedTimezone != configuredTimezone_) {
     configTzTime(timezone, primaryServer, secondaryServer);
     configured_ = true;
+    configuredTimezone_ = requestedTimezone;
   }
 
   tm timeinfo{};

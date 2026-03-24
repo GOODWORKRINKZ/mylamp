@@ -11,6 +11,10 @@ namespace {
 
 class MemoryFileStore : public lamp::storage::IFileStore {
  public:
+  bool isReady() const override {
+    return true;
+  }
+
   bool writeText(const std::string& path, const std::string& content) override {
     for (auto& entry : files_) {
       if (entry.path == path) {

@@ -4,13 +4,14 @@
 
 namespace lamp::time {
 
-RuntimeTimeState TimeRuntimeService::refresh(const PlannedTimeState& plan,
+RuntimeTimeState TimeRuntimeService::refresh(const ClockSettings& settings,
+                                             const PlannedTimeState& plan,
                                              ITimeSource& timeSource) const {
   RuntimeTimeState state;
   state.statusLine = plan.statusLine;
 
   if (plan.ntpSyncEnabled) {
-    const bool synced = timeSource.syncTime(config::kTimeZone, config::kNtpPrimaryServer,
+    const bool synced = timeSource.syncTime(settings.timezone.c_str(), config::kNtpPrimaryServer,
                                             config::kNtpSecondaryServer);
     state.hasValidTime = synced && timeSource.hasValidTime();
     state.currentTime = state.hasValidTime ? timeSource.formattedTime() : "";
@@ -18,8 +19,10 @@ RuntimeTimeState TimeRuntimeService::refresh(const PlannedTimeState& plan,
   }
 
   if (plan.usingCachedTime && timeSource.hasValidTime()) {
-    state.hasValidTime = true;
-    state.currentTime = timeSource.formattedTime();
+    timeSource.syncTime(settings.timezone.c_str(), config::kNtpPrimaryServer,
+                        config::kNtpSecondaryServer);
+    state.hasValidTime = timeSource.hasValidTime();
+    state.currentTime = state.hasValidTime ? timeSource.formattedTime() : "";
     return state;
   }
 

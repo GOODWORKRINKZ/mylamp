@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "test": "npm run test:layout && npm run test:mock",
+    "test:layout": "rm -rf .tmp-tests && npm exec -- tsc --outDir .tmp-tests --module NodeNext --moduleResolution NodeNext --target ES2020 ./src/ui/shellTemplate.ts && node ./test/layout.test.mjs",
+    "test:mock": "node ./test/mock-api.test.mjs"
   },
   "devDependencies": {
     "typescript": "4.9.5",

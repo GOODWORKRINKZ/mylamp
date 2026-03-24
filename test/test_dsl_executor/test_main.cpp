@@ -170,6 +170,66 @@ void test_executor_uses_sensor_function_stubs() {
   TEST_ASSERT_EQUAL_UINT8(255U, pixel.b);
 }
 
+void test_executor_evaluates_modulo_operator() {
+  const std::string source =
+      "effect \"mod\"\n"
+      "sprite dot {\n"
+      "  bitmap \"\"\"\n"
+      "  #\n"
+      "  \"\"\"\n"
+      "}\n"
+      "layer mod1 {\n"
+      "  use dot\n"
+      "  color rgb(100, 50, 25)\n"
+      "  x = 7 % 3\n"
+      "  y = 10 % 4\n"
+      "  scale = 1\n"
+      "  visible = 1\n"
+      "}\n";
+
+  lamp::live::runtime::CompiledProgram compiledProgram;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+  TEST_ASSERT_TRUE(compileSource(source, compiledProgram, diagnostics));
+  TEST_ASSERT_EQUAL_UINT32(0U, static_cast<uint32_t>(diagnostics.size()));
+
+  lamp::MatrixLayout layout;
+  lamp::FrameBuffer frameBuffer(layout);
+  lamp::live::runtime::Executor executor;
+  lamp::live::runtime::ExecutionContext context;
+  executor.render(compiledProgram, context, frameBuffer);
+
+  // 7 % 3 = 1, 10 % 4 = 2
+  const lamp::Rgb pixel = frameBuffer.getPixel(1, 2);
+  TEST_ASSERT_EQUAL_UINT8(100U, pixel.r);
+  TEST_ASSERT_EQUAL_UINT8(50U, pixel.g);
+  TEST_ASSERT_EQUAL_UINT8(25U, pixel.b);
+}
+
+void test_compiler_reports_line_number_in_expression_error() {
+  const std::string source =
+      "effect \"bad\"\n"
+      "sprite dot {\n"
+      "  bitmap \"\"\"\n"
+      "  #\n"
+      "  \"\"\"\n"
+      "}\n"
+      "layer broken {\n"
+      "  use dot\n"
+      "  color rgb(255, 0, 0)\n"
+      "  x = 1 + bogus_var\n"
+      "  y = 0\n"
+      "  scale = 1\n"
+      "  visible = 1\n"
+      "}\n";
+
+  lamp::live::runtime::CompiledProgram compiledProgram;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+  TEST_ASSERT_FALSE(compileSource(source, compiledProgram, diagnostics));
+  TEST_ASSERT_TRUE(diagnostics.size() >= 1U);
+  // "x = 1 + bogus_var" is on line 10
+  TEST_ASSERT_EQUAL_UINT32(10U, diagnostics[0].line);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -180,5 +240,7 @@ int main(int argc, char** argv) {
   RUN_TEST(test_executor_applies_layer_order_last_layer_wins);
   RUN_TEST(test_executor_applies_animated_x_y_and_scale);
   RUN_TEST(test_executor_uses_sensor_function_stubs);
+  RUN_TEST(test_executor_evaluates_modulo_operator);
+  RUN_TEST(test_compiler_reports_line_number_in_expression_error);
   return UNITY_END();
 }

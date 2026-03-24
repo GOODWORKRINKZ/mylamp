@@ -12,6 +12,7 @@ class PlaylistRepository {
  public:
   explicit PlaylistRepository(storage::IFileStore& fileStore);
 
+  bool isReady() const;
   bool save(const PlaylistModel& playlist);
   bool load(const std::string& id, PlaylistModel& playlist) const;
   std::vector<PlaylistModel> list() const;

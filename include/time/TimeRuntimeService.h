@@ -15,7 +15,8 @@ struct RuntimeTimeState {
 
 class TimeRuntimeService {
  public:
-  RuntimeTimeState refresh(const PlannedTimeState& plan, ITimeSource& timeSource) const;
+  RuntimeTimeState refresh(const ClockSettings& settings, const PlannedTimeState& plan,
+                           ITimeSource& timeSource) const;
 };
 
 }  // namespace lamp::time

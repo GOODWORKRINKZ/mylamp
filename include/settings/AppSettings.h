@@ -19,6 +19,7 @@ struct AppSettings {
 
   AppSettings() {
     network.accessPointName = config::kAccessPointPrefix;
+    clock.timezone = config::kTimeZone;
   }
 };
 

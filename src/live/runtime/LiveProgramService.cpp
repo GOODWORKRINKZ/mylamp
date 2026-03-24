@@ -4,6 +4,14 @@
 
 namespace lamp::live::runtime {
 
+bool LiveProgramService::validateSource(const std::string& source,
+                                        std::vector<lamp::live::Diagnostic>& diagnostics) const {
+  diagnostics.clear();
+
+  CompiledProgram program;
+  return compileSource(source, program, diagnostics);
+}
+
 bool LiveProgramService::runTemporary(const std::string& source,
                                       std::vector<lamp::live::Diagnostic>& diagnostics) {
   diagnostics.clear();

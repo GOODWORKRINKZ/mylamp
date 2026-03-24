@@ -86,6 +86,10 @@ std::string buildPlaylistStateJson(const lamp::live::runtime::PlaylistSchedulerS
 PlaylistApiResponse handlePutPlaylistRequest(lamp::live::PlaylistRepository& repository,
                                              const std::string& playlistId,
                                              const std::string& body) {
+  if (!repository.isReady()) {
+    return makeErrorResponse(503, "storage unavailable");
+  }
+
   lamp::live::PlaylistModel playlist;
   if (!parsePlaylistUpsertBody(playlistId, body, playlist)) {
     return makeErrorResponse(400, "invalid playlist payload");
@@ -98,6 +102,10 @@ PlaylistApiResponse handlePutPlaylistRequest(lamp::live::PlaylistRepository& rep
 
 PlaylistApiResponse handleDeletePlaylistRequest(lamp::live::PlaylistRepository& repository,
                                                 const std::string& playlistId) {
+  if (!repository.isReady()) {
+    return makeErrorResponse(503, "storage unavailable");
+  }
+
   if (!repository.remove(playlistId)) {
     return makeErrorResponse(404, "playlist not found");
   }
@@ -110,6 +118,10 @@ PlaylistApiResponse handleStartPlaylistRequest(
     lamp::live::runtime::PlaylistScheduler& scheduler,
     lamp::live::runtime::LiveProgramService& runtimeService, const std::string& playlistId,
     std::vector<lamp::live::Diagnostic>& diagnostics) {
+  if (!playlistRepository.isReady() || !presetRepository.isReady()) {
+    return makeErrorResponse(503, "storage unavailable");
+  }
+
   lamp::live::PlaylistModel playlist;
   if (!playlistRepository.load(playlistId, playlist)) {
     return makeErrorResponse(404, "playlist not found");
