@@ -6,6 +6,7 @@
 #include "FrameBuffer.h"
 #include "MatrixLayout.h"
 #include "effects/AlternatingColumnsEffect.h"
+#include "effects/ClockOverlay.h"
 #include "effects/EffectContext.h"
 #include "effects/EffectRegistry.h"
 #include "effects/SolidColorEffect.h"
@@ -44,6 +45,7 @@ lamp::FrameBuffer g_frameBuffer(g_layout);
 lamp::effects::SolidColorEffect g_bootEffect(lamp::Rgb{0, 0, 24}, "boot-solid");
 lamp::effects::AlternatingColumnsEffect g_patternEffect(
   lamp::Rgb{10, 0, 0}, lamp::Rgb{0, 10, 0}, "debug-columns");
+lamp::effects::ClockOverlay g_clockOverlay;
 lamp::effects::EffectRegistry g_effectRegistry;
 lamp::settings::AppSettings g_settings;
 lamp::settings::PreferencesSettingsBackend g_settingsBackend;
@@ -86,7 +88,7 @@ lamp::web::StatusSnapshot buildStatusSnapshot();
 lamp::update::FirmwareReleaseInfo checkForFirmwareUpdates(const std::string& channelOverride);
 bool installFirmwareUpdate(std::string& error);
 
-void renderFrame(unsigned long nowMs) {
+void renderEffectPass(unsigned long nowMs) {
   const unsigned long deltaMs = g_lastRenderMs == 0 ? 0 : nowMs - g_lastRenderMs;
   g_lastRenderMs = nowMs;
 
@@ -102,6 +104,19 @@ void renderFrame(unsigned long nowMs) {
 
   lamp::effects::EffectContext effectContext{static_cast<uint32_t>(nowMs), g_frameBuffer};
   g_effectRegistry.renderActive(effectContext);
+}
+
+void renderOverlayPass() {
+  g_clockOverlay.render(g_runtimeTimeState.currentTime, g_frameBuffer, g_timeState.clockOverlayVisible);
+}
+
+void commitFrame() {
+}
+
+void renderFrame(unsigned long nowMs) {
+  renderEffectPass(nowMs);
+  renderOverlayPass();
+  commitFrame();
 }
 
 void initializeFileSystem() {
