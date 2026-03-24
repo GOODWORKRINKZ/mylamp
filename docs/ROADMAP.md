@@ -1,26 +1,38 @@
 # Roadmap: Конкретный план работ
 
-Здесь описано, что осталось сделать, в каком порядке и какие файлы при этом трогаем. Каждая задача — готовый пункт для начала исполнения, а не абстрактное направление.
+Этот документ был concrete execution-планом для первой большой волны работ. Блоки 1-5 из него уже выполнены; ниже он сохранён как зафиксированный список сделанных шагов и контрольных точек.
+
+## Статус roadmap
+
+- Блок 1. Preset Manager UI — выполнен.
+- Блок 2. Playlist Editor UI — выполнен.
+- Блок 3. OTA Hardening — выполнен в рамках исходного объёма.
+- Блок 4. Render Pipeline — выполнен.
+- Блок 5. DSL — выполнен (`rotation`, `blend`).
+
+Следующий backlog теперь лежит уже вне этого execution-плана: production-grade OTA safety, следующий DSL scope и product polish.
 
 ## Текущая картина
 
-Backend и firmware уже умеют заметно больше, чем показывает frontend:
+Исходный разрыв между firmware/backend и frontend закрыт: базовые UI и runtime slices из этого плана доведены до рабочего состояния.
 
 | Возможность | Backend | Mock API | Frontend UI |
 | --- | --- | --- | --- |
 | Сохранить preset | ✅ PUT | ✅ | ✅ `savePreset()` |
-| Список preset-ов | ✅ GET /api/presets | ✅ | ❌ нет вызова |
-| Загрузить preset | ✅ GET /api/presets/:id | ✅ | ❌ нет вызова |
-| Удалить preset | ✅ DELETE /api/presets/:id | ✅ | ❌ нет UI |
-| Активировать preset | ✅ POST /api/presets/:id/activate | ✅ | ❌ нет кнопки |
-| Создать playlist | ✅ PUT /api/playlists/:id | ✅ | ❌ нет UI |
-| Стартовать playlist | ✅ POST /api/playlists/:id/start | ✅ | ❌ нет кнопки |
-| Остановить playlist | ✅ POST /api/playlists/stop | ✅ | ❌ нет кнопки |
-| Удалить playlist | ✅ DELETE /api/playlists/:id | ✅ | ❌ нет UI |
-| OTA check / install | ✅ | ✅ | ✅ модалка |
-| Release pipeline | Частично | — | — |
+| Список preset-ов | ✅ GET /api/presets | ✅ | ✅ |
+| Загрузить preset | ✅ GET /api/presets/:id | ✅ | ✅ |
+| Удалить preset | ✅ DELETE /api/presets/:id | ✅ | ✅ |
+| Активировать preset | ✅ POST /api/presets/:id/activate | ✅ | ✅ |
+| Создать playlist | ✅ PUT /api/playlists/:id | ✅ | ✅ |
+| Стартовать playlist | ✅ POST /api/playlists/:id/start | ✅ | ✅ |
+| Остановить playlist | ✅ POST /api/playlists/stop | ✅ | ✅ |
+| Удалить playlist | ✅ DELETE /api/playlists/:id | ✅ | ✅ |
+| OTA check / install | ✅ | ✅ | ✅ |
+| Release pipeline | ✅ базовый flow | — | — |
+| Overlay render pass | ✅ | — | — |
+| DSL rotation / blend | ✅ | — | ✅ editor/runtime contract |
 
-Порядок работ: UI preset-ов → UI playlist-ов → OTA hardening → render pipeline → расширение DSL.
+Порядок работ этого документа был: UI preset-ов → UI playlist-ов → OTA hardening → render pipeline → расширение DSL. Этот порядок выполнен.
 
 ---
 

@@ -21,6 +21,7 @@
 - поддерживаемые операторы: `+`, `-`, `*`, `/`, `%`;
 - поддерживаемые функции: `sin`, `cos`, `abs`, `min`, `max`, `clamp`, `temp()`, `humidity()`;
 - цвет через `rgb(...)` и `hsv(...)`;
+- layer-поля `rotation` и `blend` работают в runtime;
 - переменные: `t`, `dt`, `x`, `y`, `nx`, `ny`.
 
 ### Frontend
@@ -30,44 +31,53 @@
 - быстрые кнопки Wi-Fi, timezone и OTA в шапке;
 - правая tabbed-панель `Идеи` / `Лампа` / `Справка` рядом с редактором;
 - кнопки `Проверить`, `Запустить`, `Сохранить`, `Новый`;
+- preset manager UI: список, открытие в редактор, активация на лампе, удаление, подсветка активного preset-а;
+- playlist manager UI: список, запуск, остановка, удаление, inline editor для `repeat` и entries;
+- OTA UI: retry/recovery flow после install, mock-сценарий ошибки обновления;
 - mock backend для локальной разработки без железа;
 - сценарии `happy-path`, `autoplay`, `dsl-error`, `offline-ish`, `sensor-missing`.
+
+### Render pipeline
+
+- effect/render pipeline разделён на effect pass, overlay pass и commit stage;
+- clock overlay рисуется поверх эффекта в firmware runtime;
+- есть unit tests для overlay rendering.
 
 ### Workflow
 
 - можно локально писать DSL и гонять UI без устройства;
 - можно сохранять preset-ы через существующий API;
+- можно управлять playlist-ами из browser UI;
+- release contract и базовый CI/release flow документированы;
 - можно использовать `docs/LLM_EFFECT_PROMPT.md` как жёсткий шаблон для генерации эффектов.
 
 ## Частично готово
 
-### UX вокруг контента
-
-- базовый editor workflow есть;
-- blank-template flow есть;
-- сохранение preset-а есть;
-- diagnostics и runtime summary уже подтянуты ближе к редактору;
-- полноценный preset manager UI ещё не собран;
-- полноценный playlist editor UI ещё не собран.
-
 ### OTA direction
 
-Архитектурное направление по OTA и release channels определено, но полный production-grade процесс публикации и обновления ещё не закрыт end-to-end.
+- release contract, frontend UX и CI-пайплайн уже есть;
+- dev/stable channels и GitHub Release публикация описаны и частично автоматизированы;
+- но полный production-grade update path с device-side safety guarantees и rollback strategy ещё не закрыт end-to-end.
+
+### Product polish
+
+- editor workflow рабочий, но без локального diff/sync UX между текущим текстом и сохранённым preset;
+- playlist/preset UI закрывает основной сценарий, но без расширенных шаблонов, истории и revert flow;
+- roadmap blocks 1-5 исполнены, следующий backlog уже про polish и production hardening.
 
 ## Ещё не реализовано
 
-- полноценный preset manager UI;
-- playlist editor и управление очередью;
-- production-grade OTA workflow end-to-end;
-- blend modes, вращение sprite, пользовательские функции.
+- production-grade OTA workflow end-to-end с проверяемой device-side safety моделью;
+- пользовательские функции и более широкий DSL поверх текущих `rotation`/`blend`;
+- углублённый content-sync UX: revert, diff, richer templates, history.
 
 ## Что имеет смысл делать дальше
 
 Приоритетные следующие шаги:
 
-1. Добавить нормальный preset manager в UI.
-2. Добавить playlist editor и управление очередью.
-3. Дальше уже добивать OTA workflow и polish.
+1. Добить production-grade OTA path: checksum/boot safety/rollback strategy и реальная device validation.
+2. Определить следующий DSL backlog после `rotation` и `blend`: нужны ли user functions, новые color ops или layer semantics.
+3. Добавить product polish для content workflow: sync/revert/history/templates.
 
 ## Как читать этот статус правильно
 
