@@ -358,9 +358,11 @@ CompiledSprite compileSprite(const lamp::live::dsl::SpriteDeclaration& sprite) {
   compiledSprite.name = sprite.name;
 
   int16_t y = 0;
+  int16_t maxWidth = 0;
   std::string currentLine;
   for (char ch : sprite.bitmap) {
     if (ch == '\n') {
+      maxWidth = std::max(maxWidth, static_cast<int16_t>(currentLine.size()));
       ++y;
       currentLine.clear();
       continue;
@@ -375,6 +377,10 @@ CompiledSprite compileSprite(const lamp::live::dsl::SpriteDeclaration& sprite) {
       compiledSprite.pixels.push_back(pixel);
     }
   }
+
+  maxWidth = std::max(maxWidth, static_cast<int16_t>(currentLine.size()));
+  compiledSprite.width = maxWidth;
+  compiledSprite.height = static_cast<int16_t>(y + 1);
 
   return compiledSprite;
 }
@@ -418,6 +424,9 @@ bool Compiler::compile(const dsl::Program& program, CompiledProgram& compiledPro
                                     compiledLayer.yExpression, diagnostics, layer.yLine) ||
         !expressionCompiler.compile(layer.scaleExpression.empty() ? "1" : layer.scaleExpression,
                                     compiledLayer.scaleExpression, diagnostics, layer.scaleLine) ||
+        !expressionCompiler.compile(layer.rotationExpression.empty() ? "0" : layer.rotationExpression,
+                                    compiledLayer.rotationExpression, diagnostics,
+                                    layer.rotationLine) ||
         !expressionCompiler.compile(layer.visibleExpression.empty() ? "1" : layer.visibleExpression,
                                     compiledLayer.visibleExpression, diagnostics, layer.visibleLine)) {
       return false;

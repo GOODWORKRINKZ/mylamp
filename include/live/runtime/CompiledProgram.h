@@ -56,6 +56,8 @@ struct CompiledSpritePixel {
 
 struct CompiledSprite {
   std::string name;
+  int16_t width = 0;
+  int16_t height = 0;
   std::vector<CompiledSpritePixel> pixels;
 };
 
@@ -66,6 +68,7 @@ struct CompiledLayer {
   int16_t xExpression = -1;
   int16_t yExpression = -1;
   int16_t scaleExpression = -1;
+  int16_t rotationExpression = -1;
   int16_t visibleExpression = -1;
 };
 

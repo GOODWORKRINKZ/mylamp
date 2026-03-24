@@ -153,6 +153,20 @@ lamp::Rgb evaluateColor(const CompiledProgram& program, const CompiledColor& col
                    static_cast<uint8_t>(clampFloat(third, 0.0f, 255.0f))};
 }
 
+void renderSpritePixel(const CompiledProgram& program, const CompiledLayer& layer,
+                       const EvaluationContext& baseContext, lamp::FrameBuffer& frameBuffer,
+                       int16_t renderX, int16_t renderY) {
+  EvaluationContext pixelContext = baseContext;
+  pixelContext.x = static_cast<float>(renderX);
+  pixelContext.y = static_cast<float>(renderY);
+  pixelContext.nx = static_cast<float>(renderX) /
+                    static_cast<float>(lamp::config::kLogicalWidth - 1U);
+  pixelContext.ny = static_cast<float>(renderY) /
+                    static_cast<float>(lamp::config::kLogicalHeight - 1U);
+
+  frameBuffer.setPixel(renderX, renderY, evaluateColor(program, layer.color, pixelContext));
+}
+
 }  // namespace
 
 void Executor::render(const CompiledProgram& program, const ExecutionContext& context,
@@ -182,23 +196,29 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
     const int16_t scale = std::max<int16_t>(1, static_cast<int16_t>(std::lround(
                                                   evaluateNode(program.expressions, layer.scaleExpression,
                                                                baseContext))));
+    const float rotationRadians = evaluateNode(program.expressions, layer.rotationExpression, baseContext);
 
     const CompiledSprite& sprite = program.sprites[layer.spriteIndex];
+    const float centerX = static_cast<float>(originX) +
+                          static_cast<float>(sprite.width * scale) * 0.5f;
+    const float centerY = static_cast<float>(originY) +
+                          static_cast<float>(sprite.height * scale) * 0.5f;
+    const float cosRotation = std::cos(rotationRadians);
+    const float sinRotation = std::sin(rotationRadians);
+
     for (const CompiledSpritePixel& pixel : sprite.pixels) {
       for (int16_t scaledY = 0; scaledY < scale; ++scaledY) {
         for (int16_t scaledX = 0; scaledX < scale; ++scaledX) {
-          const int16_t renderX = originX + pixel.x * scale + scaledX;
-          const int16_t renderY = originY + pixel.y * scale + scaledY;
+          const float pixelCenterX = static_cast<float>(originX + pixel.x * scale + scaledX) + 0.5f;
+          const float pixelCenterY = static_cast<float>(originY + pixel.y * scale + scaledY) + 0.5f;
+          const float offsetX = pixelCenterX - centerX;
+          const float offsetY = pixelCenterY - centerY;
+          const int16_t renderX = static_cast<int16_t>(std::lround(
+              centerX + offsetX * cosRotation - offsetY * sinRotation - 0.5f));
+          const int16_t renderY = static_cast<int16_t>(std::lround(
+              centerY + offsetX * sinRotation + offsetY * cosRotation - 0.5f));
 
-          EvaluationContext pixelContext = baseContext;
-          pixelContext.x = static_cast<float>(renderX);
-          pixelContext.y = static_cast<float>(renderY);
-          pixelContext.nx = static_cast<float>(renderX) /
-                            static_cast<float>(lamp::config::kLogicalWidth - 1U);
-          pixelContext.ny = static_cast<float>(renderY) /
-                            static_cast<float>(lamp::config::kLogicalHeight - 1U);
-
-          frameBuffer.setPixel(renderX, renderY, evaluateColor(program, layer.color, pixelContext));
+          renderSpritePixel(program, layer, baseContext, frameBuffer, renderX, renderY);
         }
       }
     }

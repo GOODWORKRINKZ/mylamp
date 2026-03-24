@@ -174,7 +174,9 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
       const char* keyword;
       TokenType tokenType;
     } propertyRules[] = {{"x", TokenType::kKeywordX},       {"y", TokenType::kKeywordY},
-                         {"scale", TokenType::kKeywordScale}, {"visible", TokenType::kKeywordVisible}};
+                         {"scale", TokenType::kKeywordScale},
+                         {"rotation", TokenType::kKeywordRotation},
+                         {"visible", TokenType::kKeywordVisible}};
 
     bool matchedProperty = false;
     for (const PropertyRule& rule : propertyRules) {

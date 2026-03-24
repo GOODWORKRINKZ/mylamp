@@ -25,6 +25,7 @@ void test_parser_reads_effect_sprite_and_layers() {
       "  x = 4 + t * 2\n"
       "  y = 8 + sin(t * 1.5) * 3\n"
       "  scale = 1.0 + sin(t * 3.0) * 0.25\n"
+      "  rotation = t * 0.5\n"
       "  visible = 1\n"
       "}\n";
 
@@ -47,6 +48,7 @@ void test_parser_reads_effect_sprite_and_layers() {
   TEST_ASSERT_EQUAL_STRING("8 + sin(t * 1.5) * 3", program.layers[0].yExpression.c_str());
   TEST_ASSERT_EQUAL_STRING("1.0 + sin(t * 3.0) * 0.25",
                            program.layers[0].scaleExpression.c_str());
+  TEST_ASSERT_EQUAL_STRING("t * 0.5", program.layers[0].rotationExpression.c_str());
   TEST_ASSERT_EQUAL_STRING("1", program.layers[0].visibleExpression.c_str());
 }
 
@@ -74,7 +76,7 @@ void test_parser_rejects_unknown_layer_property_with_russian_diagnostic() {
       "effect \"broken\"\n"
       "layer heart1 {\n"
       "  use heart\n"
-      "  rotate = 45\n"
+      "  blend = add\n"
       "}\n";
 
   lamp::live::dsl::Program program;

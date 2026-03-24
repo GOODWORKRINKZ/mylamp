@@ -69,6 +69,7 @@ layer love {
 	x = 10 + sin(t) * 4
 	y = 4 + cos(t * 1.2) * 2
 	scale = 1
+	rotation = t * 0.5
 	visible = 1
 }
 ```
@@ -79,8 +80,11 @@ layer love {
 - `x`
 - `y`
 - `scale`
+- `rotation`
 - `color`
 - `visible`
+
+`rotation` задаётся в радианах и вращает sprite вокруг центра его bitmap.
 
 ## Доступные переменные
 
@@ -127,6 +131,7 @@ layer paint {
 	x = 10
 	y = 6
 	scale = 2
+	rotation = 0
 	visible = 1
 }
 ```
@@ -153,6 +158,7 @@ layer love {
 	x = 10 + sin(t) * 4
 	y = 4 + cos(t * 1.2) * 2
 	scale = 1 + abs(sin(t * 2))
+	rotation = t * 0.8
 	visible = 1
 }
 ```
@@ -165,7 +171,6 @@ layer love {
 - рекурсия;
 - пользовательские функции;
 - произвольные скрипты;
-- вращение sprite;
 - blend modes;
 - collision logic;
 - любые новые ключевые слова, которых нет в этом документе.

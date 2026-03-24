@@ -37,6 +37,7 @@ void test_executor_projects_sprite_bitmap_to_framebuffer() {
       "  x = 2\n"
       "  y = 3\n"
       "  scale = 1\n"
+      "  rotation = 0\n"
       "  visible = 1\n"
       "}\n";
 
@@ -70,6 +71,7 @@ void test_executor_applies_layer_order_last_layer_wins() {
       "  x = 5\n"
       "  y = 4\n"
       "  scale = 1\n"
+      "  rotation = 0\n"
       "  visible = 1\n"
       "}\n"
       "layer top {\n"
@@ -78,6 +80,7 @@ void test_executor_applies_layer_order_last_layer_wins() {
       "  x = 5\n"
       "  y = 4\n"
       "  scale = 1\n"
+      "  rotation = 0\n"
       "  visible = 1\n"
       "}\n";
 
@@ -111,6 +114,7 @@ void test_executor_applies_animated_x_y_and_scale() {
       "  x = 1 + t * 2\n"
       "  y = 2 + t\n"
       "  scale = 1 + t\n"
+      "  rotation = 0\n"
       "  visible = 1\n"
       "}\n";
 
@@ -149,6 +153,7 @@ void test_executor_uses_sensor_function_stubs() {
       "  x = temp() / 10\n"
       "  y = humidity() / 20\n"
       "  scale = 1\n"
+      "  rotation = 0\n"
       "  visible = 1\n"
       "}\n";
 
@@ -184,6 +189,7 @@ void test_executor_evaluates_modulo_operator() {
       "  x = 7 % 3\n"
       "  y = 10 % 4\n"
       "  scale = 1\n"
+      "  rotation = 0\n"
       "  visible = 1\n"
       "}\n";
 
@@ -219,6 +225,7 @@ void test_compiler_reports_line_number_in_expression_error() {
       "  x = 1 + bogus_var\n"
       "  y = 0\n"
       "  scale = 1\n"
+      "  rotation = 0\n"
       "  visible = 1\n"
       "}\n";
 
@@ -228,6 +235,52 @@ void test_compiler_reports_line_number_in_expression_error() {
   TEST_ASSERT_TRUE(diagnostics.size() >= 1U);
   // "x = 1 + bogus_var" is on line 10
   TEST_ASSERT_EQUAL_UINT32(10U, diagnostics[0].line);
+}
+
+void test_executor_rotates_sprite_around_its_center() {
+  const std::string source =
+      "effect \"rotate\"\n"
+      "sprite bar {\n"
+      "  bitmap \"\"\"\n"
+      "  ##\n"
+      "  \"\"\"\n"
+      "}\n"
+      "layer bar1 {\n"
+      "  use bar\n"
+      "  color rgb(70, 140, 210)\n"
+      "  x = 10\n"
+      "  y = 5\n"
+      "  scale = 1\n"
+      "  rotation = 1.5707963\n"
+      "  visible = 1\n"
+      "}\n";
+
+  lamp::live::runtime::CompiledProgram compiledProgram;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+  TEST_ASSERT_TRUE(compileSource(source, compiledProgram, diagnostics));
+  TEST_ASSERT_EQUAL_UINT32(0U, static_cast<uint32_t>(diagnostics.size()));
+
+  lamp::MatrixLayout layout;
+  lamp::FrameBuffer frameBuffer(layout);
+  lamp::live::runtime::Executor executor;
+  lamp::live::runtime::ExecutionContext context;
+  executor.render(compiledProgram, context, frameBuffer);
+
+  const lamp::Rgb upperPixel = frameBuffer.getPixel(11, 5);
+  const lamp::Rgb lowerPixel = frameBuffer.getPixel(11, 6);
+  TEST_ASSERT_EQUAL_UINT8(70U, upperPixel.r);
+  TEST_ASSERT_EQUAL_UINT8(140U, upperPixel.g);
+  TEST_ASSERT_EQUAL_UINT8(210U, upperPixel.b);
+  TEST_ASSERT_EQUAL_UINT8(70U, lowerPixel.r);
+  TEST_ASSERT_EQUAL_UINT8(140U, lowerPixel.g);
+  TEST_ASSERT_EQUAL_UINT8(210U, lowerPixel.b);
+
+  const lamp::Rgb originalLeft = frameBuffer.getPixel(10, 5);
+  const lamp::Rgb originalRight = frameBuffer.getPixel(11, 5);
+  TEST_ASSERT_EQUAL_UINT8(0U, originalLeft.r);
+  TEST_ASSERT_EQUAL_UINT8(0U, originalLeft.g);
+  TEST_ASSERT_EQUAL_UINT8(0U, originalLeft.b);
+  TEST_ASSERT_EQUAL_UINT8(70U, originalRight.r);
 }
 
 }  // namespace
@@ -242,5 +295,6 @@ int main(int argc, char** argv) {
   RUN_TEST(test_executor_uses_sensor_function_stubs);
   RUN_TEST(test_executor_evaluates_modulo_operator);
   RUN_TEST(test_compiler_reports_line_number_in_expression_error);
+  RUN_TEST(test_executor_rotates_sprite_around_its_center);
   return UNITY_END();
 }
