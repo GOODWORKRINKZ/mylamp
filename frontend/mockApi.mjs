@@ -510,6 +510,11 @@ export async function handleApi(req, res) {
     return true;
   }
 
+  if (pathname === "/api/playlists" && method === "GET") {
+    sendJson(res, 200, { items: state.playlists });
+    return true;
+  }
+
   if (pathname === "/api/presets" && method === "PUT") {
     const presetId = url.searchParams.get("id") || "";
     if (!presetId) {

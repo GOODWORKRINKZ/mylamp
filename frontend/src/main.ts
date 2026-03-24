@@ -6,6 +6,7 @@ import { renderShellMarkup } from "./ui/shellTemplate";
 import type {
   LiveDiagnosticResponse,
   NetworkSettingsPayload,
+  PlaylistPayload,
   PresetListItem,
   PresetPayload,
   ScenarioId,
@@ -60,6 +61,8 @@ let timeModalSaving = false;
 let timeSettingsLoaded = false;
 let presetListItems: PresetListItem[] = [];
 let presetListLoading = false;
+let playlistItems: PlaylistPayload[] = [];
+let playlistListLoading = false;
 let activeEditingPresetId = "";
 let activeEditingEffectName = "";
 
@@ -162,6 +165,23 @@ function formatPresetTimestamp(value: string): string {
   }).format(parsed);
 }
 
+function formatPlaylistSummary(playlist: PlaylistPayload): string {
+  const enabledCount = playlist.entries.filter((entry) => entry.enabled).length;
+  const totalDurationSec = playlist.entries
+    .filter((entry) => entry.enabled)
+    .reduce((sum, entry) => sum + entry.durationSec, 0);
+  const minutes = totalDurationSec > 0 ? `${Math.max(1, Math.round(totalDurationSec / 60))} мин` : "0 мин";
+  return `${enabledCount}/${playlist.entries.length} активны · ${minutes} · ${playlist.repeat ? "повтор" : "один круг"}`;
+}
+
+function getPlaylistNameById(playlistId: string): string {
+  if (!playlistId) {
+    return "";
+  }
+
+  return playlistItems.find((playlist) => playlist.id === playlistId)?.name || playlistId;
+}
+
 function renderPresetList(): void {
   const container = document.getElementById("saved-presets-list");
   const meta = document.getElementById("saved-presets-meta");
@@ -196,6 +216,50 @@ function renderPresetList(): void {
             <button class="preset-item__button preset-item__button--secondary" data-preset-action="open" data-preset-id="${escapeHtml(item.id)}" type="button">Открыть</button>
             <button class="preset-item__button" data-preset-action="activate" data-preset-id="${escapeHtml(item.id)}" type="button">На лампу</button>
             <button class="preset-item__button preset-item__button--danger" data-preset-action="delete" data-preset-id="${escapeHtml(item.id)}" data-preset-name="${escapeHtml(item.name)}" type="button">Удалить</button>
+          </div>
+        </article>`;
+    })
+    .join("");
+}
+
+function renderPlaylistPanel(): void {
+  const container = document.getElementById("saved-playlists-list");
+  const meta = document.getElementById("saved-playlists-meta");
+  const stopButton = document.getElementById("stop-playlist-button") as HTMLButtonElement | null;
+  if (!container || !meta) {
+    return;
+  }
+
+  if (stopButton) {
+    stopButton.disabled = !currentStatus?.activePlaylistId;
+  }
+
+  if (playlistListLoading) {
+    meta.textContent = "Загружаем...";
+    container.innerHTML = `<div class="playlist-library__empty">Собираем список очередей с лампы.</div>`;
+    return;
+  }
+
+  meta.textContent = playlistItems.length === 0 ? "Пока пусто" : `${playlistItems.length} шт.`;
+
+  if (playlistItems.length === 0) {
+    container.innerHTML = `<div class="playlist-library__empty">Пока нет сохранённых playlist-ов. Следующий шаг из плана — добавить редактор создания.</div>`;
+    return;
+  }
+
+  const activePlaylistId = currentStatus?.activePlaylistId ?? "";
+  container.innerHTML = playlistItems
+    .map((playlist) => {
+      const activeClass = playlist.id === activePlaylistId ? " playlist-item--active" : "";
+      return `
+        <article class="playlist-item${activeClass}">
+          <div class="playlist-item__header">
+            <strong class="playlist-item__name">${escapeHtml(playlist.name)}</strong>
+            <span class="playlist-item__summary">${escapeHtml(formatPlaylistSummary(playlist))}</span>
+          </div>
+          <div class="playlist-item__actions">
+            <button class="playlist-item__button" data-playlist-action="start" data-playlist-id="${escapeHtml(playlist.id)}" type="button">Запустить</button>
+            <button class="playlist-item__button preset-item__button--danger" data-playlist-action="delete" data-playlist-id="${escapeHtml(playlist.id)}" data-playlist-name="${escapeHtml(playlist.name)}" type="button">Удалить</button>
           </div>
         </article>`;
     })
@@ -487,6 +551,32 @@ async function loadPresetList(): Promise<void> {
   }
 }
 
+async function loadPlaylistList(): Promise<void> {
+  playlistListLoading = true;
+  renderPlaylistPanel();
+
+  try {
+    const response = await fetch("/api/playlists", { headers: buildApiHeaders() });
+    const payload = (await response.json()) as { items?: PlaylistPayload[]; error?: string };
+    if (!response.ok) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    playlistItems = Array.isArray(payload.items) ? payload.items : [];
+    renderPlaylistPanel();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    playlistItems = [];
+    renderPlaylistPanel();
+    setText("editor-status", "Не удалось загрузить playlists.");
+    setText("diagnostics-summary", `Не удалось загрузить список playlist-ов: ${message}`);
+    setText("diagnostics-status", "Playlist-ы недоступны");
+  } finally {
+    playlistListLoading = false;
+    renderPlaylistPanel();
+  }
+}
+
 async function loadPresetIntoEditor(presetId: string): Promise<void> {
   setText("editor-status", "Загружаем preset в редактор...");
 
@@ -573,6 +663,87 @@ async function deletePreset(presetId: string, presetName: string): Promise<void>
   }
 }
 
+async function startPlaylist(playlistId: string): Promise<void> {
+  setText("editor-status", "Запускаем playlist на лампе...");
+
+  try {
+    const response = await fetch(`/api/playlists/${encodeURIComponent(playlistId)}/start`, {
+      method: "POST",
+      headers: buildApiHeaders(),
+    });
+    const payload = (await response.json()) as { ok?: boolean; error?: string };
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    setText("editor-status", "Playlist запущен.");
+    setText("diagnostics-summary", `Очередь «${getPlaylistNameById(playlistId)}» запущена на лампе.`);
+    setText("diagnostics-status", "Playlist активен");
+    await refreshStatus();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    setText("editor-status", "Не удалось запустить playlist.");
+    setText("diagnostics-summary", `Не удалось запустить playlist: ${message}`);
+    setText("diagnostics-status", "Запуск не удался");
+  }
+}
+
+async function stopPlaylist(): Promise<void> {
+  setText("editor-status", "Останавливаем очередь...");
+
+  try {
+    const response = await fetch("/api/playlists/stop", {
+      method: "POST",
+      headers: buildApiHeaders(),
+    });
+    const payload = (await response.json()) as { ok?: boolean; error?: string };
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    setText("editor-status", "Очередь остановлена.");
+    setText("diagnostics-summary", "Автосмена остановлена. Лампа вернулась в ручной режим.");
+    setText("diagnostics-status", "Playlist остановлен");
+    await refreshStatus();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    setText("editor-status", "Не удалось остановить очередь.");
+    setText("diagnostics-summary", `Не удалось остановить playlist: ${message}`);
+    setText("diagnostics-status", "Остановка не удалась");
+  }
+}
+
+async function deletePlaylist(playlistId: string, playlistName: string): Promise<void> {
+  const confirmed = window.confirm(`Удалить playlist «${playlistName}»?`);
+  if (!confirmed) {
+    return;
+  }
+
+  setText("editor-status", "Удаляем playlist...");
+
+  try {
+    const response = await fetch(`/api/playlists/${encodeURIComponent(playlistId)}`, {
+      method: "DELETE",
+      headers: buildApiHeaders(),
+    });
+    const payload = (await response.json()) as { ok?: boolean; error?: string };
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    setText("editor-status", "Playlist удалён.");
+    setText("diagnostics-summary", `Playlist «${playlistName}» удалён.`);
+    setText("diagnostics-status", "Playlist удалён");
+    await loadPlaylistList();
+    await refreshStatus();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+    setText("editor-status", "Не удалось удалить playlist.");
+    setText("diagnostics-summary", `Не удалось удалить playlist: ${message}`);
+    setText("diagnostics-status", "Удаление не удалось");
+  }
+}
+
 function bindPresetListActions(): void {
   const container = document.getElementById("saved-presets-list");
   container?.addEventListener("click", (event) => {
@@ -605,6 +776,42 @@ function bindPresetListActions(): void {
     if (action === "delete") {
       void deletePreset(presetId, button.dataset.presetName || presetId);
     }
+  });
+}
+
+function bindPlaylistActions(): void {
+  const container = document.getElementById("saved-playlists-list");
+  const stopButton = document.getElementById("stop-playlist-button") as HTMLButtonElement | null;
+
+  container?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+
+    const button = target.closest<HTMLButtonElement>("[data-playlist-action]");
+    if (!button) {
+      return;
+    }
+
+    const playlistId = button.dataset.playlistId;
+    const action = button.dataset.playlistAction;
+    if (!playlistId || !action) {
+      return;
+    }
+
+    if (action === "start") {
+      void startPlaylist(playlistId);
+      return;
+    }
+
+    if (action === "delete") {
+      void deletePlaylist(playlistId, button.dataset.playlistName || playlistId);
+    }
+  });
+
+  stopButton?.addEventListener("click", () => {
+    void stopPlaylist();
   });
 }
 
@@ -1124,6 +1331,7 @@ function bindDevScenarioControls(): void {
     setSelectedScenario(nextValue);
     renderScenarioDescription();
     void loadPresetList();
+    void loadPlaylistList();
     void refreshStatus();
     void refreshUpdateState();
   });
@@ -1134,6 +1342,7 @@ function bindDevScenarioControls(): void {
       headers: buildApiHeaders(),
     });
     void loadPresetList();
+    void loadPlaylistList();
     void refreshStatus();
     void refreshUpdateState();
   });
@@ -1418,7 +1627,7 @@ function renderStatus(status: StatusPayload): void {
   setText("statusbar-build", `${status.version} · ${status.channel}`);
   setText("statusbar-preset", status.activePresetName || status.activePresetId || "Пусто");
   setText("statusbar-autoplay", status.autoplayEnabled ? "Вкл" : "Выкл");
-  setText("statusbar-playlist", status.activePlaylistId || "Нет");
+  setText("statusbar-playlist", getPlaylistNameById(status.activePlaylistId) || "Нет");
   setText("statusbar-network", status.networkStatus || status.networkMode || "-");
   setText("statusbar-clock", status.currentTime || status.clockStatus || "-");
   setText("statusbar-sensor", status.sensorStatus || "-");
@@ -1426,7 +1635,7 @@ function renderStatus(status: StatusPayload): void {
   setText("statusbar-humidity", formatNumber(status.humidityPercent, " %"));
   setText("runtime-preset", status.activePresetName || status.activePresetId || "Пока ничего не выбрано");
   setText("runtime-autoplay", status.autoplayEnabled ? "Включено" : "Выключено");
-  setText("runtime-playlist", status.activePlaylistId || "Очередь пока не включена");
+  setText("runtime-playlist", getPlaylistNameById(status.activePlaylistId) || "Очередь пока не включена");
   setText("runtime-effect", status.activeEffect || "- ");
   setText(
     "diagnostics-summary",
@@ -1434,6 +1643,7 @@ function renderStatus(status: StatusPayload): void {
   );
   setText("diagnostics-status", status.liveErrorSummary ? "Нужно чуть поправить код" : "Лампа готова показывать новые огоньки");
   renderPresetList();
+  renderPlaylistPanel();
 }
 
 async function refreshStatus(): Promise<void> {
@@ -1456,10 +1666,12 @@ async function refreshStatus(): Promise<void> {
 void refreshStatus();
 void refreshUpdateState();
 void loadPresetList();
+void loadPlaylistList();
 applySnippet(starterSnippets[0]);
 bindSnippetButtons();
 bindActionButtons();
 bindPresetListActions();
+bindPlaylistActions();
 bindUpdateControls();
 bindNetworkSettingsControls();
 bindFirmwareModalControls();

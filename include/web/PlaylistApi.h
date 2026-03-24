@@ -16,6 +16,7 @@ struct PlaylistApiResponse {
   std::string body;
 };
 
+PlaylistApiResponse handleListPlaylistsRequest(const lamp::live::PlaylistRepository& repository);
 PlaylistApiResponse handlePutPlaylistRequest(lamp::live::PlaylistRepository& repository,
                                              const std::string& playlistId,
                                              const std::string& body);

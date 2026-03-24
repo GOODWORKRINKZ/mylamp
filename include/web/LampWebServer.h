@@ -63,6 +63,7 @@ class LampWebServer {
   void handleLiveValidate();
   void handleLiveRun();
   void handleListPresets();
+  void handleListPlaylists();
   void handlePutPreset();
   void handlePresetByPath();
   void handlePlaylistByPath();

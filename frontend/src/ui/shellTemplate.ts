@@ -82,10 +82,23 @@ export function renderShellMarkup(options: ShellTemplateOptions): string {
             </section>
           </div>
           <div class="sidebar-panel" id="tab-queue" role="tabpanel" hidden>
-            <div class="key-value"><span>Сейчас включено</span><strong id="runtime-preset">-</strong></div>
-            <div class="key-value"><span>Автосмена</span><strong id="runtime-autoplay">-</strong></div>
-            <div class="key-value"><span>Очередь огоньков</span><strong id="runtime-playlist">-</strong></div>
-            <div class="key-value"><span>Запасной режим</span><strong id="runtime-effect">-</strong></div>
+            <section class="playlist-panel" aria-labelledby="playlist-runtime-title">
+              <div class="playlist-panel__header">
+                <h2 id="playlist-runtime-title" class="playlist-panel__title">Сейчас на лампе</h2>
+                <button id="stop-playlist-button" class="playlist-panel__stop button-secondary" type="button">Остановить очередь</button>
+              </div>
+              <div class="key-value"><span>Сейчас включено</span><strong id="runtime-preset">-</strong></div>
+              <div class="key-value"><span>Автосмена</span><strong id="runtime-autoplay">-</strong></div>
+              <div class="key-value"><span>Очередь огоньков</span><strong id="runtime-playlist">-</strong></div>
+              <div class="key-value"><span>Запасной режим</span><strong id="runtime-effect">-</strong></div>
+            </section>
+            <section class="playlist-library" aria-labelledby="saved-playlists-title">
+              <div class="playlist-library__header">
+                <h2 id="saved-playlists-title" class="playlist-library__title">Плейлисты</h2>
+                <span class="playlist-library__meta" id="saved-playlists-meta">Загружаем...</span>
+              </div>
+              <div class="playlist-library__list" id="saved-playlists-list"></div>
+            </section>
           </div>
           <div class="sidebar-panel" id="tab-help" role="tabpanel" hidden>
             ${options.helpSections}

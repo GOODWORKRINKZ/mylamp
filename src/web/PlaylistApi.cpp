@@ -9,6 +9,7 @@ namespace lamp::web {
 namespace {
 
 constexpr size_t kPlaylistRequestCapacity = 2048;
+constexpr size_t kPlaylistListCapacity = 4096;
 
 PlaylistApiResponse makeJsonResponse(int statusCode, const std::string& body) {
   PlaylistApiResponse response;
@@ -31,6 +32,29 @@ bool readRequiredString(JsonObjectConst root, const char* key, std::string& outp
   }
   output = root[key].as<const char*>();
   return !output.empty();
+}
+
+std::string buildPlaylistListJson(const std::vector<lamp::live::PlaylistModel>& playlists) {
+  StaticJsonDocument<kPlaylistListCapacity> document;
+  JsonArray items = document.createNestedArray("items");
+  for (const lamp::live::PlaylistModel& playlist : playlists) {
+    JsonObject item = items.createNestedObject();
+    item["id"] = playlist.id;
+    item["name"] = playlist.name;
+    item["repeat"] = playlist.repeat;
+
+    JsonArray entries = item.createNestedArray("entries");
+    for (const lamp::live::PlaylistEntry& entry : playlist.entries) {
+      JsonObject jsonEntry = entries.createNestedObject();
+      jsonEntry["presetId"] = entry.presetId;
+      jsonEntry["durationSec"] = entry.durationSec;
+      jsonEntry["enabled"] = entry.enabled;
+    }
+  }
+
+  std::string body;
+  serializeJson(document, body);
+  return body;
 }
 
 bool parsePlaylistUpsertBody(const std::string& playlistId, const std::string& body,
@@ -82,6 +106,14 @@ std::string buildPlaylistStateJson(const lamp::live::runtime::PlaylistSchedulerS
 }
 
 }  // namespace
+
+PlaylistApiResponse handleListPlaylistsRequest(const lamp::live::PlaylistRepository& repository) {
+  if (!repository.isReady()) {
+    return makeErrorResponse(503, "storage unavailable");
+  }
+
+  return makeJsonResponse(200, buildPlaylistListJson(repository.list()));
+}
 
 PlaylistApiResponse handlePutPlaylistRequest(lamp::live::PlaylistRepository& repository,
                                              const std::string& playlistId,

@@ -171,6 +171,7 @@ void LampWebServer::registerRoutes() {
   server_.on("/api/live/run", HTTP_POST, [this]() { handleLiveRun(); });
   server_.on("/api/presets", HTTP_GET, [this]() { handleListPresets(); });
   server_.on("/api/presets", HTTP_PUT, [this]() { handlePutPreset(); });
+  server_.on("/api/playlists", HTTP_GET, [this]() { handleListPlaylists(); });
   server_.on("/api/playlists/stop", HTTP_POST, [this]() { handlePlaylistByPath(); });
   server_.onNotFound([this]() { handleNotFound(); });
 }
@@ -372,6 +373,15 @@ void LampWebServer::handlePutPreset() {
   sendPresetApiResponse(server_,
                         handlePutPresetRequest(*presetRepository_, presetId,
                                                server_.arg("plain").c_str()));
+}
+
+void LampWebServer::handleListPlaylists() {
+  if (playlistRepository_ == nullptr) {
+    server_.send(500, "application/json", "{\"error\":\"playlist repository unavailable\"}");
+    return;
+  }
+
+  sendPlaylistApiResponse(server_, handleListPlaylistsRequest(*playlistRepository_));
 }
 
 void LampWebServer::handlePresetByPath() {
