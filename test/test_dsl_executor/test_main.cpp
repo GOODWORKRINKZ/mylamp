@@ -283,6 +283,120 @@ void test_executor_rotates_sprite_around_its_center() {
   TEST_ASSERT_EQUAL_UINT8(70U, originalRight.r);
 }
 
+void test_executor_add_blend_accumulates_color() {
+  const std::string source =
+      "effect \"additive\"\n"
+      "sprite dot {\n"
+      "  bitmap \"\"\"\n"
+      "  #\n"
+      "  \"\"\"\n"
+      "}\n"
+      "layer base {\n"
+      "  use dot\n"
+      "  color rgb(120, 40, 10)\n"
+      "  x = 7\n"
+      "  y = 6\n"
+      "  scale = 1\n"
+      "  rotation = 0\n"
+      "  visible = 1\n"
+      "}\n"
+      "layer glow {\n"
+      "  use dot\n"
+      "  color rgb(150, 80, 250)\n"
+      "  x = 7\n"
+      "  y = 6\n"
+      "  scale = 1\n"
+      "  rotation = 0\n"
+      "  blend = add\n"
+      "  visible = 1\n"
+      "}\n";
+
+  lamp::live::runtime::CompiledProgram compiledProgram;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+  TEST_ASSERT_TRUE(compileSource(source, compiledProgram, diagnostics));
+
+  lamp::MatrixLayout layout;
+  lamp::FrameBuffer frameBuffer(layout);
+  lamp::live::runtime::Executor executor;
+  lamp::live::runtime::ExecutionContext context;
+  executor.render(compiledProgram, context, frameBuffer);
+
+  const lamp::Rgb pixel = frameBuffer.getPixel(7, 6);
+  TEST_ASSERT_EQUAL_UINT8(255U, pixel.r);
+  TEST_ASSERT_EQUAL_UINT8(120U, pixel.g);
+  TEST_ASSERT_EQUAL_UINT8(255U, pixel.b);
+}
+
+void test_executor_multiply_blend_modulates_existing_color() {
+  const std::string source =
+      "effect \"multiply\"\n"
+      "sprite dot {\n"
+      "  bitmap \"\"\"\n"
+      "  #\n"
+      "  \"\"\"\n"
+      "}\n"
+      "layer base {\n"
+      "  use dot\n"
+      "  color rgb(200, 100, 50)\n"
+      "  x = 4\n"
+      "  y = 8\n"
+      "  scale = 1\n"
+      "  rotation = 0\n"
+      "  visible = 1\n"
+      "}\n"
+      "layer mask {\n"
+      "  use dot\n"
+      "  color rgb(128, 255, 64)\n"
+      "  x = 4\n"
+      "  y = 8\n"
+      "  scale = 1\n"
+      "  rotation = 0\n"
+      "  blend = multiply\n"
+      "  visible = 1\n"
+      "}\n";
+
+  lamp::live::runtime::CompiledProgram compiledProgram;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+  TEST_ASSERT_TRUE(compileSource(source, compiledProgram, diagnostics));
+
+  lamp::MatrixLayout layout;
+  lamp::FrameBuffer frameBuffer(layout);
+  lamp::live::runtime::Executor executor;
+  lamp::live::runtime::ExecutionContext context;
+  executor.render(compiledProgram, context, frameBuffer);
+
+  const lamp::Rgb pixel = frameBuffer.getPixel(4, 8);
+  TEST_ASSERT_EQUAL_UINT8(100U, pixel.r);
+  TEST_ASSERT_EQUAL_UINT8(100U, pixel.g);
+  TEST_ASSERT_EQUAL_UINT8(12U, pixel.b);
+}
+
+void test_compiler_rejects_unknown_blend_mode_with_line_number() {
+  const std::string source =
+      "effect \"bad_blend\"\n"
+      "sprite dot {\n"
+      "  bitmap \"\"\"\n"
+      "  #\n"
+      "  \"\"\"\n"
+      "}\n"
+      "layer broken {\n"
+      "  use dot\n"
+      "  color rgb(255, 0, 0)\n"
+      "  x = 0\n"
+      "  y = 0\n"
+      "  scale = 1\n"
+      "  rotation = 0\n"
+      "  blend = screen\n"
+      "  visible = 1\n"
+      "}\n";
+
+  lamp::live::runtime::CompiledProgram compiledProgram;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+  TEST_ASSERT_FALSE(compileSource(source, compiledProgram, diagnostics));
+  TEST_ASSERT_TRUE(diagnostics.size() >= 1U);
+  TEST_ASSERT_EQUAL_UINT32(14U, diagnostics[0].line);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -296,5 +410,8 @@ int main(int argc, char** argv) {
   RUN_TEST(test_executor_evaluates_modulo_operator);
   RUN_TEST(test_compiler_reports_line_number_in_expression_error);
   RUN_TEST(test_executor_rotates_sprite_around_its_center);
+  RUN_TEST(test_executor_add_blend_accumulates_color);
+  RUN_TEST(test_executor_multiply_blend_modulates_existing_color);
+  RUN_TEST(test_compiler_rejects_unknown_blend_mode_with_line_number);
   return UNITY_END();
 }

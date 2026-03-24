@@ -44,6 +44,12 @@ enum class ColorModel {
   kHsv,
 };
 
+enum class BlendMode {
+  kNormal,
+  kAdd,
+  kMultiply,
+};
+
 struct CompiledColor {
   ColorModel model = ColorModel::kRgb;
   int16_t channels[3] = {-1, -1, -1};
@@ -69,6 +75,7 @@ struct CompiledLayer {
   int16_t yExpression = -1;
   int16_t scaleExpression = -1;
   int16_t rotationExpression = -1;
+  BlendMode blendMode = BlendMode::kNormal;
   int16_t visibleExpression = -1;
 };
 

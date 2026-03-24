@@ -17,6 +17,7 @@ enum class TokenType {
   kKeywordY,
   kKeywordScale,
   kKeywordRotation,
+  kKeywordBlend,
   kKeywordVisible,
   kIdentifier,
   kString,

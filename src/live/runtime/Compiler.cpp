@@ -303,6 +303,26 @@ std::string trim(const std::string& text) {
   return text.substr(start, end - start + 1U);
 }
 
+bool compileBlendMode(const std::string& modeText, BlendMode& blendMode,
+                      std::vector<lamp::live::Diagnostic>& diagnostics, uint32_t sourceLine = 0) {
+  const std::string trimmed = trim(modeText);
+  if (trimmed.empty() || trimmed == "normal") {
+    blendMode = BlendMode::kNormal;
+    return true;
+  }
+  if (trimmed == "add") {
+    blendMode = BlendMode::kAdd;
+    return true;
+  }
+  if (trimmed == "multiply") {
+    blendMode = BlendMode::kMultiply;
+    return true;
+  }
+
+  diagnostics.push_back(makeDiagnostic(sourceLine, "Поддерживаются blend режимы: normal, add, multiply"));
+  return false;
+}
+
 bool splitArguments(const std::string& text, std::vector<std::string>& arguments) {
   int depth = 0;
   size_t start = 0;
@@ -416,6 +436,10 @@ bool Compiler::compile(const dsl::Program& program, CompiledProgram& compiledPro
 
     if (!compileColor(layer.colorExpression, compiled.expressions, compiledLayer.color, diagnostics,
                       layer.colorLine)) {
+      return false;
+    }
+    if (!compileBlendMode(layer.blendMode.empty() ? "normal" : layer.blendMode,
+                          compiledLayer.blendMode, diagnostics, layer.blendLine)) {
       return false;
     }
     if (!expressionCompiler.compile(layer.xExpression.empty() ? "0" : layer.xExpression,

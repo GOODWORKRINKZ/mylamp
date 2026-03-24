@@ -41,6 +41,7 @@
 - y = <expression>
 - scale = <expression>
 - rotation = <expression>
+- blend = normal|add|multiply
 - visible = <expression>
 
 Разрешённые переменные:
@@ -69,7 +70,7 @@
 - не используй function
 - не используй let/var/const
 - не придумывай новые ключевые слова
-- не придумывай новые поля layer кроме use/x/y/scale/rotation/color/visible
+- не придумывай новые поля layer кроме use/x/y/scale/rotation/blend/color/visible
 - не используй комментарии
 - не возвращай JSON
 - не возвращай пояснения
@@ -115,6 +116,7 @@ layer love {
   y = 4 + sin(t * 1.5) * 2
   scale = 1 + abs(sin(t * 2)) * 0.4
   rotation = sin(t) * 0.3
+  blend = add
   visible = 1
 }
 ```

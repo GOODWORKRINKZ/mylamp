@@ -153,6 +153,27 @@ lamp::Rgb evaluateColor(const CompiledProgram& program, const CompiledColor& col
                    static_cast<uint8_t>(clampFloat(third, 0.0f, 255.0f))};
 }
 
+lamp::Rgb blendColors(BlendMode blendMode, lamp::Rgb destination, lamp::Rgb source) {
+  switch (blendMode) {
+    case BlendMode::kNormal:
+      return source;
+    case BlendMode::kAdd:
+      return lamp::Rgb{
+          static_cast<uint8_t>(std::min<uint16_t>(255U, destination.r + source.r)),
+          static_cast<uint8_t>(std::min<uint16_t>(255U, destination.g + source.g)),
+          static_cast<uint8_t>(std::min<uint16_t>(255U, destination.b + source.b)),
+      };
+    case BlendMode::kMultiply:
+      return lamp::Rgb{
+          static_cast<uint8_t>((static_cast<uint16_t>(destination.r) * source.r) / 255U),
+          static_cast<uint8_t>((static_cast<uint16_t>(destination.g) * source.g) / 255U),
+          static_cast<uint8_t>((static_cast<uint16_t>(destination.b) * source.b) / 255U),
+      };
+  }
+
+  return source;
+}
+
 void renderSpritePixel(const CompiledProgram& program, const CompiledLayer& layer,
                        const EvaluationContext& baseContext, lamp::FrameBuffer& frameBuffer,
                        int16_t renderX, int16_t renderY) {
@@ -164,7 +185,9 @@ void renderSpritePixel(const CompiledProgram& program, const CompiledLayer& laye
   pixelContext.ny = static_cast<float>(renderY) /
                     static_cast<float>(lamp::config::kLogicalHeight - 1U);
 
-  frameBuffer.setPixel(renderX, renderY, evaluateColor(program, layer.color, pixelContext));
+  const lamp::Rgb destinationColor = frameBuffer.getPixel(renderX, renderY);
+  const lamp::Rgb sourceColor = evaluateColor(program, layer.color, pixelContext);
+  frameBuffer.setPixel(renderX, renderY, blendColors(layer.blendMode, destinationColor, sourceColor));
 }
 
 }  // namespace

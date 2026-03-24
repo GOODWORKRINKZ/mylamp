@@ -119,6 +119,7 @@ bool parseLayer(ParserState& state, Program& program,
       case TokenType::kKeywordY:
       case TokenType::kKeywordScale:
       case TokenType::kKeywordRotation:
+      case TokenType::kKeywordBlend:
       case TokenType::kKeywordVisible: {
         const TokenType propertyType = state.current().type;
         state.match(propertyType);
@@ -142,6 +143,9 @@ bool parseLayer(ParserState& state, Program& program,
         } else if (propertyType == TokenType::kKeywordRotation) {
           layer.rotationExpression = valueToken.text;
           layer.rotationLine = valueToken.line;
+        } else if (propertyType == TokenType::kKeywordBlend) {
+          layer.blendMode = valueToken.text;
+          layer.blendLine = valueToken.line;
         } else {
           layer.visibleExpression = valueToken.text;
           layer.visibleLine = valueToken.line;
