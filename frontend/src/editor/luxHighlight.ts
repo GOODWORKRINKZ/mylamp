@@ -27,7 +27,7 @@ function escapeHtml(text: string): string {
 function highlightLine(line: string, inBitmap: boolean): { html: string; bitmap: boolean } {
   // Inside bitmap block: everything is bitmap-colored until closing """
   if (inBitmap) {
-    if (line.trimEnd() === '"""') {
+    if (line.trim() === '"""') {
       return { html: `<span class="tok-string">${escapeHtml(line)}</span>`, bitmap: false };
     }
     return { html: `<span class="tok-bitmap">${escapeHtml(line)}</span>`, bitmap: true };
