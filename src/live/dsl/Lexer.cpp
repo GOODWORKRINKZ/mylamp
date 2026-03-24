@@ -105,6 +105,24 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
       continue;
     }
 
+    if (startsWith(trimmed, "text ")) {
+      const std::string rest = trim(trimmed.substr(5));
+      const std::string::size_type quoteStart = rest.find('"');
+      const std::string::size_type quoteEnd = rest.rfind('"');
+      if (quoteStart != std::string::npos && quoteEnd != std::string::npos && quoteEnd > quoteStart) {
+        const std::string name = trim(rest.substr(0, quoteStart));
+        const std::string content = rest.substr(quoteStart + 1, quoteEnd - quoteStart - 1);
+        if (!name.empty()) {
+          appendToken(tokens, TokenType::kKeywordText, "text", lineNumber, 1U);
+          appendToken(tokens, TokenType::kIdentifier, name, lineNumber, 6U);
+          appendToken(tokens, TokenType::kString, content, lineNumber,
+                      static_cast<uint32_t>(trimmed.find('"') + 2U));
+          appendToken(tokens, TokenType::kNewline, "", lineNumber, 1U);
+          continue;
+        }
+      }
+    }
+
     if (parseBlockHeader(trimmed, "sprite", value)) {
       appendToken(tokens, TokenType::kKeywordSprite, "sprite", lineNumber, 1U);
       appendToken(tokens, TokenType::kIdentifier, value, lineNumber, 8U);

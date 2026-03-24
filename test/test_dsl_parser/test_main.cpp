@@ -93,6 +93,36 @@ void test_parser_rejects_unknown_layer_property_with_russian_diagnostic() {
       static_cast<int>(diagnostics[0].message.find("Свойство слоя не поддерживается в v1")));
 }
 
+void test_parser_reads_text_declaration() {
+  const std::string source =
+      "effect \"text_demo\"\n"
+      "\n"
+      "text greeting \"HELLO\"\n"
+      "\n"
+      "layer label {\n"
+      "  use greeting\n"
+      "  color rgb(255, 255, 255)\n"
+      "  x = 0\n"
+      "  y = 0\n"
+      "  scale = 1\n"
+      "  visible = 1\n"
+      "}\n";
+
+  lamp::live::dsl::Program program;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+
+  const bool parsed = lamp::live::dsl::parseProgram(source, program, diagnostics);
+
+  TEST_ASSERT_TRUE(parsed);
+  TEST_ASSERT_EQUAL_UINT32(0U, static_cast<uint32_t>(diagnostics.size()));
+  TEST_ASSERT_EQUAL_UINT32(1U, static_cast<uint32_t>(program.texts.size()));
+  TEST_ASSERT_EQUAL_STRING("greeting", program.texts[0].name.c_str());
+  TEST_ASSERT_EQUAL_STRING("HELLO", program.texts[0].content.c_str());
+  TEST_ASSERT_EQUAL_UINT32(0U, static_cast<uint32_t>(program.sprites.size()));
+  TEST_ASSERT_EQUAL_UINT32(1U, static_cast<uint32_t>(program.layers.size()));
+  TEST_ASSERT_EQUAL_STRING("greeting", program.layers[0].spriteName.c_str());
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -102,5 +132,6 @@ int main(int argc, char** argv) {
   RUN_TEST(test_parser_reads_effect_sprite_and_layers);
   RUN_TEST(test_parser_rejects_missing_effect_header_with_russian_diagnostic);
   RUN_TEST(test_parser_rejects_unknown_layer_property_with_russian_diagnostic);
+  RUN_TEST(test_parser_reads_text_declaration);
   return UNITY_END();
 }

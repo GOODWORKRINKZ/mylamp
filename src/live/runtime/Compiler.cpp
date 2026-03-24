@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "live/runtime/PixelFont.h"
+
 namespace lamp::live::runtime {
 
 namespace {
@@ -405,6 +407,41 @@ CompiledSprite compileSprite(const lamp::live::dsl::SpriteDeclaration& sprite) {
   return compiledSprite;
 }
 
+CompiledSprite compileText(const lamp::live::dsl::TextDeclaration& text) {
+  CompiledSprite compiledSprite;
+  compiledSprite.name = text.name;
+
+  int16_t cursorX = 0;
+  size_t pos = 0;
+  while (pos < text.content.size()) {
+    const uint16_t codepoint = decodeUtf8Char(text.content, pos);
+    const FontGlyph* glyph = getFontGlyph(codepoint);
+    if (!glyph) {
+      cursorX += kFontGlyphWidth + kFontCharSpacing;
+      continue;
+    }
+
+    for (int16_t row = 0; row < kFontGlyphHeight; ++row) {
+      for (int16_t col = 0; col < kFontGlyphWidth; ++col) {
+        if (glyph->rows[row] & (1 << (kFontGlyphWidth - 1 - col))) {
+          CompiledSpritePixel pixel;
+          pixel.x = cursorX + col;
+          pixel.y = row;
+          compiledSprite.pixels.push_back(pixel);
+        }
+      }
+    }
+
+    cursorX += kFontGlyphWidth + kFontCharSpacing;
+  }
+
+  compiledSprite.width = cursorX > 0
+                             ? static_cast<int16_t>(cursorX - kFontCharSpacing)
+                             : 0;
+  compiledSprite.height = kFontGlyphHeight;
+  return compiledSprite;
+}
+
 }  // namespace
 
 bool Compiler::compile(const dsl::Program& program, CompiledProgram& compiledProgram,
@@ -414,6 +451,10 @@ bool Compiler::compile(const dsl::Program& program, CompiledProgram& compiledPro
 
   for (const lamp::live::dsl::SpriteDeclaration& sprite : program.sprites) {
     compiled.sprites.push_back(compileSprite(sprite));
+  }
+
+  for (const lamp::live::dsl::TextDeclaration& text : program.texts) {
+    compiled.sprites.push_back(compileText(text));
   }
 
   ExpressionCompiler expressionCompiler(compiled.expressions);

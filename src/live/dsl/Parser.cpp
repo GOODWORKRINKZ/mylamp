@@ -82,6 +82,26 @@ bool parseSprite(ParserState& state, Program& program,
   return true;
 }
 
+bool parseText(ParserState& state, Program& program,
+               std::vector<lamp::live::Diagnostic>& diagnostics) {
+  Token nameToken = state.current();
+  if (!state.expect(TokenType::kIdentifier, "Ожидалось имя text", diagnostics)) {
+    return false;
+  }
+
+  Token contentToken = state.current();
+  if (!state.expect(TokenType::kString, "Ожидалась строка text", diagnostics)) {
+    return false;
+  }
+
+  TextDeclaration text;
+  text.name = nameToken.text;
+  text.content = contentToken.text;
+  program.texts.push_back(text);
+  skipNewlines(state);
+  return true;
+}
+
 bool parseLayer(ParserState& state, Program& program,
                 std::vector<lamp::live::Diagnostic>& diagnostics) {
   Token nameToken = state.current();
@@ -213,6 +233,14 @@ bool parseProgram(const std::string& source, Program& program,
       continue;
     }
 
+    if (state.current().type == TokenType::kKeywordText) {
+      state.match(TokenType::kKeywordText);
+      if (!parseText(state, parsedProgram, diagnostics)) {
+        return false;
+      }
+      continue;
+    }
+
     if (state.current().type == TokenType::kKeywordLayer) {
       state.match(TokenType::kKeywordLayer);
       if (!parseLayer(state, parsedProgram, diagnostics)) {
@@ -229,9 +257,10 @@ bool parseProgram(const std::string& source, Program& program,
 
     skipNewlines(state);
     if (state.current().type != TokenType::kEof && state.current().type != TokenType::kKeywordSprite &&
-        state.current().type != TokenType::kKeywordLayer) {
+        state.current().type != TokenType::kKeywordLayer &&
+        state.current().type != TokenType::kKeywordText) {
       diagnostics.push_back(makeDiagnostic(state.current().line, state.current().column,
-                                           "Ожидалось объявление sprite или layer"));
+                                           "Ожидалось объявление sprite, text или layer"));
       return false;
     }
   }

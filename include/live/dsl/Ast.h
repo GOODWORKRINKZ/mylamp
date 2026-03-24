@@ -10,6 +10,11 @@ struct SpriteDeclaration {
   std::string bitmap;
 };
 
+struct TextDeclaration {
+  std::string name;
+  std::string content;
+};
+
 struct LayerDeclaration {
   std::string name;
   std::string spriteName;
@@ -32,6 +37,7 @@ struct LayerDeclaration {
 struct Program {
   std::string effectName;
   std::vector<SpriteDeclaration> sprites;
+  std::vector<TextDeclaration> texts;
   std::vector<LayerDeclaration> layers;
 };
 

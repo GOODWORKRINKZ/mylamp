@@ -397,6 +397,53 @@ void test_compiler_rejects_unknown_blend_mode_with_line_number() {
   TEST_ASSERT_EQUAL_UINT32(14U, diagnostics[0].line);
 }
 
+void test_executor_renders_text_as_sprite() {
+  const std::string source =
+      "effect \"text_test\"\n"
+      "text msg \"AB\"\n"
+      "layer label {\n"
+      "  use msg\n"
+      "  color rgb(200, 100, 50)\n"
+      "  x = 0\n"
+      "  y = 0\n"
+      "  scale = 1\n"
+      "  visible = 1\n"
+      "}\n";
+
+  lamp::live::runtime::CompiledProgram compiledProgram;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+  TEST_ASSERT_TRUE(compileSource(source, compiledProgram, diagnostics));
+  TEST_ASSERT_EQUAL_UINT32(0U, static_cast<uint32_t>(diagnostics.size()));
+
+  lamp::MatrixLayout layout;
+  lamp::FrameBuffer frameBuffer(layout);
+  lamp::live::runtime::Executor executor;
+  lamp::live::runtime::ExecutionContext context;
+  executor.render(compiledProgram, context, frameBuffer);
+
+  // 'A' glyph: .#. / #.# / ### / #.# / #.#
+  // Top-center pixel of 'A' at (1, 0) should be lit
+  const lamp::Rgb topA = frameBuffer.getPixel(1, 0);
+  TEST_ASSERT_EQUAL_UINT8(200U, topA.r);
+  TEST_ASSERT_EQUAL_UINT8(100U, topA.g);
+  TEST_ASSERT_EQUAL_UINT8(50U, topA.b);
+
+  // Top-left pixel of 'A' at (0, 0) should be empty
+  const lamp::Rgb emptyA = frameBuffer.getPixel(0, 0);
+  TEST_ASSERT_EQUAL_UINT8(0U, emptyA.r);
+
+  // Gap between 'A' and 'B' at column 3 should be empty
+  const lamp::Rgb gap = frameBuffer.getPixel(3, 0);
+  TEST_ASSERT_EQUAL_UINT8(0U, gap.r);
+
+  // 'B' starts at column 4. Glyph: ##. / #.# / ##. / #.# / ##.
+  // Top-left pixel of 'B' at (4, 0) should be lit
+  const lamp::Rgb topB = frameBuffer.getPixel(4, 0);
+  TEST_ASSERT_EQUAL_UINT8(200U, topB.r);
+  TEST_ASSERT_EQUAL_UINT8(100U, topB.g);
+  TEST_ASSERT_EQUAL_UINT8(50U, topB.b);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -413,5 +460,6 @@ int main(int argc, char** argv) {
   RUN_TEST(test_executor_add_blend_accumulates_color);
   RUN_TEST(test_executor_multiply_blend_modulates_existing_color);
   RUN_TEST(test_compiler_rejects_unknown_blend_mode_with_line_number);
+  RUN_TEST(test_executor_renders_text_as_sprite);
   return UNITY_END();
 }
