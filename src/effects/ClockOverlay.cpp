@@ -53,7 +53,7 @@ void drawColon(int16_t originX, int16_t originY, lamp::FrameBuffer& fb) {
 }  // namespace
 
 void ClockOverlay::render(const std::string& currentTime, lamp::FrameBuffer& frameBuffer,
-                          bool visible) const {
+                          bool visible, uint32_t nowMs) const {
   if (!visible || currentTime.size() < 8U) return;
   if (!isDigit(currentTime[0]) || !isDigit(currentTime[1]) || currentTime[2] != ':' ||
       !isDigit(currentTime[3]) || !isDigit(currentTime[4]) || currentTime[5] != ':' ||
@@ -61,16 +61,16 @@ void ClockOverlay::render(const std::string& currentTime, lamp::FrameBuffer& fra
     return;
   }
 
-  // HH:MM:SS = 6 digits × 3px + 5 gaps × 1px + 2 colons × 1px = 25 px
   constexpr int16_t kTotal = kDigitWidth * 6 + kDigitGap * 5 + 2;
 
-  // Rotate around cylinder: 3 revolutions per minute.
-  const int16_t sec = (currentTime[6] - '0') * 10 + (currentTime[7] - '0');
+  // Smooth rotation: 3 rpm = 1 revolution per 20 s.  Step 1 px every 625 ms.
+  constexpr uint32_t kRotationPeriodMs = 20000;
   const int16_t yOffset = static_cast<int16_t>(
-      static_cast<int32_t>(sec * 3) * lamp::config::kLogicalHeight / 60);
+      (nowMs % kRotationPeriodMs) * static_cast<uint32_t>(lamp::config::kLogicalHeight)
+      / kRotationPeriodMs);
 
   const int16_t originY = static_cast<int16_t>(lamp::config::kLogicalHeight)
-                          - kTotal - kOverlayMarginRight + yOffset;
+                          - kTotal - kOverlayMarginRight - yOffset;
   const int16_t originX = kOverlayMarginTop;
 
   int16_t y = originY;

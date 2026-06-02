@@ -112,8 +112,8 @@ void renderEffectPass(unsigned long nowMs) {
   g_effectRegistry.renderActive(effectContext);
 }
 
-void renderOverlayPass() {
-  g_clockOverlay.render(g_runtimeTimeState.currentTime, g_frameBuffer, g_timeState.clockOverlayVisible);
+void renderOverlayPass(unsigned long nowMs) {
+  g_clockOverlay.render(g_runtimeTimeState.currentTime, g_frameBuffer, g_timeState.clockOverlayVisible, static_cast<uint32_t>(nowMs));
 }
 
 void commitFrame() {
@@ -126,7 +126,7 @@ void commitFrame() {
 
 void renderFrame(unsigned long nowMs) {
   renderEffectPass(nowMs);
-  renderOverlayPass();
+  renderOverlayPass(nowMs);
   commitFrame();
 }
 
