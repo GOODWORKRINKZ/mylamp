@@ -16,6 +16,7 @@ struct StatusSnapshot {
   std::string networkMode;
   std::string networkStatus;
   std::string clockStatus;
+  std::string syncStatus;
   std::string currentTime;
   std::string sensorStatus;
   bool sensorAvailable = false;

@@ -13,6 +13,7 @@ export type StatusPayload = {
   networkMode: string;
   networkStatus: string;
   clockStatus: string;
+  syncStatus: string;
   currentTime: string;
   sensorStatus: string;
   temperatureC: number | null;

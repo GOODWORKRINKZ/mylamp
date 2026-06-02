@@ -19,6 +19,7 @@
 #include "web/PresetApi.h"
 #include "web/StatusJsonBuilder.h"
 #include "web/TimeSettingsJson.h"
+#include "web/TimeStatusJson.h"
 
 namespace lamp::web {
 
@@ -28,6 +29,7 @@ class LampWebServer {
   using SettingsSaver = std::function<void(const settings::AppSettings&)>;
   using UpdateChecker = std::function<update::FirmwareReleaseInfo(const std::string& channelOverride)>;
   using UpdateInstaller = std::function<bool(std::string& error)>;
+  using TimeStatusGetter = std::function<TimeStatusSnapshot()>;
 
   LampWebServer();
 
@@ -42,6 +44,7 @@ class LampWebServer {
                            live::runtime::PlaylistScheduler* scheduler,
                            live::runtime::LiveProgramService* runtimeService);
   void setUpdateCallbacks(UpdateChecker checker, UpdateInstaller installer);
+  void setTimeStatusCallback(TimeStatusGetter getter);
 
  private:
   void registerRoutes();
@@ -55,6 +58,7 @@ class LampWebServer {
   void handleUpdateNetworkSettings();
   void handleGetTimeSettings();
   void handleUpdateTimeSettings();
+  void handleTimeStatus();
   void handleGetUpdateSettings();
   void handleUpdateSettings();
   void handleCurrentUpdate();
@@ -75,6 +79,7 @@ class LampWebServer {
   SettingsSaver saveSettings_;
   UpdateChecker checkUpdates_;
   UpdateInstaller installUpdate_;
+  TimeStatusGetter timeStatusGetter_;
   live::PresetRepository* presetRepository_ = nullptr;
   live::PlaylistRepository* playlistRepository_ = nullptr;
   live::runtime::PlaylistScheduler* playlistScheduler_ = nullptr;

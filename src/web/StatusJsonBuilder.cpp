@@ -100,6 +100,7 @@ std::string buildStatusJson(const StatusSnapshot& snapshot) {
   appendField(json, "networkMode", snapshot.networkMode, true);
   appendField(json, "networkStatus", snapshot.networkStatus, true);
   appendField(json, "clockStatus", snapshot.clockStatus, true);
+  appendField(json, "syncStatus", snapshot.syncStatus, true);
   appendField(json, "currentTime", snapshot.currentTime, true);
   appendField(json, "sensorStatus", snapshot.sensorStatus, true);
   appendFloatField(json, "temperatureC", snapshot.sensorAvailable, snapshot.temperatureC, true);

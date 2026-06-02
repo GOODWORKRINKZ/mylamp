@@ -22,8 +22,8 @@ static constexpr uint8_t kMaxBrightness = 96;
 static constexpr char kAccessPointPrefix[] = "MYLAMP";
 static constexpr char kAccessPointPassword[] = "12345678";
 static constexpr char kTimeZone[] = "UTC0";
-static constexpr char kNtpPrimaryServer[] = "pool.ntp.org";
-static constexpr char kNtpSecondaryServer[] = "time.nist.gov";
+static constexpr char kNtpPrimaryServer[] = "0.ru.pool.ntp.org";
+static constexpr char kNtpSecondaryServer[] = "1.ru.pool.ntp.org";
 
 static constexpr uint32_t kWiFiConnectTimeoutMs = 10000;
 static constexpr uint16_t kWiFiPollIntervalMs = 250;

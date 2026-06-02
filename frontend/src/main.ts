@@ -667,6 +667,7 @@ function renderTimeModal(): string {
         <div class="modal__body">
           <p class="modal__summary" id="time-summary">Открой модалку и лампа подгрузит текущий часовой пояс.</p>
           <div class="status-note" id="time-settings-status">Ждём запрос к настройкам времени.</div>
+          <div class="status-note" id="time-sync-status" style="margin-bottom: 12px;">NTP: -</div>
           <label class="field-stack" for="time-timezone-select">
             <span>Часовой пояс</span>
             <select id="time-timezone-select">
@@ -1958,6 +1959,13 @@ function syncTimeSettingsControls(): void {
 function applyTimeSettingsToForm(settings: TimeSettingsPayload): void {
   currentTimeSettings = settings;
   setInputValue("time-timezone-select", settings.timezone);
+
+  // Show NTP sync status from the most recent /api/status payload.
+  if (currentStatus) {
+    const label = syncStatusLabel(currentStatus.syncStatus);
+    setText("time-sync-status", `NTP: ${label}`);
+  }
+
   syncTimeSettingsControls();
 }
 
@@ -2135,6 +2143,17 @@ function formatNumber(value: number | null, suffix: string): string {
   return `${value}${suffix}`;
 }
 
+function syncStatusLabel(status: string): string {
+  switch (status) {
+    case "ntp_synced":   return "синхронизировано";
+    case "ntp_pending":  return "ожидание…";
+    case "ntp_failed":   return "ошибка";
+    case "ntp_disabled": return "отключено";
+    case "cached":       return "кешировано";
+    default:             return status || "неизвестно";
+  }
+}
+
 function renderStatus(status: StatusPayload): void {
   currentStatus = status;
   setText("statusbar-build", `${status.version} · ${status.channel}`);
@@ -2143,6 +2162,11 @@ function renderStatus(status: StatusPayload): void {
   setText("statusbar-playlist", getPlaylistNameById(status.activePlaylistId) || "Нет");
   setText("statusbar-network", status.networkStatus || status.networkMode || "-");
   setText("statusbar-clock", status.currentTime || status.clockStatus || "-");
+  // Show sync status as a secondary label near the clock.
+  const syncElem = document.getElementById("statusbar-clock");
+  if (syncElem && status.syncStatus) {
+    syncElem.setAttribute("title", `NTP: ${syncStatusLabel(status.syncStatus)}`);
+  }
   setText("statusbar-sensor", status.sensorStatus || "-");
   setText("statusbar-temp", formatNumber(status.temperatureC, " °C"));
   setText("statusbar-humidity", formatNumber(status.humidityPercent, " %"));

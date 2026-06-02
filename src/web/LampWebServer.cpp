@@ -3,6 +3,7 @@
 #include <pgmspace.h>
 
 #include "embedded_resources.h"
+#include "web/TimeStatusJson.h"
 
 namespace lamp::web {
 
@@ -152,6 +153,10 @@ void LampWebServer::setUpdateCallbacks(UpdateChecker checker, UpdateInstaller in
   installUpdate_ = installer;
 }
 
+void LampWebServer::setTimeStatusCallback(TimeStatusGetter getter) {
+  timeStatusGetter_ = getter;
+}
+
 void LampWebServer::registerRoutes() {
   server_.on("/", [this]() { handleRoot(); });
   server_.on("/favicon.svg", [this]() { handleFavicon(); });
@@ -162,6 +167,7 @@ void LampWebServer::registerRoutes() {
   server_.on("/api/settings/network", HTTP_POST, [this]() { handleUpdateNetworkSettings(); });
   server_.on("/api/settings/time", HTTP_GET, [this]() { handleGetTimeSettings(); });
   server_.on("/api/settings/time", HTTP_POST, [this]() { handleUpdateTimeSettings(); });
+  server_.on("/api/time", HTTP_GET, [this]() { handleTimeStatus(); });
   server_.on("/api/update/current", HTTP_GET, [this]() { handleCurrentUpdate(); });
   server_.on("/api/update/check", HTTP_POST, [this]() { handleCheckUpdates(); });
   server_.on("/api/update/install", HTTP_POST, [this]() { handleInstallUpdate(); });
@@ -264,6 +270,16 @@ void LampWebServer::handleUpdateTimeSettings() {
 
   saveSettings_(settings);
   server_.send(200, "application/json", buildTimeSettingsJson(settings).c_str());
+}
+
+void LampWebServer::handleTimeStatus() {
+  if (!timeStatusGetter_) {
+    server_.send(500, "application/json", "{\"error\":\"time service unavailable\"}");
+    return;
+  }
+
+  const TimeStatusSnapshot snapshot = timeStatusGetter_();
+  server_.send(200, "application/json", buildTimeStatusJson(snapshot).c_str());
 }
 
 void LampWebServer::handleGetUpdateSettings() {

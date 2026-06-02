@@ -10,8 +10,9 @@
 - аппаратные константы и runtime-конфиг;
 - логическая поверхность `32x16` поверх двух панелей `16x16`;
 - сетевой и time runtime;
+- синхронизация времени через HTTP Date header (NTP по UDP заблокирован сетью);
 - polling AHT30;
-- web server и набор API для статуса, preset-ов и playlist-ов.
+- web server и набор API для статуса, времени, preset-ов и playlist-ов.
 
 ### Live coding runtime на устройстве
 

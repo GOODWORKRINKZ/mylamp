@@ -38,6 +38,7 @@
 #include "update/FirmwareUpdateService.h"
 #include "web/LampWebServer.h"
 #include "web/StatusJsonBuilder.h"
+#include "web/TimeStatusJson.h"
 
 namespace {
 
@@ -166,6 +167,8 @@ void refreshRuntimeState(const lamp::network::WiFiStartupResult& wifiResult) {
   g_webServer.setStatusSnapshot(buildStatusSnapshot());
 }
 
+lamp::web::TimeStatusSnapshot buildTimeStatusSnapshot();  // forward decl
+
 lamp::web::StatusSnapshot buildStatusSnapshot() {
   lamp::web::StatusSnapshot snapshot;
   snapshot.version = lamp::BuildInfo::version;
@@ -182,6 +185,7 @@ lamp::web::StatusSnapshot buildStatusSnapshot() {
       g_networkState.activeMode == lamp::network::NetworkMode::kClient ? "client" : "ap";
   snapshot.networkStatus = g_networkState.statusLine;
   snapshot.clockStatus = g_timeState.statusLine;
+  snapshot.syncStatus = buildTimeStatusSnapshot().syncStatus;
   snapshot.currentTime = g_runtimeTimeState.currentTime;
   snapshot.sensorStatus = g_sensorState.statusLine;
   snapshot.sensorAvailable = g_sensorState.available;
@@ -205,6 +209,35 @@ lamp::web::StatusSnapshot buildStatusSnapshot() {
                      ? g_frameCount * 1000UL / (millis() - g_lastFpsReportMs)
                      : 0;
   snapshot.loopUs = g_lastLoopUs;
+  return snapshot;
+}
+
+lamp::web::TimeStatusSnapshot buildTimeStatusSnapshot() {
+  lamp::web::TimeStatusSnapshot snapshot;
+  snapshot.currentTime = g_runtimeTimeState.hasValidTime ? g_timeSource.formattedTime() : "";
+  snapshot.timezone = g_settings.clock.timezone;
+
+  // Map ArduinoNtpTimeSource internal status to API string.
+  switch (g_timeSource.lastSyncStatus()) {
+    case lamp::time::NtpSyncStatus::kSynced:
+      snapshot.syncStatus = "ntp_synced";
+      break;
+    case lamp::time::NtpSyncStatus::kPending:
+      snapshot.syncStatus = "ntp_pending";
+      break;
+    case lamp::time::NtpSyncStatus::kFailed:
+      snapshot.syncStatus = "ntp_failed";
+      break;
+    case lamp::time::NtpSyncStatus::kDisabled:
+      snapshot.syncStatus = "ntp_disabled";
+      break;
+    case lamp::time::NtpSyncStatus::kCached:
+      snapshot.syncStatus = "cached";
+      break;
+  }
+
+  snapshot.ntpServer = lamp::config::kNtpPrimaryServer;
+  snapshot.epoch = static_cast<long>(g_timeSource.lastEpoch());
   return snapshot;
 }
 
@@ -320,6 +353,7 @@ void setup() {
   }
   g_webServer.setSettingsCallbacks(getCurrentSettings, saveAndApplySettings);
   g_webServer.setUpdateCallbacks(checkForFirmwareUpdates, installFirmwareUpdate);
+  g_webServer.setTimeStatusCallback(buildTimeStatusSnapshot);
   g_webServer.setPresetServices(&g_presetRepository, &g_liveProgramService);
   g_webServer.setPlaylistServices(&g_playlistRepository, &g_presetRepository, &g_playlistScheduler,
                                   &g_liveProgramService);

@@ -129,6 +129,7 @@ function createMockState(scenarioId) {
     board: "esp32-c3-supermini",
     networkMode: "ap",
     clockStatus: "Clock: NTP ok",
+    syncStatus: "ntp_synced",
     currentTime: "21:14:08",
     activeEffect: "boot-solid",
   };
@@ -440,6 +441,7 @@ export async function handleApi(req, res) {
 
     state.timeSettings.timezone = timezone;
     state.status.clockStatus = `Clock: ${timezone}`;
+    state.status.syncStatus = timezone === "UTC0" ? "ntp_disabled" : "ntp_synced";
     sendJson(res, 200, { timezone: state.timeSettings.timezone });
     return true;
   }
