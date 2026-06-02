@@ -178,3 +178,165 @@ Task 1 (angle helpers) ──┐
 ```
 
 Task 1 is a prerequisite for everything. Tasks 2-4 add features. Tasks 5-7 add test coverage. Task 8 is documentation.
+
+---
+
+## 6. UAT — Visual Validation on Device
+
+**Run these DSL effects on the lamp to visually confirm cylindrical geometry.**
+
+### Test A: Seam Wrap — Moving Vertical Line
+
+```lux
+effect "cyl_test_seam"
+
+layer stripe {
+  sprite rect_4x16 {
+    bitmap """
+    ####
+    ####
+    ####
+    ####
+    ####
+    ####
+    ####
+    ####
+    ####
+    ####
+    ####
+    ####
+    ####
+    ####
+    ####
+    ####
+    """
+  }
+  use rect_4x16
+  color rgb(255, 60, 30)
+  x = t * 4
+  y = 0
+  scale = 1
+  visible = 1
+}
+```
+
+**Expected:** Red vertical stripe smoothly moves right, disappears at x=32 and reappears at x=0. No jump, no gap. The seam is invisible.
+
+### Test B: Full-Width Rectangle
+
+```lux
+effect "cyl_test_full_width"
+
+sprite full_bar {
+  bitmap """
+  ################################
+  ################################
+  ################################
+  ################################
+  ################################
+  ################################
+  ################################
+  ################################
+  ################################
+  ################################
+  ################################
+  ################################
+  ################################
+  ################################
+  ################################
+  ################################
+  """
+}
+
+layer bar {
+  use full_bar
+  color hsv(t * 60, 1, 1)
+  x = 0
+  y = 0
+  scale = 1
+  visible = 1
+}
+```
+
+**Expected:** Entire matrix filled with one solid colour. Colour cycles through rainbow. No dark seam at x=0/31 boundary. Matrix is uniformly lit.
+
+### Test C: Dot at Seam
+
+```lux
+effect "cyl_test_seam_dot"
+
+sprite dot {
+  bitmap """
+  #
+  """
+}
+
+layer left_dot {
+  use dot
+  color rgb(255, 255, 255)
+  x = 0
+  y = 7
+  scale = 2
+  visible = 1
+}
+
+layer right_dot {
+  use dot
+  color rgb(255, 255, 255)
+  x = 31
+  y = 7
+  scale = 2
+  visible = 1
+}
+```
+
+**Expected:** Two white dots at x=0 and x=31 — physically adjacent on the cylinder. They should appear NEXT to each other, not far apart.
+
+### Test D: Circle Crossing Seam
+
+```lux
+effect "cyl_test_cross_seam"
+
+sprite big_circle {
+  bitmap """
+      ########
+    ############
+   ##############
+  ################
+  ################
+  ################
+  ################
+   ##############
+    ############
+      ########
+  """
+}
+
+layer circle {
+  use big_circle
+  color rgb(80, 200, 255)
+  x = t * 8
+  y = 3
+  scale = 1
+  visible = 1
+}
+```
+
+**Expected:** Blue circle moves right, crosses the seam smoothly. Circle should appear continuous when half is at x=30-31 and half at x=0-1.
+
+### How to Run These Tests
+
+1. Open the lamp web UI at `http://192.168.2.119`
+2. Paste one test effect into the editor
+3. Click **Запустить** (Run)
+4. Observe the LED matrix
+5. Repeat for each test
+
+### Pass Criteria
+
+| Test | What to check | CYL req |
+|------|--------------|---------|
+| A — Moving stripe | Smooth wraparound, no jump at seam | CYL-01, CYL-02 |
+| B — Full-width bar | No dark column at x=0/31 | CYL-03, CYL-04 |
+| C — Seam dots | Dots at x=0 and x=31 are neighbours | CYL-02 |
+| D — Circle crossing | Circle intact when crossing seam | CYL-04, CYL-06 |
