@@ -90,10 +90,18 @@
 
 **Requirements:** DSL-01, DSL-02, DSL-03
 
+**Plans:** 4 plans in 4 waves
+
 **Success criteria:**
 - Хотя бы один эффект с анимацией спрайта работает на цилиндре (например, Марио бегает по кругу)
 - Демо-эффекты доступны как пресеты в веб-интерфейсе
 - Если DSL расширен — существующие эффекты обратно совместимы
+
+**Plans:**
+- [ ] 05-01-PLAN.md — DSL Grammar: tokens, AST, Lexer, Parser for `frame` and `for` (DSL-02)
+- [ ] 05-02-PLAN.md — Compiler + Executor: for-loop unrolling, frame selection, tests (DSL-01, DSL-02)
+- [ ] 05-03-PLAN.md — Demo effects authoring + factory preset seeding (DSL-01, DSL-03)
+- [ ] 05-04-PLAN.md — Frontend: share, save fix, snippets, help, highlighting (DSL-03)
 
 ---
 

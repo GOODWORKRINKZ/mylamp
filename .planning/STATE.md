@@ -23,12 +23,12 @@ See: .planning/PROJECT.md (updated 2026-06-02)
 | 2 | Cylindrical Geometry | ● Complete | CYL-01–06 |
 | 3 | Clock Overlay | ● Complete | CLOCK-01–03 |
 | 4 | Perf & Bugs | ● Complete | PERF-01–03 |
-| 5 | Demo Effects & DSL | ◐ Context ready | DSL-01–03 |
+| 5 | Demo Effects & DSL | ◐ Planned (4 plans, 4 waves) | DSL-01–03 |
 
 ## Next Actions
 
-1. `/gsd-plan-phase 5` — plan demo effects and DSL extensions
-2. Flash dev build to device for visual UAT of Phase 4 fixes
+1. `/gsd-execute-phase 5` — execute DSL extensions, demo effects, and frontend changes
+2. Flash dev build to device for visual UAT of Phase 4 fixes + Phase 5 demos
 
 ---
 *Last updated: 2026-06-02 after Phase 5 context gathering*
