@@ -9,8 +9,8 @@ namespace lamp::effects {
 
 namespace {
 
-constexpr lamp::Rgb kDigitColor{255, 180, 96};
-constexpr lamp::Rgb kSeparatorColor{96, 180, 255};
+constexpr lamp::Rgb kDigitColor{255, 220, 160};
+constexpr lamp::Rgb kSeparatorColor{180, 220, 255};
 constexpr int16_t kDigitWidth = 3;   // px per digit
 constexpr int16_t kDigitHeight = 5;  // px per digit
 constexpr int16_t kDigitGap = 1;     // px gap between chars
@@ -112,9 +112,6 @@ void ClockOverlay::render(const std::string& currentTime, lamp::FrameBuffer& fra
                           - kTotal - kOverlayMarginRight - yOffset;
   const int16_t originX = kOverlayMarginTop;
 
-  // Dark background behind clock for contrast.
-  drawDarkBg(originX - 1, originY - 1, kTotal + 2, kDigitHeight + 2, frameBuffer);
-
   int16_t y = originY;
   drawChar(originX, y, currentTime[0], kDigitColor, frameBuffer);  y += kDigitWidth + kDigitGap;
   drawChar(originX, y, currentTime[1], kDigitColor, frameBuffer);  y += kDigitWidth + kDigitGap;
@@ -127,13 +124,12 @@ void ClockOverlay::render(const std::string& currentTime, lamp::FrameBuffer& fra
 
   // Sensor line below clock — rotates opposite direction.
   if (sensorAvailable) {
-    constexpr lamp::Rgb kTempColor{100, 200, 255};
-    constexpr lamp::Rgb kHumColor{100, 255, 150};
+    constexpr lamp::Rgb kTempColor{200, 240, 255};
+    constexpr lamp::Rgb kHumColor{180, 255, 200};
     const int16_t sx = originX + kDigitHeight + 2;
     const int16_t sensorY = static_cast<int16_t>(lamp::config::kLogicalHeight)
                              - kTotal - kOverlayMarginRight + yOffset;
 
-    drawDarkBg(sx - 1, sensorY - 1, kTotal, kDigitHeight + 2, frameBuffer);  // opposite!
     char buf[6];
     snprintf(buf, sizeof(buf), "%d", static_cast<int>(temperatureC));
     drawString(sx, sensorY, buf, kTempColor, frameBuffer);

@@ -42,6 +42,24 @@
 
 namespace {
 
+constexpr const char* kFireplaceSource =
+  "effect \"fireplace\"\n"
+  "\n"
+  "sprite px {\n"
+  "  bitmap \"\"\"\n"
+  "##\n"
+  "  \"\"\"\n"
+  "}\n"
+  "\n"
+  "layer g {\n"
+  "  use px\n"
+  "  color hsv(t * 10 + sin(y * 0.2) * 40 + x * 4, 0.9, 0.12 + sin(t * 0.6 + x * 0.3) * 0.08)\n"
+  "  x = 0\n"
+  "  y = 0\n"
+  "  scale = 16\n"
+  "  visible = 1\n"
+  "}\n";
+
 lamp::MatrixLayout g_layout;
 lamp::FrameBuffer g_frameBuffer(g_layout);
 lamp::effects::SolidColorEffect g_bootEffect(lamp::Rgb{40, 15, 0}, "boot-solid");
@@ -365,6 +383,13 @@ void setup() {
   refreshSensorState();
   g_webServer.setStatusSnapshot(buildStatusSnapshot());
   g_webServer.begin();
+
+  // Auto-start fireplace effect at boot.
+  {
+    std::vector<lamp::live::Diagnostic> diag;
+    g_liveProgramService.runTemporary(kFireplaceSource, diag);
+  }
+
   renderFrame(0);
   printBootBanner();
 }
