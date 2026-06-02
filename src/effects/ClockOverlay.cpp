@@ -63,7 +63,14 @@ void ClockOverlay::render(const std::string& currentTime, lamp::FrameBuffer& fra
 
   // HH:MM:SS = 6 digits × 3px + 5 gaps × 1px + 2 colons × 1px = 25 px
   constexpr int16_t kTotal = kDigitWidth * 6 + kDigitGap * 5 + 2;
-  const int16_t originY = static_cast<int16_t>(lamp::config::kLogicalHeight) - kTotal - kOverlayMarginRight;
+
+  // Rotate around cylinder: 3 revolutions per minute.
+  const int16_t sec = (currentTime[6] - '0') * 10 + (currentTime[7] - '0');
+  const int16_t yOffset = static_cast<int16_t>(
+      static_cast<int32_t>(sec * 3) * lamp::config::kLogicalHeight / 60);
+
+  const int16_t originY = static_cast<int16_t>(lamp::config::kLogicalHeight)
+                          - kTotal - kOverlayMarginRight + yOffset;
   const int16_t originX = kOverlayMarginTop;
 
   int16_t y = originY;
