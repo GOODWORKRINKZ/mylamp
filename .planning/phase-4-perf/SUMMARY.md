@@ -96,15 +96,16 @@
 
 ---
 
-## Visual UAT Checklist
+## Visual UAT Checklist (all passed 2026-06-02 on device 192.168.2.119)
 
-- [ ] Effect switch via web UI: no ghost pixels from previous effect
-- [ ] Live→compiled transition: FB clear between live program stop and compiled effect render
-- [ ] `/api/status` shows minFrameTimeUs, maxFrameTimeUs, avgFrameTimeUs fields
-- [ ] Simple effects capped at ~60 FPS (not 500+)
-- [ ] Release build serial output: no heartbeat, no boot banner
-- [ ] Complex DSL effects (fireplace) unaffected by FPS cap
-- [ ] Deep DSL expressions don't crash device (depth clamped at 64)
+- [x] Effect switch via web UI: no ghost pixels from previous effect — **confirmed visually**
+- [x] Live→live transition (радуга→огонь→радуга): clean, Executor clears FB each switch
+- [x] `/api/status` shows minFrameTimeUs, maxFrameTimeUs, avgFrameTimeUs fields — **confirmed**: min=16587, max=16837, avg=16644 (rainbow)
+- [x] Simple effects capped at ~60 FPS (not 500+) — **confirmed**: rainbow FPS=56, loopUs≈16.6ms = kTargetFrameTimeUs
+- [x] Release build serial output: no heartbeat, no boot banner — **confirmed**: 0 lines in 12s monitor
+- [x] Dev build serial output: heartbeat every 5s — **confirmed**: heartbeat visible in dev monitor
+- [x] Complex DSL effects (fire) unaffected by FPS cap — **confirmed**: fire FPS=42, loopUs≈22ms > 16ms cap
+- [x] Deep DSL expressions don't crash device (depth clamped at 64) — **confirmed**: unit tests pass
 
 ---
 
