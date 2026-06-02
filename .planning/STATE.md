@@ -12,14 +12,14 @@ See: .planning/PROJECT.md (updated 2026-06-02)
 ## Current State
 
 - **Milestone:** v1 (initial)
-- **Active Phase:** Phase 1 (not started)
-- **Active Plan:** None
+- **Active Phase:** Phase 1 (planned)
+- **Active Plan:** .planning/phase-1-ntp/PLAN.md
 
 ## Phase Progress
 
 | Phase | Name | Status | Requirements |
 |-------|------|--------|-------------|
-| 1 | NTP Sync | ○ Pending | NTP-01, NTP-02 |
+| 1 | NTP Sync | ◑ Planned | NTP-01, NTP-02 |
 | 2 | Cylindrical Geometry | ○ Pending | CYL-01–06 |
 | 3 | Clock Overlay | ○ Pending | CLOCK-01–03 |
 | 4 | Perf & Bugs | ○ Pending | PERF-01–03 |
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-02)
 
 ## Next Actions
 
-1. Run `/gsd-plan-phase 1` to create a detailed plan for NTP time sync
-2. Run `/gsd-plan-phase 2` (can be parallel to Phase 1) for cylindrical geometry
+1. Run `/gsd-execute-phase 1` to implement the NTP sync fix
+2. Run `/gsd-plan-phase 2` (can be parallel) for cylindrical geometry
 
 ---
-*Last updated: 2026-06-02 after initialization*
+*Last updated: 2026-06-02 after Phase 1 planning*
