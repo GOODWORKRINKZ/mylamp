@@ -21,7 +21,7 @@ See: .planning/PROJECT.md (updated 2026-06-02)
 |-------|------|--------|-------------|
 | 1 | NTP Sync | ● Complete | NTP-01, NTP-02 |
 | 2 | Cylindrical Geometry | ● Complete | CYL-01–06 |
-| 3 | Clock Overlay | ◑ Planned | CLOCK-01–03 |
+| 3 | Clock Overlay | ● Complete | CLOCK-01–03 |
 | 4 | Perf & Bugs | ○ Pending | PERF-01–03 |
 | 5 | Demo Effects & DSL | ○ Pending | DSL-01–03 |
 
