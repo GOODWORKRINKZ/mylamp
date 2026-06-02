@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-06-02)
 ## Current State
 
 - **Milestone:** v1 (initial)
-- **Active Phase:** Phase 5 (pending)
+- **Active Phase:** Phase 5 (context gathered)
 - **Active Plan:** None
 
 ## Phase Progress
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-06-02)
 | 2 | Cylindrical Geometry | ● Complete | CYL-01–06 |
 | 3 | Clock Overlay | ● Complete | CLOCK-01–03 |
 | 4 | Perf & Bugs | ● Complete | PERF-01–03 |
-| 5 | Demo Effects & DSL | ○ Pending | DSL-01–03 |
+| 5 | Demo Effects & DSL | ◐ Context ready | DSL-01–03 |
 
 ## Next Actions
 
@@ -31,4 +31,4 @@ See: .planning/PROJECT.md (updated 2026-06-02)
 2. Flash dev build to device for visual UAT of Phase 4 fixes
 
 ---
-*Last updated: 2026-06-02 after Phase 1 planning*
+*Last updated: 2026-06-02 after Phase 5 context gathering*
