@@ -1,5 +1,6 @@
 #include "live/dsl/Parser.h"
 
+#include <unordered_set>
 #include <vector>
 
 #include "live/dsl/Lexer.h"
@@ -60,23 +61,58 @@ bool parseSprite(ParserState& state, Program& program,
   }
 
   skipNewlines(state);
-  if (!state.expect(TokenType::kKeywordBitmap, "Ожидалось свойство bitmap", diagnostics)) {
-    return false;
+
+  SpriteDeclaration sprite;
+  sprite.name = nameToken.text;
+
+  // Detect sprite style: single-bitmap (kKeywordBitmap) or multi-frame (kKeywordFrame)
+  if (state.current().type == TokenType::kKeywordFrame) {
+    // Multi-frame sprite mode
+    while (state.current().type == TokenType::kKeywordFrame) {
+      state.match(TokenType::kKeywordFrame);
+      Token frameName = state.current();
+      if (!state.expect(TokenType::kIdentifier, "Ожидалось имя кадра", diagnostics)) {
+        return false;
+      }
+      if (!state.expect(TokenType::kLeftBrace, "Ожидался символ { после имени кадра", diagnostics)) {
+        return false;
+      }
+      skipNewlines(state);
+      if (!state.expect(TokenType::kKeywordBitmap, "Ожидалось свойство bitmap в кадре", diagnostics)) {
+        return false;
+      }
+      Token bitmapToken = state.current();
+      if (!state.expect(TokenType::kMultilineString, "Ожидался bitmap блок кадра", diagnostics)) {
+        return false;
+      }
+      skipNewlines(state);
+      if (!state.expect(TokenType::kRightBrace, "Ожидался символ } после кадра", diagnostics)) {
+        return false;
+      }
+      SpriteFrameDeclaration frame;
+      frame.name = frameName.text;
+      frame.bitmap = bitmapToken.text;
+      sprite.frames.push_back(frame);
+      skipNewlines(state);
+    }
+    // sprite.bitmap stays empty — frames vector drives rendering
+  } else {
+    // Single-bitmap path (backward compat, D-04)
+    if (!state.expect(TokenType::kKeywordBitmap, "Ожидалось свойство bitmap", diagnostics)) {
+      return false;
+    }
+    Token bitmapToken = state.current();
+    if (!state.expect(TokenType::kMultilineString, "Ожидался bitmap блок", diagnostics)) {
+      return false;
+    }
+    sprite.bitmap = bitmapToken.text;
+    skipNewlines(state);
   }
 
-  Token bitmapToken = state.current();
-  if (!state.expect(TokenType::kMultilineString, "Ожидался bitmap блок", diagnostics)) {
-    return false;
-  }
-
-  skipNewlines(state);
   if (!state.expect(TokenType::kRightBrace, "Ожидался символ } после sprite", diagnostics)) {
     return false;
   }
 
-  SpriteDeclaration sprite;
-  sprite.name = nameToken.text;
-  sprite.bitmap = bitmapToken.text;
   program.sprites.push_back(sprite);
   skipNewlines(state);
   return true;
@@ -140,7 +176,8 @@ bool parseLayer(ParserState& state, Program& program,
       case TokenType::kKeywordScale:
       case TokenType::kKeywordRotation:
       case TokenType::kKeywordBlend:
-      case TokenType::kKeywordVisible: {
+      case TokenType::kKeywordVisible:
+      case TokenType::kKeywordFrame: {
         const TokenType propertyType = state.current().type;
         state.match(propertyType);
         if (!state.expect(TokenType::kEquals, "Ожидался символ =", diagnostics)) {
@@ -166,6 +203,9 @@ bool parseLayer(ParserState& state, Program& program,
         } else if (propertyType == TokenType::kKeywordBlend) {
           layer.blendMode = valueToken.text;
           layer.blendLine = valueToken.line;
+        } else if (propertyType == TokenType::kKeywordFrame) {
+          layer.frameExpression = valueToken.text;
+          layer.frameLine = valueToken.line;
         } else {
           layer.visibleExpression = valueToken.text;
           layer.visibleLine = valueToken.line;
@@ -191,6 +231,248 @@ bool parseLayer(ParserState& state, Program& program,
   }
 
   program.layers.push_back(layer);
+  skipNewlines(state);
+  return true;
+}
+
+void skipToNextTopLevel(ParserState& state) {
+  while (state.current().type != TokenType::kEof &&
+         state.current().type != TokenType::kKeywordSprite &&
+         state.current().type != TokenType::kKeywordText &&
+         state.current().type != TokenType::kKeywordLayer &&
+         state.current().type != TokenType::kKeywordFor) {
+    // Consume tokens until next top-level construct
+    state.match(state.current().type);
+  }
+}
+
+bool parseForLoop(ParserState& state, Program& program,
+                  std::vector<lamp::live::Diagnostic>& diagnostics) {
+  // for keyword already consumed by caller (parseProgram)
+
+  // Parse loop variable
+  Token loopVar = state.current();
+  if (!state.expect(TokenType::kIdentifier, "Ожидалось имя переменной цикла", diagnostics)) {
+    return false;
+  }
+
+  // Reserved word check
+  static const std::unordered_set<std::string> kReservedWords = {
+    "t", "dt", "temp", "humidity",
+    "x", "y", "nx", "ny",
+    "sin", "cos", "abs", "min", "max", "clamp", "mix", "smoothstep",
+    "rgb", "hsv"
+  };
+  if (kReservedWords.count(loopVar.text)) {
+    diagnostics.push_back(makeDiagnostic(loopVar.line, loopVar.column,
+      "Имя переменной цикла не может совпадать со встроенным: " + loopVar.text));
+    skipToNextTopLevel(state);
+    return false;
+  }
+
+  // Parse start value: = expression
+  if (!state.expect(TokenType::kEquals, "Ожидался символ =", diagnostics)) {
+    return false;
+  }
+  Token startExpr = state.current();
+  if (!state.expect(TokenType::kExpression, "Ожидалось начальное значение цикла", diagnostics)) {
+    return false;
+  }
+
+  // Optional semicolon
+  state.match(TokenType::kSemicolon);
+
+  // Parse condition: loopVar comparisonOp expression
+  Token condVar = state.current();
+  if (!state.expect(TokenType::kIdentifier, "Ожидалось имя переменной цикла", diagnostics)) {
+    return false;
+  }
+  if (condVar.text != loopVar.text) {
+    diagnostics.push_back(makeDiagnostic(condVar.line, condVar.column,
+      "Имя переменной цикла должно совпадать: " + loopVar.text));
+    return false;
+  }
+
+  // Comparison operator (tokenized as kUnknown with the op text)
+  std::string compOp = state.current().text;
+  if (compOp == "<" || compOp == "<=" || compOp == ">" || compOp == ">=") {
+    state.match(TokenType::kUnknown);
+  } else {
+    diagnostics.push_back(makeDiagnostic(state.current().line, state.current().column,
+      "Ожидался оператор сравнения (<, <=, >, >=)"));
+    return false;
+  }
+
+  // End bound expression
+  Token endExpr = state.current();
+  if (!state.expect(TokenType::kExpression, "Ожидалось конечное значение цикла", diagnostics)) {
+    return false;
+  }
+
+  // Optional semicolon
+  state.match(TokenType::kSemicolon);
+
+  // Parse step: loopVar = loopVar + expression (or loopVar = expression)
+  Token stepVar1 = state.current();
+  if (!state.expect(TokenType::kIdentifier, "Ожидалось имя переменной цикла", diagnostics)) {
+    return false;
+  }
+  if (stepVar1.text != loopVar.text) {
+    diagnostics.push_back(makeDiagnostic(stepVar1.line, stepVar1.column,
+      "Имя переменной цикла должно совпадать: " + loopVar.text));
+    return false;
+  }
+  if (!state.expect(TokenType::kEquals, "Ожидался символ =", diagnostics)) {
+    return false;
+  }
+  Token stepVar2 = state.current();
+  if (!state.expect(TokenType::kIdentifier, "Ожидалось имя переменной цикла", diagnostics)) {
+    return false;
+  }
+  if (stepVar2.text != loopVar.text) {
+    diagnostics.push_back(makeDiagnostic(stepVar2.line, stepVar2.column,
+      "Имя переменной цикла должно совпадать: " + loopVar.text));
+    return false;
+  }
+
+  // Consume '+' operator
+  state.match(TokenType::kUnknown);
+
+  // Step expression
+  Token stepExpr = state.current();
+  if (!state.expect(TokenType::kExpression, "Ожидался шаг цикла", diagnostics)) {
+    return false;
+  }
+
+  // Loop bound validation: must be integer constants
+  auto isInteger = [](const std::string& s) -> bool {
+    if (s.empty()) return false;
+    size_t start = (s[0] == '-') ? 1 : 0;
+    if (start >= s.length()) return false;
+    for (size_t i = start; i < s.length(); ++i) {
+      if (s[i] < '0' || s[i] > '9') return false;
+    }
+    return true;
+  };
+  if (!isInteger(startExpr.text) || !isInteger(endExpr.text) || !isInteger(stepExpr.text)) {
+    diagnostics.push_back(makeDiagnostic(startExpr.line, startExpr.column,
+      "Границы цикла for должны быть целыми числами"));
+    return false;
+  }
+
+  // Consume opening brace (may be on next line)
+  skipNewlines(state);
+  if (!state.expect(TokenType::kLeftBrace, "Ожидался символ { после заголовка for", diagnostics)) {
+    return false;
+  }
+
+  // Parse body: sequence of layer declarations
+  ForLoopStatement forLoop;
+  forLoop.loopVariable = loopVar.text;
+  forLoop.startExpression = startExpr.text;
+  forLoop.endExpression = endExpr.text;
+  forLoop.stepExpression = stepExpr.text;
+  forLoop.comparisonOperator = compOp;
+
+  skipNewlines(state);
+  while (state.current().type != TokenType::kRightBrace && state.current().type != TokenType::kEof) {
+    if (state.current().type == TokenType::kKeywordLayer) {
+      state.match(TokenType::kKeywordLayer);
+      LayerDeclaration bodyLayer;
+      // Temporarily redirect layer parsing into forLoop.body
+      // We need to parse a layer but add it to forLoop.body, not program.layers
+      // Reuse parseLayer logic inline
+      Token layerName = state.current();
+      if (!state.expect(TokenType::kIdentifier, "Ожидалось имя layer", diagnostics) ||
+          !state.expect(TokenType::kLeftBrace, "Ожидался символ { после layer", diagnostics)) {
+        return false;
+      }
+      bodyLayer.name = layerName.text;
+      skipNewlines(state);
+
+      while (state.current().type != TokenType::kRightBrace && state.current().type != TokenType::kEof) {
+        switch (state.current().type) {
+          case TokenType::kKeywordUse: {
+            state.match(TokenType::kKeywordUse);
+            Token valueToken = state.current();
+            if (!state.expect(TokenType::kIdentifier, "Ожидалось имя sprite после use", diagnostics)) {
+              return false;
+            }
+            bodyLayer.spriteName = valueToken.text;
+            break;
+          }
+          case TokenType::kKeywordColor: {
+            state.match(TokenType::kKeywordColor);
+            Token valueToken = state.current();
+            if (!state.expect(TokenType::kExpression, "Ожидалось выражение color", diagnostics)) {
+              return false;
+            }
+            bodyLayer.colorExpression = valueToken.text;
+            bodyLayer.colorLine = valueToken.line;
+            break;
+          }
+          case TokenType::kKeywordX:
+          case TokenType::kKeywordY:
+          case TokenType::kKeywordScale:
+          case TokenType::kKeywordRotation:
+          case TokenType::kKeywordBlend:
+          case TokenType::kKeywordVisible:
+          case TokenType::kKeywordFrame: {
+            const TokenType propertyType = state.current().type;
+            state.match(propertyType);
+            if (!state.expect(TokenType::kEquals, "Ожидался символ =", diagnostics)) {
+              return false;
+            }
+            Token valueToken = state.current();
+            if (!state.expect(TokenType::kExpression, "Ожидалось выражение свойства", diagnostics)) {
+              return false;
+            }
+            if (propertyType == TokenType::kKeywordX) {
+              bodyLayer.xExpression = valueToken.text;
+              bodyLayer.xLine = valueToken.line;
+            } else if (propertyType == TokenType::kKeywordY) {
+              bodyLayer.yExpression = valueToken.text;
+              bodyLayer.yLine = valueToken.line;
+            } else if (propertyType == TokenType::kKeywordScale) {
+              bodyLayer.scaleExpression = valueToken.text;
+              bodyLayer.scaleLine = valueToken.line;
+            } else if (propertyType == TokenType::kKeywordRotation) {
+              bodyLayer.rotationExpression = valueToken.text;
+              bodyLayer.rotationLine = valueToken.line;
+            } else if (propertyType == TokenType::kKeywordBlend) {
+              bodyLayer.blendMode = valueToken.text;
+              bodyLayer.blendLine = valueToken.line;
+            } else if (propertyType == TokenType::kKeywordFrame) {
+              bodyLayer.frameExpression = valueToken.text;
+              bodyLayer.frameLine = valueToken.line;
+            } else {
+              bodyLayer.visibleExpression = valueToken.text;
+              bodyLayer.visibleLine = valueToken.line;
+            }
+            break;
+          }
+          default:
+            diagnostics.push_back(makeDiagnostic(state.current().line, state.current().column,
+                                                 "Неожиданный токен в layer"));
+            return false;
+        }
+        skipNewlines(state);
+      }
+      if (!state.expect(TokenType::kRightBrace, "Ожидался символ } после layer", diagnostics)) {
+        return false;
+      }
+      forLoop.body.push_back(bodyLayer);
+      skipNewlines(state);
+    } else {
+      break;
+    }
+  }
+
+  if (!state.expect(TokenType::kRightBrace, "Ожидался символ } после тела for", diagnostics)) {
+    return false;
+  }
+
+  program.forLoops.push_back(forLoop);
   skipNewlines(state);
   return true;
 }
@@ -249,6 +531,14 @@ bool parseProgram(const std::string& source, Program& program,
       continue;
     }
 
+    if (state.current().type == TokenType::kKeywordFor) {
+      state.match(TokenType::kKeywordFor);
+      if (!parseForLoop(state, parsedProgram, diagnostics)) {
+        return false;
+      }
+      continue;
+    }
+
     if (state.current().type == TokenType::kUnknown) {
       diagnostics.push_back(makeDiagnostic(state.current().line, state.current().column,
                                            "Неожиданная конструкция DSL: " + state.current().text));
@@ -258,9 +548,10 @@ bool parseProgram(const std::string& source, Program& program,
     skipNewlines(state);
     if (state.current().type != TokenType::kEof && state.current().type != TokenType::kKeywordSprite &&
         state.current().type != TokenType::kKeywordLayer &&
-        state.current().type != TokenType::kKeywordText) {
+        state.current().type != TokenType::kKeywordText &&
+        state.current().type != TokenType::kKeywordFor) {
       diagnostics.push_back(makeDiagnostic(state.current().line, state.current().column,
-                                           "Ожидалось объявление sprite, text или layer"));
+                                           "Ожидалось объявление sprite, text, layer или for"));
       return false;
     }
   }
