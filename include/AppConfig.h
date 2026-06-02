@@ -7,8 +7,10 @@ namespace lamp::config {
 static constexpr uint8_t kPanelWidth = 16;
 static constexpr uint8_t kPanelHeight = 16;
 static constexpr uint8_t kPanelCount = 2;
-static constexpr uint8_t kLogicalWidth = kPanelWidth * kPanelCount;
-static constexpr uint8_t kLogicalHeight = kPanelHeight;
+static constexpr uint8_t kCylinderHeight = kPanelWidth;          // 16 rows along cylinder axis
+static constexpr uint8_t kCylinderCircumference = kPanelHeight * kPanelCount;  // 32 cols around
+static constexpr uint8_t kLogicalWidth = kCylinderHeight;         // X = height (wraps? NO)
+static constexpr uint8_t kLogicalHeight = kCylinderCircumference; // Y = circumference (wraps? YES)
 static constexpr uint16_t kPixelCount = kLogicalWidth * kLogicalHeight;
 
 static constexpr uint8_t kLedDataPin = 2;

@@ -58,18 +58,17 @@ void FrameBuffer::fillRect(int16_t x, int16_t y, uint8_t w, uint8_t h, Rgb color
 }
 
 void FrameBuffer::drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Rgb color) {
-  // On a cylinder, choose the shorter horizontal direction.
-  // Direct Cartesian distance vs. wrapped distance around the cylinder.
-  const int16_t w = static_cast<int16_t>(layout_.colCount());
-  int16_t rawDx = x1 - x0;
-  int16_t wrapDx = rawDx;
-  if (rawDx > w / 2)       wrapDx = rawDx - w;
-  else if (rawDx < -w / 2) wrapDx = rawDx + w;
+  // On a cylinder, choose the shorter direction around circumference (Y axis).
+  const int16_t h = static_cast<int16_t>(layout_.colCount());  // circumference
+  int16_t rawDy = y1 - y0;
+  int16_t wrapDy = rawDy;
+  if (rawDy > h / 2)       wrapDy = rawDy - h;
+  else if (rawDy < -h / 2) wrapDy = rawDy + h;
 
-  int16_t dx = abs(wrapDx);
-  int16_t dy = -abs(y1 - y0);
-  int16_t sx = wrapDx >= 0 ? 1 : -1;
-  int16_t sy = y0 < y1 ? 1 : -1;
+  int16_t dx = abs(x1 - x0);
+  int16_t dy = -abs(wrapDy);
+  int16_t sx = x0 < x1 ? 1 : -1;
+  int16_t sy = wrapDy >= 0 ? 1 : -1;
   int16_t err = dx + dy;
 
   while (true) {

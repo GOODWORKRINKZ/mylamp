@@ -177,17 +177,22 @@ lamp::Rgb blendColors(BlendMode blendMode, lamp::Rgb destination, lamp::Rgb sour
 void renderSpritePixel(const CompiledProgram& program, const CompiledLayer& layer,
                        const EvaluationContext& baseContext, lamp::FrameBuffer& frameBuffer,
                        int16_t renderX, int16_t renderY) {
-  EvaluationContext pixelContext = baseContext;
-  pixelContext.x = static_cast<float>(renderX);
-  pixelContext.y = static_cast<float>(renderY);
-  pixelContext.nx = static_cast<float>(renderX) /
-                    static_cast<float>(lamp::config::kLogicalWidth - 1U);
-  pixelContext.ny = static_cast<float>(renderY) /
-                    static_cast<float>(lamp::config::kLogicalHeight - 1U);
+  // XY swap: DSL "x" axis = physical Y (cylinder circumference, wraps),
+  //          DSL "y" axis = physical X (cylinder height, bounded).
+  const int16_t physX = renderY;  // DSL x → physical Y
+  const int16_t physY = renderX;  // DSL y → physical X
 
-  const lamp::Rgb destinationColor = frameBuffer.getPixel(renderX, renderY);
+  EvaluationContext pixelContext = baseContext;
+  pixelContext.x = static_cast<float>(physX);
+  pixelContext.y = static_cast<float>(physY);
+  pixelContext.nx = static_cast<float>(physX) /
+                    static_cast<float>(lamp::config::kLogicalHeight - 1U);
+  pixelContext.ny = static_cast<float>(physY) /
+                    static_cast<float>(lamp::config::kLogicalWidth - 1U);
+
+  const lamp::Rgb destinationColor = frameBuffer.getPixel(physX, physY);
   const lamp::Rgb sourceColor = evaluateColor(program, layer.color, pixelContext);
-  frameBuffer.setPixel(renderX, renderY, blendColors(layer.blendMode, destinationColor, sourceColor));
+  frameBuffer.setPixel(physX, physY, blendColors(layer.blendMode, destinationColor, sourceColor));
 }
 
 }  // namespace

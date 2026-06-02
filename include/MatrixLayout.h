@@ -7,7 +7,7 @@
 namespace lamp {
 
 struct PanelLayout {
-  uint8_t logicalOffsetX;
+  uint8_t logicalOffsetY;  // Panel's Y offset in logical space
   bool serpentine;
   bool reverseX;
   bool reverseY;
@@ -16,24 +16,24 @@ struct PanelLayout {
 class MatrixLayout {
  public:
   static constexpr uint16_t kInvalidIndex = 0xFFFF;
-  static constexpr float kCircumference = static_cast<float>(config::kLogicalWidth);
 
   MatrixLayout();
 
   bool isInside(int16_t x, int16_t y) const;
   uint16_t toLinearIndex(int16_t x, int16_t y) const;
   uint16_t wrapX(int16_t x) const;
+  uint16_t wrapY(int16_t y) const;
 
-  /// Angle → X column: 0° → 0, 360° → 0 (wraps), 180° → 16.
-  uint8_t angleToX(float degrees) const;
+  /// Angle → Y column: 0° → 0, 360° → 0 (wraps), 180° → 16.
+  uint8_t angleToY(float degrees) const;
 
-  /// X column → angle in degrees [0, 360).
-  float xToAngle(uint8_t x) const;
+  /// Y column → angle in degrees [0, 360).
+  float yToAngle(uint8_t y) const;
 
-  /// Number of rows (Y dimension).
+  /// Height of cylinder (X axis).
   uint8_t rowCount() const;
 
-  /// Number of columns (X dimension = circumference).
+  /// Circumference of cylinder (Y axis).
   uint8_t colCount() const;
 
  private:
