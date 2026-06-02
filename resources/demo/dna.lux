@@ -1,0 +1,26 @@
+effect "dna"
+
+sprite dot {
+  bitmap """
+  #
+  """
+}
+
+for i = 0; i < 16; i = i + 1 {
+  layer h1 {
+    use dot
+    color rgb(80, 200, 255)
+    x = 8 + sin(t * 2 + i * 0.4) * 6
+    y = i * 2
+    scale = 1
+    visible = 1
+  }
+  layer h2 {
+    use dot
+    color rgb(255, 80, 120)
+    x = 8 + sin(t * 2 + i * 0.4 + 3.1415) * 6
+    y = i * 2
+    scale = 1
+    visible = 1
+  }
+}

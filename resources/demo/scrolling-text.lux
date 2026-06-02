@@ -1,0 +1,12 @@
+effect "scrolling_text"
+
+text msg "MYLAMP "
+
+layer scroller {
+  use msg
+  color rgb(255, 200, 50)
+  x = (t * 6) % 32
+  y = 5
+  scale = 1
+  visible = 1
+}
