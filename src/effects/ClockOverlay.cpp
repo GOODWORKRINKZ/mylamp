@@ -114,15 +114,17 @@ void ClockOverlay::render(const std::string& currentTime, lamp::FrameBuffer& fra
   drawChar(originX, y, currentTime[6], kDigitColor, frameBuffer);  y += kDigitWidth + kDigitGap;
   drawChar(originX, y, currentTime[7], kDigitColor, frameBuffer);
 
-  // Sensor line below clock.
+  // Sensor line below clock — rotates opposite direction.
   if (sensorAvailable) {
     constexpr lamp::Rgb kTempColor{100, 200, 255};
     constexpr lamp::Rgb kHumColor{100, 255, 150};
     const int16_t sx = originX + kDigitHeight + 2;
+    const int16_t sensorY = static_cast<int16_t>(lamp::config::kLogicalHeight)
+                             - kTotal - kOverlayMarginRight + yOffset;  // opposite!
     char buf[6];
     snprintf(buf, sizeof(buf), "%d", static_cast<int>(temperatureC));
-    drawString(sx, originY, buf, kTempColor, frameBuffer);
-    int16_t sy = originY + static_cast<int16_t>(strlen(buf)) * (kDigitWidth + kDigitGap);
+    drawString(sx, sensorY, buf, kTempColor, frameBuffer);
+    int16_t sy = sensorY + static_cast<int16_t>(strlen(buf)) * (kDigitWidth + kDigitGap);
     drawChar(sx, sy, 'C', kTempColor, frameBuffer);
     sy += kDigitWidth + kDigitGap + 2;
     snprintf(buf, sizeof(buf), "%d", static_cast<int>(humidityPercent));
