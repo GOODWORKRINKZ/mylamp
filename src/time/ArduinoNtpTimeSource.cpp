@@ -15,10 +15,14 @@ bool ArduinoNtpTimeSource::syncTime(const char* timezone, const char* primarySer
     configuredTimezone_ = requestedTimezone;
   }
 
-  tm timeinfo{};
-  if (!getLocalTime(&timeinfo, 1000)) {
+  time_t now_epoch;
+  ::time(&now_epoch);
+  if (now_epoch < 1700000000) {
     return validTime_;
   }
+
+  tm timeinfo{};
+  localtime_r(&now_epoch, &timeinfo);
 
   char buffer[16];
   if (strftime(buffer, sizeof(buffer), "%H:%M:%S", &timeinfo) == 0) {

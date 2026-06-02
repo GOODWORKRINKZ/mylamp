@@ -27,6 +27,8 @@ struct StatusSnapshot {
   bool autoplayEnabled = false;
   std::string activePlaylistId;
   std::string liveErrorSummary;
+  uint32_t fps = 0;
+  uint32_t loopUs = 0;
 };
 
 std::string buildStatusJson(const StatusSnapshot& snapshot);

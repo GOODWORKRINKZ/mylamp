@@ -110,7 +110,9 @@ std::string buildStatusJson(const StatusSnapshot& snapshot) {
   appendField(json, "activePresetName", snapshot.activePresetName, true);
   appendBoolField(json, "autoplayEnabled", snapshot.autoplayEnabled, true);
   appendField(json, "activePlaylistId", snapshot.activePlaylistId, true);
-  appendField(json, "liveErrorSummary", snapshot.liveErrorSummary, false);
+  appendField(json, "liveErrorSummary", snapshot.liveErrorSummary, true);
+  appendFloatField(json, "fps", true, static_cast<float>(snapshot.fps), true);
+  appendFloatField(json, "loopUs", true, static_cast<float>(snapshot.loopUs), false);
   json += '}';
   return json;
 }

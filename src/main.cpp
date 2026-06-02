@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <FastLED.h>
 #include <LittleFS.h>
 
 #include "AppConfig.h"
@@ -73,7 +74,11 @@ lamp::update::FirmwareUpdateService g_updateService(
 lamp::live::runtime::LiveProgramService g_liveProgramService;
 lamp::live::runtime::PlaylistScheduler g_playlistScheduler;
 lamp::web::LampWebServer g_webServer;
+CRGB g_leds[lamp::config::kPixelCount];
 unsigned long g_lastHeartbeatMs = 0;
+unsigned long g_lastFpsReportMs = 0;
+unsigned long g_frameCount = 0;
+unsigned long g_lastLoopUs = 0;
 unsigned long g_lastTimeRefreshMs = 0;
 unsigned long g_lastSensorRefreshMs = 0;
 unsigned long g_lastPlaylistTickMs = 0;
@@ -111,6 +116,11 @@ void renderOverlayPass() {
 }
 
 void commitFrame() {
+  for (uint16_t i = 0; i < lamp::config::kPixelCount; ++i) {
+    const lamp::Rgb src = g_frameBuffer.pixelAtIndex(i);
+    g_leds[i] = CRGB(src.r, src.g, src.b);
+  }
+  FastLED.show();
 }
 
 void renderFrame(unsigned long nowMs) {
@@ -191,6 +201,10 @@ lamp::web::StatusSnapshot buildStatusSnapshot() {
   snapshot.autoplayEnabled = liveState.autoplayActive;
   snapshot.activePlaylistId = g_playlistScheduler.state().activePlaylistId;
   snapshot.liveErrorSummary = g_liveErrorSummary;
+  snapshot.fps = g_frameCount > 0 && (millis() - g_lastFpsReportMs) > 0
+                     ? g_frameCount * 1000UL / (millis() - g_lastFpsReportMs)
+                     : 0;
+  snapshot.loopUs = g_lastLoopUs;
   return snapshot;
 }
 
@@ -292,6 +306,12 @@ void printBootBanner() {
 void setup() {
   Serial.begin(115200);
   delay(200);
+
+  FastLED.addLeds<WS2812B, lamp::config::kLedDataPin, GRB>(g_leds, lamp::config::kPixelCount);
+  FastLED.setBrightness(lamp::config::kDefaultBrightness);
+  FastLED.clear();
+  FastLED.show();
+
   initializeFileSystem();
   if (!g_settingsBackend.begin()) {
     Serial.println("settings: failed to initialize NVS backend, using defaults");
@@ -363,5 +383,12 @@ void loop() {
     Serial.print("sensor state: ");
     Serial.println(g_sensorState.statusLine.c_str());
   }
+  const unsigned long loopStart = micros();
   renderFrame(now);
+  g_lastLoopUs = micros() - loopStart;
+  ++g_frameCount;
+  if (now - g_lastFpsReportMs >= 5000UL) {
+    g_lastFpsReportMs = now;
+    g_frameCount = 0;
+  }
 }

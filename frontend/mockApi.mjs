@@ -118,7 +118,7 @@ function makeTimeSettings(overrides = {}) {
 
 function createMockState(scenarioId) {
   const presets = [
-    makePreset("warm-waves", "Теплые волны", snippetSources["warm-waves"], ["warm", "ambient"]),
+    makePreset("upside-down", "Изнанка", snippetSources["upside-down"], ["dark", "atmospheric"]),
     makePreset("clock", "Часы", snippetSources.clock, ["utility"]),
     makePreset("heart", "Летающее сердечко", snippetSources.heart, ["kids"]),
   ];

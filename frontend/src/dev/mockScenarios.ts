@@ -55,7 +55,7 @@ const snippetById = new Map(starterSnippets.map((snippet) => [snippet.id, snippe
 
 function seedPresets(): PresetPayload[] {
   return [
-    makePreset("warm-waves", "Теплые волны", snippetById.get("warm-waves")?.source ?? "", ["warm", "ambient"]),
+    makePreset("upside-down", "Изнанка", snippetById.get("upside-down")?.source ?? "", ["dark", "atmospheric"]),
     makePreset("clock", "Часы", snippetById.get("clock")?.source ?? "", ["utility"]),
     makePreset("heart", "Летающее сердечко", snippetById.get("heart")?.source ?? "", ["kids"]),
   ];
