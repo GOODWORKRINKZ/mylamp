@@ -165,6 +165,7 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
             appendToken(tokens, TokenType::kLeftBrace, "{", frameLineNumber,
                         static_cast<uint32_t>(frameTrimmed.find('{') + 1U));
             appendToken(tokens, TokenType::kNewline, "", frameLineNumber, 1U);
+            ++braceDepth;  // Account for frame's opening brace
             continue;
           }
           if (frameTrimmed == "bitmap \"\"\"") {
@@ -190,11 +191,6 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
             appendToken(tokens, TokenType::kMultilineString, bitmap, frameLineNumber, 8U);
             appendToken(tokens, TokenType::kNewline, "",
                         static_cast<uint32_t>(index + 1U), 1U);
-            continue;
-          }
-          if (frameTrimmed == "}") {
-            appendToken(tokens, TokenType::kRightBrace, "}", frameLineNumber, 1U);
-            appendToken(tokens, TokenType::kNewline, "", frameLineNumber, 1U);
             continue;
           }
           // Unknown content inside sprite body
@@ -226,6 +222,7 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
       // Tokenize the for-header by splitting on semicolons
       std::string::size_type pos = 0;
       int clauseIndex = 0;
+      std::string loopVarName;  // Track loop variable for step-clause stripping
       while (pos < header.length() && clauseIndex < 3) {
         std::string::size_type semi = header.find(';', pos);
         std::string clause;
@@ -237,20 +234,36 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
           pos = semi + 1;
         }
 
-        // Tokenize each clause: identifier = expression
+        // Tokenize each clause
         std::string::size_type eqPos = clause.find('=');
         if (eqPos != std::string::npos) {
           std::string varName = trim(clause.substr(0, eqPos));
           std::string expr = trim(clause.substr(eqPos + 1));
-          appendToken(tokens, TokenType::kIdentifier, varName, lineNumber,
-                      static_cast<uint32_t>(trimmed.find(varName) + 1U));
-          appendToken(tokens, TokenType::kEquals, "=", lineNumber,
-                      static_cast<uint32_t>(trimmed.find('=') + 1U));
-          appendToken(tokens, TokenType::kExpression, expr, lineNumber,
-                      static_cast<uint32_t>(trimmed.find(expr) + 1U));
+          if (clauseIndex == 0) loopVarName = varName;
+
+          if (clauseIndex == 2 && startsWith(expr, loopVarName + " + ")) {
+            // Step clause in form "i = i + N" → emit "i", "=", "i", "+", "N"
+            std::string stepVal = trim(expr.substr(loopVarName.length() + 3));
+            appendToken(tokens, TokenType::kIdentifier, varName, lineNumber,
+                        static_cast<uint32_t>(trimmed.find(varName) + 1U));
+            appendToken(tokens, TokenType::kEquals, "=", lineNumber,
+                        static_cast<uint32_t>(trimmed.find('=') + 1U));
+            appendToken(tokens, TokenType::kIdentifier, loopVarName, lineNumber,
+                        static_cast<uint32_t>(trimmed.find(loopVarName) + 1U));
+            appendToken(tokens, TokenType::kUnknown, "+", lineNumber,
+                        static_cast<uint32_t>(trimmed.find('+') + 1U));
+            appendToken(tokens, TokenType::kExpression, stepVal, lineNumber,
+                        static_cast<uint32_t>(trimmed.find(stepVal) + 1U));
+          } else {
+            appendToken(tokens, TokenType::kIdentifier, varName, lineNumber,
+                        static_cast<uint32_t>(trimmed.find(varName) + 1U));
+            appendToken(tokens, TokenType::kEquals, "=", lineNumber,
+                        static_cast<uint32_t>(trimmed.find('=') + 1U));
+            appendToken(tokens, TokenType::kExpression, expr, lineNumber,
+                        static_cast<uint32_t>(trimmed.find(expr) + 1U));
+          }
         } else if (clauseIndex == 1) {
           // Middle clause: loopVar comparisonOp expression
-          // Split on comparison operator
           std::string op;
           std::string::size_type opPos = std::string::npos;
           const char* ops[] = {"<=", ">=", "<", ">"};
@@ -277,7 +290,7 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
 
         if (semi != std::string::npos) {
           appendToken(tokens, TokenType::kSemicolon, ";", lineNumber,
-                      static_cast<uint32_t>(trimmed.find(';', pos - 1) + 1U));
+                      static_cast<uint32_t>(trimmed.find(';') + 1U));
         }
       }
 

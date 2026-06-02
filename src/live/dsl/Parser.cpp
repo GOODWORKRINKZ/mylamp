@@ -312,7 +312,7 @@ bool parseForLoop(ParserState& state, Program& program,
   // Optional semicolon
   state.match(TokenType::kSemicolon);
 
-  // Parse step: loopVar = loopVar + expression (or loopVar = expression)
+  // Parse step: loopVar = expression (the expression may contain the loop var, e.g. "i + 1")
   Token stepVar1 = state.current();
   if (!state.expect(TokenType::kIdentifier, "Ожидалось имя переменной цикла", diagnostics)) {
     return false;
@@ -325,21 +325,16 @@ bool parseForLoop(ParserState& state, Program& program,
   if (!state.expect(TokenType::kEquals, "Ожидался символ =", diagnostics)) {
     return false;
   }
-  Token stepVar2 = state.current();
-  if (!state.expect(TokenType::kIdentifier, "Ожидалось имя переменной цикла", diagnostics)) {
-    return false;
-  }
-  if (stepVar2.text != loopVar.text) {
-    diagnostics.push_back(makeDiagnostic(stepVar2.line, stepVar2.column,
-      "Имя переменной цикла должно совпадать: " + loopVar.text));
-    return false;
-  }
 
-  // Consume '+' operator
-  state.match(TokenType::kUnknown);
-
-  // Step expression
+  // Step expression: may be simple "1" or compound "i + 1"
   Token stepExpr = state.current();
+  if (state.current().type == TokenType::kIdentifier &&
+      state.current().text == loopVar.text) {
+    // Compound form: i = i + N → consume i, +, N
+    state.match(TokenType::kIdentifier);
+    state.match(TokenType::kUnknown);  // consume '+'
+    stepExpr = state.current();
+  }
   if (!state.expect(TokenType::kExpression, "Ожидался шаг цикла", diagnostics)) {
     return false;
   }
