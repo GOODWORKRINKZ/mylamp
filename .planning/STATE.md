@@ -12,8 +12,8 @@ See: .planning/PROJECT.md (updated 2026-06-02)
 ## Current State
 
 - **Milestone:** v1 (initial)
-- **Active Phase:** Phase 5 (executing)
-- **Active Plan:** 05-01 (DSL Grammar Extensions)
+- **Active Phase:** None (Phase 5 complete)
+- **Active Plan:** None
 
 ## Phase Progress
 
@@ -23,12 +23,15 @@ See: .planning/PROJECT.md (updated 2026-06-02)
 | 2 | Cylindrical Geometry | ● Complete | CYL-01–06 |
 | 3 | Clock Overlay | ● Complete | CLOCK-01–03 |
 | 4 | Perf & Bugs | ● Complete | PERF-01–03 |
-| 5 | Demo Effects & DSL | ◐ Planned (4 plans, 4 waves) | DSL-01–03 |
+| 5 | Demo Effects & DSL | ● Complete | DSL-01–03 |
 
 ## Next Actions
 
-1. `/gsd-execute-phase 5` — execute DSL extensions, demo effects, and frontend changes
-2. Flash dev build to device for visual UAT of Phase 4 fixes + Phase 5 demos
+1. Flash dev build to device for visual UAT of Phase 5 demos
+2. Run `platformio run -e esp32-c3-supermini-dev --target upload`
+3. Verify: Mario animates with correct NES colors on cylinder
+4. Verify: Share button copies link, decode loads effect
+5. `gsd-complete-milestone` — archive v1 milestone
 
 ---
-*Last updated: 2026-06-02 after Phase 5 context gathering*
+*Last updated: 2026-06-02 after Phase 5 execution*
