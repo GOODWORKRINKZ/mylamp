@@ -2,8 +2,10 @@
 
 #include <ctype.h>
 
+#include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "live/runtime/PixelFont.h"
@@ -375,11 +377,66 @@ bool compileColor(const std::string& expression, std::vector<ExpressionNode>& no
   return true;
 }
 
-CompiledSprite compileSprite(const lamp::live::dsl::SpriteDeclaration& sprite) {
+CompiledSprite compileSprite(const lamp::live::dsl::SpriteDeclaration& sprite,
+                             const lamp::live::dsl::Program& program) {
   CompiledSprite compiledSprite;
   compiledSprite.name = sprite.name;
 
-  auto parseBitmap = [](const std::string& bitmap, CompiledSprite& cs) {
+  // Build palette map if sprite references a palette
+  std::unordered_map<char, std::string> paletteColors;
+  if (!sprite.paletteName.empty()) {
+    compiledSprite.hasPalette = true;
+    for (const auto& pal : program.palettes) {
+      if (pal.name == sprite.paletteName) {
+        for (const auto& entry : pal.entries) {
+          paletteColors[entry.key] = entry.colorExpression;
+        }
+        break;
+      }
+    }
+  }
+
+  // Helper: parse rgb(r,g,b) or hsv(h,s,v) into 8-bit RGB
+  auto parsePaletteColor = [](const std::string& expr, uint8_t& r, uint8_t& g, uint8_t& b) -> bool {
+    if (expr.find("rgb(") == 0) {
+      int ri = 0, gi = 0, bi = 0;
+      if (sscanf(expr.c_str(), "rgb(%d, %d, %d)", &ri, &gi, &bi) == 3) {
+        r = static_cast<uint8_t>(std::max(0, std::min(255, ri)));
+        g = static_cast<uint8_t>(std::max(0, std::min(255, gi)));
+        b = static_cast<uint8_t>(std::max(0, std::min(255, bi)));
+        return true;
+      }
+    } else if (expr.find("hsv(") == 0) {
+      int hi = 0, si = 0, vi = 0;
+      if (sscanf(expr.c_str(), "hsv(%d, %d, %d)", &hi, &si, &vi) == 3) {
+        // Simple HSV→RGB for integer values (h=0-360, s=0-100, v=0-100)
+        float h = static_cast<float>(hi % 360) / 60.0f;
+        float s = static_cast<float>(std::max(0, std::min(100, si))) / 100.0f;
+        float v = static_cast<float>(std::max(0, std::min(100, vi))) / 100.0f;
+        int hiIdx = static_cast<int>(h);
+        float f = h - static_cast<float>(hiIdx);
+        float p = v * (1.0f - s);
+        float q = v * (1.0f - s * f);
+        float t = v * (1.0f - s * (1.0f - f));
+        float rf = 0, gf = 0, bf = 0;
+        switch (hiIdx % 6) {
+          case 0: rf = v; gf = t; bf = p; break;
+          case 1: rf = q; gf = v; bf = p; break;
+          case 2: rf = p; gf = v; bf = t; break;
+          case 3: rf = p; gf = q; bf = v; break;
+          case 4: rf = t; gf = p; bf = v; break;
+          case 5: rf = v; gf = p; bf = q; break;
+        }
+        r = static_cast<uint8_t>(rf * 255.0f);
+        g = static_cast<uint8_t>(gf * 255.0f);
+        b = static_cast<uint8_t>(bf * 255.0f);
+        return true;
+      }
+    }
+    return false;
+  };
+
+  auto parseBitmap = [&](const std::string& bitmap, CompiledSprite& cs) {
     int16_t y = 0;
     int16_t maxWidth = 0;
     std::string currentLine;
@@ -396,6 +453,19 @@ CompiledSprite compileSprite(const lamp::live::dsl::SpriteDeclaration& sprite) {
         CompiledSpritePixel pixel;
         pixel.x = x;
         pixel.y = y;
+        // Resolve palette color if available
+        if (!paletteColors.empty()) {
+          auto it = paletteColors.find(ch);
+          if (it != paletteColors.end()) {
+            uint8_t pr = 255, pg = 255, pb = 255;
+            if (parsePaletteColor(it->second, pr, pg, pb)) {
+              pixel.pr = pr;
+              pixel.pg = pg;
+              pixel.pb = pb;
+              pixel.hasPixelColor = true;
+            }
+          }
+        }
         cs.pixels.push_back(pixel);
       }
     }
@@ -486,7 +556,7 @@ bool Compiler::compile(const dsl::Program& program, CompiledProgram& compiledPro
   compiled.effectName = program.effectName;
 
   for (const lamp::live::dsl::SpriteDeclaration& sprite : program.sprites) {
-    compiled.sprites.push_back(compileSprite(sprite));
+    compiled.sprites.push_back(compileSprite(sprite, program));
   }
 
   for (const lamp::live::dsl::TextDeclaration& text : program.texts) {

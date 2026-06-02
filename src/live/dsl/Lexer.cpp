@@ -124,8 +124,24 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
     }
 
     if (parseBlockHeader(trimmed, "sprite", value)) {
+      // value may be "mario" or "mario palette mario_pal"
+      std::string spriteName = value;
+      std::string paletteName;
+
+      size_t palPos = spriteName.find(" palette ");
+      if (palPos != std::string::npos) {
+        paletteName = trim(spriteName.substr(palPos + 9));
+        spriteName = trim(spriteName.substr(0, palPos));
+      }
+
       appendToken(tokens, TokenType::kKeywordSprite, "sprite", lineNumber, 1U);
-      appendToken(tokens, TokenType::kIdentifier, value, lineNumber, 8U);
+      appendToken(tokens, TokenType::kIdentifier, spriteName, lineNumber, 8U);
+      if (!paletteName.empty()) {
+        appendToken(tokens, TokenType::kKeywordPalette, "palette", lineNumber,
+                    static_cast<uint32_t>(trimmed.find("palette") + 1U));
+        appendToken(tokens, TokenType::kIdentifier, paletteName, lineNumber,
+                    static_cast<uint32_t>(trimmed.find(paletteName) + 1U));
+      }
       appendToken(tokens, TokenType::kLeftBrace, "{", lineNumber,
                   static_cast<uint32_t>(trimmed.find('{') + 1U));
       appendToken(tokens, TokenType::kNewline, "", lineNumber, 1U);
@@ -204,6 +220,49 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
         // Single-bitmap path: let the normal bitmap handler process it
         // (backward compatible, D-04)
       }
+      continue;
+    }
+
+    if (startsWith(trimmed, "palette ")) {
+      std::string paletteName;
+      if (!parseBlockHeader(trimmed, "palette", paletteName)) {
+        diagnostics.push_back(makeDiagnostic(lineNumber, 1U,
+                                             "Ожидалось имя палитры после palette"));
+        return false;
+      }
+      appendToken(tokens, TokenType::kKeywordPalette, "palette", lineNumber, 1U);
+      appendToken(tokens, TokenType::kIdentifier, paletteName, lineNumber, 9U);
+      appendToken(tokens, TokenType::kLeftBrace, "{", lineNumber,
+                  static_cast<uint32_t>(trimmed.find('{') + 1U));
+      appendToken(tokens, TokenType::kNewline, "", lineNumber, 1U);
+
+      // Parse palette body: <char> = <color expr> per line
+      for (++index; index < lines.size(); ++index) {
+        const uint32_t palLine = static_cast<uint32_t>(index + 1U);
+        const std::string palTrimmed = trim(lines[index]);
+        if (palTrimmed.empty()) {
+          appendToken(tokens, TokenType::kNewline, "", palLine, 1U);
+          continue;
+        }
+        if (palTrimmed == "}") {
+          appendToken(tokens, TokenType::kRightBrace, "}", palLine, 1U);
+          appendToken(tokens, TokenType::kNewline, "", palLine, 1U);
+          break;
+        }
+        // Parse: <char> = <expression>
+        if (palTrimmed.length() >= 3 && palTrimmed[1] == ' ' && palTrimmed[2] == '=') {
+          char key = palTrimmed[0];
+          appendToken(tokens, TokenType::kIdentifier, std::string(1, key), palLine,
+                      static_cast<uint32_t>(trimmed.find(key) + 1U));
+          appendToken(tokens, TokenType::kEquals, "=", palLine,
+                      static_cast<uint32_t>(palTrimmed.find('=') + 1U));
+          std::string expr = trim(palTrimmed.substr(3));
+          appendToken(tokens, TokenType::kExpression, expr, palLine,
+                      static_cast<uint32_t>(palTrimmed.find(expr) + 1U));
+          appendToken(tokens, TokenType::kNewline, "", palLine, 1U);
+        }
+      }
+      if (index > 0) --index;
       continue;
     }
 

@@ -55,15 +55,26 @@ void skipNewlines(ParserState& state) {
 bool parseSprite(ParserState& state, Program& program,
                  std::vector<lamp::live::Diagnostic>& diagnostics) {
   Token nameToken = state.current();
-  if (!state.expect(TokenType::kIdentifier, "Ожидалось имя sprite", diagnostics) ||
-      !state.expect(TokenType::kLeftBrace, "Ожидался символ { после sprite", diagnostics)) {
+  if (!state.expect(TokenType::kIdentifier, "Ожидалось имя sprite", diagnostics)) {
     return false;
   }
 
-  skipNewlines(state);
-
   SpriteDeclaration sprite;
   sprite.name = nameToken.text;
+
+  // Optional palette reference: sprite name palette palname {
+  if (state.current().type == TokenType::kKeywordPalette) {
+    state.match(TokenType::kKeywordPalette);
+    Token palToken = state.current();
+    if (!state.expect(TokenType::kIdentifier, "Ожидалось имя палитры после palette", diagnostics)) {
+      return false;
+    }
+    sprite.paletteName = palToken.text;
+  }
+
+  if (!state.expect(TokenType::kLeftBrace, "Ожидался символ { после sprite", diagnostics)) {
+    return false;
+  }
 
   // Detect sprite style: single-bitmap (kKeywordBitmap) or multi-frame (kKeywordFrame)
   if (state.current().type == TokenType::kKeywordFrame) {
@@ -472,6 +483,58 @@ bool parseForLoop(ParserState& state, Program& program,
   return true;
 }
 
+bool parsePalette(ParserState& state, Program& program,
+                  std::vector<lamp::live::Diagnostic>& diagnostics) {
+  // palette keyword already consumed by caller (parseProgram)
+  Token nameToken = state.current();
+  if (!state.expect(TokenType::kIdentifier, "Ожидалось имя палитры", diagnostics) ||
+      !state.expect(TokenType::kLeftBrace, "Ожидался символ { после имени палитры", diagnostics)) {
+    return false;
+  }
+
+  PaletteDeclaration palette;
+  palette.name = nameToken.text;
+  skipNewlines(state);
+
+  while (state.current().type != TokenType::kRightBrace && state.current().type != TokenType::kEof) {
+    // Each entry: <single-char identifier> = <color expression>
+    Token keyToken = state.current();
+    if (!state.expect(TokenType::kIdentifier, "Ожидался символ палитры", diagnostics)) {
+      return false;
+    }
+    if (keyToken.text.length() != 1) {
+      diagnostics.push_back(makeDiagnostic(keyToken.line, keyToken.column,
+        "Ключ палитры должен быть одним символом: " + keyToken.text));
+      return false;
+    }
+    char key = keyToken.text[0];
+
+    if (!state.expect(TokenType::kEquals, "Ожидался символ =", diagnostics)) {
+      return false;
+    }
+
+    Token colorToken = state.current();
+    if (!state.expect(TokenType::kExpression, "Ожидалось выражение цвета", diagnostics)) {
+      return false;
+    }
+
+    PaletteEntry entry;
+    entry.key = key;
+    entry.colorExpression = colorToken.text;
+    palette.entries.push_back(entry);
+
+    skipNewlines(state);
+  }
+
+  if (!state.expect(TokenType::kRightBrace, "Ожидался символ } после палитры", diagnostics)) {
+    return false;
+  }
+
+  program.palettes.push_back(palette);
+  skipNewlines(state);
+  return true;
+}
+
 }  // namespace
 
 bool parseProgram(const std::string& source, Program& program,
@@ -502,6 +565,14 @@ bool parseProgram(const std::string& source, Program& program,
   skipNewlines(state);
 
   while (state.current().type != TokenType::kEof) {
+    if (state.current().type == TokenType::kKeywordPalette) {
+      state.match(TokenType::kKeywordPalette);
+      if (!parsePalette(state, parsedProgram, diagnostics)) {
+        return false;
+      }
+      continue;
+    }
+
     if (state.current().type == TokenType::kKeywordSprite) {
       state.match(TokenType::kKeywordSprite);
       if (!parseSprite(state, parsedProgram, diagnostics)) {
@@ -544,9 +615,10 @@ bool parseProgram(const std::string& source, Program& program,
     if (state.current().type != TokenType::kEof && state.current().type != TokenType::kKeywordSprite &&
         state.current().type != TokenType::kKeywordLayer &&
         state.current().type != TokenType::kKeywordText &&
-        state.current().type != TokenType::kKeywordFor) {
+        state.current().type != TokenType::kKeywordFor &&
+        state.current().type != TokenType::kKeywordPalette) {
       diagnostics.push_back(makeDiagnostic(state.current().line, state.current().column,
-                                           "Ожидалось объявление sprite, text, layer или for"));
+                                           "Ожидалось объявление palette, sprite, text, layer или for"));
       return false;
     }
   }

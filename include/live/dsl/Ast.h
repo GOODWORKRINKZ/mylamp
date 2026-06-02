@@ -11,9 +11,20 @@ struct SpriteFrameDeclaration {
   std::string bitmap;
 };
 
+struct PaletteEntry {
+  char key;
+  std::string colorExpression;
+};
+
+struct PaletteDeclaration {
+  std::string name;
+  std::vector<PaletteEntry> entries;
+};
+
 struct SpriteDeclaration {
   std::string name;
   std::string bitmap;
+  std::string paletteName;
   std::vector<SpriteFrameDeclaration> frames;
 };
 
@@ -54,6 +65,7 @@ struct ForLoopStatement {
 
 struct Program {
   std::string effectName;
+  std::vector<PaletteDeclaration> palettes;
   std::vector<SpriteDeclaration> sprites;
   std::vector<TextDeclaration> texts;
   std::vector<LayerDeclaration> layers;

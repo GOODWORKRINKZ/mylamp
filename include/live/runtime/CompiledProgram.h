@@ -61,6 +61,10 @@ struct CompiledColor {
 struct CompiledSpritePixel {
   int16_t x = 0;
   int16_t y = 0;
+  uint8_t pr = 0;
+  uint8_t pg = 0;
+  uint8_t pb = 0;
+  bool hasPixelColor = false;
 };
 
 struct CompiledSprite {
@@ -69,6 +73,7 @@ struct CompiledSprite {
   int16_t height = 0;
   std::vector<CompiledSpritePixel> pixels;
   std::vector<std::vector<CompiledSpritePixel>> frames;
+  bool hasPalette = false;
 };
 
 struct CompiledLayer {

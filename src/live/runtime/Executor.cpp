@@ -264,7 +264,17 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
           const int16_t renderY = static_cast<int16_t>(std::lround(
               centerY + offsetX * sinRotation + offsetY * cosRotation - 0.5f));
 
-          renderSpritePixel(program, layer, baseContext, frameBuffer, renderX, renderY);
+          if (pixel.hasPixelColor) {
+            // Direct per-pixel palette color (bypasses layer color expression)
+            const int16_t physX = renderY;
+            const int16_t physY = renderX;
+            const lamp::Rgb destinationColor = frameBuffer.getPixel(physX, physY);
+            const lamp::Rgb sourceColor{pixel.pr, pixel.pg, pixel.pb};
+            frameBuffer.setPixel(physX, physY,
+                                 blendColors(layer.blendMode, destinationColor, sourceColor));
+          } else {
+            renderSpritePixel(program, layer, baseContext, frameBuffer, renderX, renderY);
+          }
         }
       }
     }
