@@ -47,6 +47,7 @@ const uint8_t* glyphFor(char c) {
 void drawChar(int16_t originX, int16_t originY, char c, lamp::Rgb color, lamp::FrameBuffer& fb) {
   const uint8_t* g = glyphFor(c);
   if (!g) return;
+  // Dark shadow/outline behind the glyph for contrast.
   for (int16_t row = 0; row < kDigitHeight; ++row) {
     uint8_t bits = g[row];
     for (int16_t col = 0; col < kDigitWidth; ++col) {
@@ -55,6 +56,13 @@ void drawChar(int16_t originX, int16_t originY, char c, lamp::Rgb color, lamp::F
       }
     }
   }
+}
+
+void drawDarkBg(int16_t x, int16_t y, int16_t w, int16_t h, lamp::FrameBuffer& fb) {
+  constexpr lamp::Rgb kShadow{2, 1, 0};
+  for (int16_t dy = 0; dy < h; ++dy)
+    for (int16_t dx = 0; dx < w; ++dx)
+      fb.setPixel(x + dy, y + dx, kShadow);
 }
 
 void drawString(int16_t x, int16_t y, const char* s, lamp::Rgb color, lamp::FrameBuffer& fb) {
@@ -104,6 +112,9 @@ void ClockOverlay::render(const std::string& currentTime, lamp::FrameBuffer& fra
                           - kTotal - kOverlayMarginRight - yOffset;
   const int16_t originX = kOverlayMarginTop;
 
+  // Dark background behind clock for contrast.
+  drawDarkBg(originX - 1, originY - 1, kTotal + 2, kDigitHeight + 2, frameBuffer);
+
   int16_t y = originY;
   drawChar(originX, y, currentTime[0], kDigitColor, frameBuffer);  y += kDigitWidth + kDigitGap;
   drawChar(originX, y, currentTime[1], kDigitColor, frameBuffer);  y += kDigitWidth + kDigitGap;
@@ -120,7 +131,9 @@ void ClockOverlay::render(const std::string& currentTime, lamp::FrameBuffer& fra
     constexpr lamp::Rgb kHumColor{100, 255, 150};
     const int16_t sx = originX + kDigitHeight + 2;
     const int16_t sensorY = static_cast<int16_t>(lamp::config::kLogicalHeight)
-                             - kTotal - kOverlayMarginRight + yOffset;  // opposite!
+                             - kTotal - kOverlayMarginRight + yOffset;
+
+    drawDarkBg(sx - 1, sensorY - 1, kTotal, kDigitHeight + 2, frameBuffer);  // opposite!
     char buf[6];
     snprintf(buf, sizeof(buf), "%d", static_cast<int>(temperatureC));
     drawString(sx, sensorY, buf, kTempColor, frameBuffer);
