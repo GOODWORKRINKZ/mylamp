@@ -184,12 +184,112 @@ void initializeFileSystem() {
 
   const std::vector<std::string> presets = g_fileStore.list(lamp::storage::kPresetsDirectory);
   const std::vector<std::string> playlists = g_fileStore.list(lamp::storage::kPlaylistsDirectory);
+
+  // Seed factory presets if /presets/ is empty (first boot)
+  if (presets.empty()) {
+    seedFactoryPresets();
+  }
+
 #if APP_IS_DEV
   Serial.print("filesystem: mounted presets=");
   Serial.print(static_cast<unsigned long>(presets.size()));
   Serial.print(" playlists=");
   Serial.println(static_cast<unsigned long>(playlists.size()));
 #endif
+}
+
+void seedFactoryPresets() {
+  if (!g_fileStore.isReady()) return;
+  const std::vector<std::string> existing = g_fileStore.list(lamp::storage::kPresetsDirectory);
+  if (!existing.empty()) return;
+
+  struct DemoEntry { const char* id; const char* name; const char* source; };
+  const DemoEntry demos[] = {
+    {"nyan-cat", "Нян Кот",
+     "effect \"nyan_cat\"\n"
+     "sprite cat {\n"
+     "  frame walk1 { bitmap \"\"\"\n.....##....\n....####...\n...######..\n..########.\n.##########\n##.##.##.##\n############\n.##......##\n.##########\n..########.\n\"\"\" }\n"
+     "  frame walk2 { bitmap \"\"\"\n.....##....\n....####...\n...######..\n..########.\n.##########\n##.##.##.##\n############\n.##########\n.##......##\n..########.\n\"\"\" }\n"
+     "  frame walk3 { bitmap \"\"\"\n.....##....\n....####...\n...######..\n..########.\n.##########\n##.##.##.##\n############\n..########.\n.##########\n.##......##\n\"\"\" }\n"
+     "  frame walk4 { bitmap \"\"\"\n.....##....\n....####...\n...######..\n..########.\n.##########\n##.##.##.##\n############\n....######.\n..########.\n.##......##\n\"\"\" }\n"
+     "}\n"
+     "layer bg {\n"
+     "  use cat\n"
+     "  color hsv(nx * 30 + t * 50 + ny * 10, 1, 0.5 + 0.3 * sin(t + nx * 2))\n"
+     "  x = (t * 8) % 32\n  y = 3\n  scale = 1\n  frame = (t * 4) % 4\n  visible = 1\n"
+     "}\n"},
+    {"mario", "Марио",
+     "effect \"mario\"\n"
+     "sprite mario {\n"
+     "  frame walk1 { bitmap \"\"\"\n....##....\n...####...\n...####...\n....##....\n...####...\n..######..\n.##.##.##.\n.##.##.##.\n....##....\n...##.##..\n..##..##..\n\"\"\" }\n"
+     "  frame walk2 { bitmap \"\"\"\n....##....\n...####...\n...####...\n....##....\n...####...\n..######..\n.##.##.##.\n.##.##.##.\n....##....\n...##.##..\n.##....##.\n\"\"\" }\n"
+     "  frame walk3 { bitmap \"\"\"\n....##....\n...####...\n...####...\n....##....\n...####...\n..######..\n.##.##.##.\n.##.##.##.\n....##....\n..##.##...\n##......##\n\"\"\" }\n"
+     "}\n"
+     "layer mario1 {\n"
+     "  use mario\n  color rgb(255, 50, 30)\n  x = (t * 6) % 32\n  y = 2\n  scale = 1\n  frame = (t * 6) % 3\n  visible = 1\n"
+     "}\n"},
+    {"plasma", "Плазма",
+     "effect \"plasma\"\n"
+     "sprite fullscreen { bitmap \"\"\"\n################################\n################################\n################################\n################################\n################################\n################################\n################################\n################################\n################################\n################################\n################################\n################################\n################################\n################################\n################################\n################################\n\"\"\" }\n"
+     "layer plasma1 {\n"
+     "  use fullscreen\n  color hsv(sin(nx * 8 + t) * 30 + cos(ny * 6 + t * 0.7) * 30 + t * 20, 1, 0.5 + 0.5 * sin(nx * 5 + ny * 4 + t))\n"
+     "  x = 0\n  y = 0\n  scale = 1\n  visible = 1\n"
+     "}\n"},
+    {"scrolling-text", "Бегущая строка",
+     R"RAW(effect "scrolling_text"
+text msg "MYLAMP "
+layer scroller {
+  use msg
+  color rgb(255, 200, 50)
+  x = (t * 6) % 32
+  y = 5
+  scale = 1
+  visible = 1
+}
+)RAW"},
+    {"snake", "Змейка",
+     "effect \"snake\"\n"
+     "sprite dot { bitmap \"\"\"\n#\n\"\"\" }\n"
+     "for j = 0; j < 10; j = j + 1 {\n"
+     "  layer seg {\n    use dot\n    color hsv(j * 30, 1, 1)\n    x = sin(t * 2 + j * 0.6) * 12 + 16\n    y = cos(t * 2 + j * 0.6) * 6 + 8\n    scale = 1 + (j % 2)\n    visible = 1\n  }\n"
+     "}\n"},
+    {"fire-particles", "Огоньки",
+     "effect \"fire_particles\"\n"
+     "sprite dot { bitmap \"\"\"\n#\n\"\"\" }\n"
+     "for j = 0; j < 12; j = j + 1 {\n"
+     "  layer p {\n    use dot\n    color hsv(15 + j * 2, 1, 1 - j * 0.08)\n    x = sin(j * 2.7 + t) * 3 + 8\n    y = (t * 3 + j * 2) % 32\n    scale = 1 + (j % 2)\n    blend = add\n    visible = 1\n  }\n"
+     "}\n"},
+    {"starfield", "Звёздное поле",
+     "effect \"starfield\"\n"
+     "sprite dot { bitmap \"\"\"\n#\n\"\"\" }\n"
+     "for j = 0; j < 20; j = j + 1 {\n"
+     "  layer s {\n    use dot\n    color rgb(200 + 55 * sin(t + j), 200 + 55 * cos(t + j * 0.7), 255)\n    x = (j * 7 + 3) % 16\n    y = (t * (3 + j % 4) + j * 11) % 32\n    scale = 1\n    blend = add\n    visible = 1\n  }\n"
+     "}\n"},
+    {"dna", "Спираль ДНК",
+     "effect \"dna\"\n"
+     "sprite dot { bitmap \"\"\"\n#\n\"\"\" }\n"
+     "for j = 0; j < 16; j = j + 1 {\n"
+     "  layer h1 {\n    use dot\n    color rgb(80, 200, 255)\n    x = 8 + sin(t * 2 + j * 0.4) * 6\n    y = j * 2\n    scale = 1\n    visible = 1\n  }\n"
+     "  layer h2 {\n    use dot\n    color rgb(255, 80, 120)\n    x = 8 + sin(t * 2 + j * 0.4 + 3.1415) * 6\n    y = j * 2\n    scale = 1\n    visible = 1\n  }\n"
+     "}\n"},
+  };
+
+  for (const DemoEntry& demo : demos) {
+    lamp::live::PresetModel preset;
+    preset.id = demo.id;
+    preset.name = demo.name;
+    preset.source = demo.source;
+    preset.createdAt = "2026-06-02T00:00:00Z";
+    preset.updatedAt = "2026-06-02T00:00:00Z";
+
+    if (g_presetRepository.save(preset)) {
+      Serial.print("factory: seeded preset ");
+      Serial.println(demo.id);
+    } else {
+      Serial.print("factory: failed to seed preset ");
+      Serial.println(demo.id);
+    }
+  }
 }
 
 void refreshSensorState() {
