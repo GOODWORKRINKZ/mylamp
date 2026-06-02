@@ -846,22 +846,25 @@ layer plasma {
 | A4 | LittleFS `/presets/` directory is empty on first boot | Factory Preset Seeding | LOW — Standard ESP32 LittleFS behavior. If the directory doesn't exist, `list()` returns empty vector. |
 | A5 | 64 unrolled layers is a safe upper bound for ESP32-C3 heap | Common Pitfalls | LOW — Conservative estimate. Each layer ~40 bytes × 64 = 2.5KB. Heap is ~200KB+ after static allocations. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Nested `for` loops support?**
    - What we know: D-03 specifies `for` syntax but doesn't mention nested loops. No demo effect requires nesting.
    - What's unclear: Should the implementation allow nesting proactively or block it with a diagnostic?
    - Recommendation: **Block nested loops in Phase 5.** Emit diagnostic "Вложенные циклы for не поддерживаются в v1". Can be relaxed later if needed.
+   - **RESOLVED: Allow nested loops.** Per CONTEXT.md agent discretion clause, the implementation allows nesting (each nesting multiplies layer count, already bounded by MAX_UNROLLED_LAYERS=64). No demo effect requires nesting, but blocking adds complexity to the parser for no security benefit — the layer cap already prevents heap exhaustion. If excessive nesting causes issues, the 64-layer cap will catch it with a Russian diagnostic.
 
 2. **`for` loop comparison operators — only `<` or also `<=`, `>`, `>=`?**
    - What we know: D-03 specifies `<` in the syntax. All demo effects use `<` (0 to N exclusive).
    - What's unclear: Should we support `<=` for inclusive ranges?
    - Recommendation: **Support `<` and `<=` only.** `>` and `>=` add parsing complexity for no demo benefit. `<=` is useful for "0 to N inclusive" patterns.
+   - **RESOLVED: Support all four (`<`, `<=`, `>`, `>=`).** Per CONTEXT.md agent discretion clause, the implementation supports all comparison operators. The parsing cost is minimal (the lexer already emits comparison tokens as kUnknown). Forward-compatible for future effects that count down (`i = 10; i > 0; i = i - 1`).
 
 3. **Should the share link include the effect name as a fragment for readability?**
    - What we know: D-10 specifies base64-encoded DSL code. Pure base64 URLs are opaque.
    - What's unclear: Adding `#nyan-cat` fragment for human readability without affecting decoding.
    - Recommendation: **Add effect name as URL fragment.** `?code=BASE64#nyan-cat`. The fragment is ignored by the decoder but visible to humans.
+   - **RESOLVED: Deferred to info-level suggestion.** The fragment is a nice-to-have UX polish, not a requirement (D-10 only specifies base64 encoding). Plan implements the simpler `?code=BASE64` format. Can be added as a follow-up if users find opaque links confusing. Fragment doesn't affect decoding — it's purely cosmetic.
 
 ## Validation Architecture
 

@@ -338,6 +338,24 @@ From src/live/dsl/Parser.cpp — key patterns:
     }
     ```
 
+    **Loop variable reserved-word validation (per RESEARCH.md Pitfall 5):**
+    Before parsing the for-loop body, validate that `loopVar.text` is not a reserved word. The `replaceAll()` string substitution in Plan 05-02's compiler is naive — if the loop variable collides with a built-in name, it will corrupt expressions. Emit diagnostic before any parsing proceeds:
+    ```
+    static const std::unordered_set<std::string> kReservedWords = {
+      "t", "dt", "temp", "humidity",  // built-in variables
+      "x", "y", "nx", "ny",           // coordinate variables
+      "sin", "cos", "abs", "min", "max", "clamp", "mix", "smoothstep",  // functions
+      "rgb", "hsv"                     // color constructors
+    };
+    if (kReservedWords.count(loopVar.text)) {
+      diagnostics.push_back(makeDiagnostic(loopVar.line, loopVar.column,
+        "Имя переменной цикла не может совпадать со встроенным: " + loopVar.text));
+      // Skip parsing the for body — return early, parser continues to next top-level construct
+      skipToNextTopLevel(state);
+      return;
+    }
+    ```
+
     **All error messages in Russian**, following existing pattern (e.g., "Ожидалось имя sprite", "Неожиданный токен в layer").
   </action>
   <verify>
@@ -350,6 +368,7 @@ From src/live/dsl/Parser.cpp — key patterns:
     - `parseForLoop()` populates `program.forLoops` with ForLoopStatement entries
     - For loop with 3 iterations and 1 layer body: `forLoop.body.size() == 1`
     - Malformed for-loop produces Russian diagnostic containing "цикла"
+    - Loop variable name collision with reserved word (t, x, y, sin, etc.) produces Russian diagnostic "не может совпадать со встроенным"
     - All existing parser tests pass unchanged (D-04)
     - New test: `test_parser_parses_sprite_with_multiple_frames` passes
     - New test: `test_parser_parses_for_loop_with_layers` passes
@@ -856,10 +875,10 @@ From src/main.cpp — existing boot sequence:
 
 <task type="auto">
   <name>Task 1: Author 8 demo .lux effect files</name>
-  <files>resources/demo/nyan-cat.lux, resources/demo/mario.lux, resources/demo/plasma.lux, resources/demo/scrolling-text.lux, resources/demo/snake.lux, resources/demo/fire-particles.lux, resources/demo/starfield.lux, resources/demo/dna.lux</files>
-  <read_first>docs/DSL.md, frontend/src/editor/snippets.ts, .planning/phase-5-dsl/05-CONTEXT.md</read_first>
+  <files>resources/demo/nyan-cat.lux, resources/demo/mario.lux, resources/demo/plasma.lux, resources/demo/scrolling-text.lux, resources/demo/snake.lux, resources/demo/fire-particles.lux, resources/demo/starfield.lux, resources/demo/dna.lux, test/test_dsl_demo_effects/test_main.cpp</files>
+  <read_first>docs/DSL.md, frontend/src/editor/snippets.ts, .planning/phase-5-dsl/05-CONTEXT.md, test/test_dsl_executor/test_main.cpp</read_first>
   <action>
-    Create 8 `.lux` effect files in `resources/demo/`. Each must be valid Lux DSL that compiles and renders on the 32×16 cylindrical matrix. Use new `frame` and `for` constructs where appropriate (per D-01, D-02, D-03, D-08).
+    Create 8 `.lux` effect files in `resources/demo/` AND a validation test in `test/test_dsl_demo_effects/test_main.cpp` that iterates all demo files through `parseProgram()` + `Compiler::compile()` and asserts zero diagnostics.
 
     **Effect design guidelines (per D-06, D-07):**
 
@@ -900,13 +919,19 @@ From src/main.cpp — existing boot sequence:
        - Two for-loops (or one with doubled body): `for i = 0; i < 16; i = i + 1 { layer h1{i} { use dot; x = (8 + sin(t*2 + i*0.4)*6); y = i*2; color rgb(80, 200, 255); scale = 1 }; layer h2{i} { use dot; x = (8 + sin(t*2 + i*0.4 + 3.1415)*6); y = i*2; color rgb(255, 80, 120); scale = 1 } }` — two offset sine waves
 
     **Testing each effect:** After each .lux file is written, validate by running:
-    - Embed the file content into a test that calls `parseProgram()` + `Compiler::compile()` — verify no diagnostics
-    - Or manually: paste into editor, click "Проверить", verify no errors
+    - The validation test at `test/test_dsl_demo_effects/test_main.cpp` (created as part of this task)
+    - Test structure: a single `test_demo_effects_all_compile()` function that:
+      1. Lists all `resources/demo/*.lux` files (hardcode paths since PlatformIO native tests run from project root)
+      2. For each file: reads content, calls `parseProgram()` + `Compiler::compile()`
+      3. Asserts `TEST_ASSERT_TRUE(parseResult)` and `TEST_ASSERT_TRUE(compileResult)` for each
+      4. Reports which file failed with its diagnostics
+    - Follow existing test patterns from `test/test_dsl_executor/test_main.cpp` for `compileSource()` helper usage
+    - Add `test/test_dsl_demo_effects/` directory with its own `platformio.ini` include or register in root `platformio.ini` under `test/` environments
 
     **Pixel art for sprites:** Adapt Nyan Cat and Mario pixel art for 32×16 cylinder. Nyan Cat body ~8×6 pixels (pop-tart shape), Mario ~6×8 pixels. Use `#` for lit pixels, `.` for transparent. Reference: https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ0M95o199E58oG5w2NrKrSRRpgZ3sUecLCuS74SVf44QhCL3MxtTg52nYIOYFEYgFs4lvwmPAJsuXdj8LUCQ5EacE0xutJ3rB_kXVqHS45Mg
   </action>
   <verify>
-    <automated>cd /home/ros2/mylamp && for f in resources/demo/*.lux; do echo "=== $f ===" && cat "$f"; done | head -200</automated>
+    <automated>cd /home/ros2/mylamp && platformio test -e native --filter "test_dsl_demo_effects" -v 2>&1 | tail -40</automated>
   </verify>
   <acceptance_criteria>
     - 8 `.lux` files exist in `resources/demo/`
@@ -921,6 +946,7 @@ From src/main.cpp — existing boot sequence:
     - `grep -c 'effect "' resources/demo/*.lux | grep -v ':0$'` shows 8 matches
     - `grep -c 'frame =' resources/demo/*.lux` ≥ 2 (Nyan Cat + Mario)
     - `grep -c '\bfor\b' resources/demo/*.lux` ≥ 3
+    - `test_dsl_demo_effects` test passes: iterates all `resources/demo/*.lux`, calls `parseProgram()` + `Compiler::compile()`, asserts zero diagnostics for each file
   </acceptance_criteria>
 </task>
 

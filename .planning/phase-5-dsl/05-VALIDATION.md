@@ -2,8 +2,8 @@
 phase: 5
 slug: dsl
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-06-02
 ---
 
@@ -54,9 +54,9 @@ created: 2026-06-02
 
 ## Wave 0 Requirements
 
-- [ ] `test/test_dsl_parser/test_main.cpp` — add tests for: multi-frame sprite parsing, `for` loop parsing, backward compat of old sprite format, `frame` field in layer
-- [ ] `test/test_dsl_executor/test_main.cpp` — add tests for: sprite frame selection by expression, `for` loop unrolling, loop variable substitution, MAX_UNROLLED_LAYERS enforcement
-- [ ] No new test files needed; extend existing test files
+- [x] `test/test_dsl_parser/test_main.cpp` — add tests for: multi-frame sprite parsing, `for` loop parsing, backward compat of old sprite format, `frame` field in layer *(embedded in Plan 05-01 Task 3 — tests written as part of parser implementation)*
+- [x] `test/test_dsl_executor/test_main.cpp` — add tests for: sprite frame selection by expression, `for` loop unrolling, loop variable substitution, MAX_UNROLLED_LAYERS enforcement *(embedded in Plan 05-02 Task 4 — 6 TDD tests written as part of executor implementation)*
+- [x] No new test files needed; extend existing test files
 
 ---
 
@@ -74,11 +74,11 @@ created: 2026-06-02
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies *(11/11 tasks have verify commands; frontend tasks are manual-verify per VALIDATION.md manual-only table)*
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify *(all waves interleave automated tests)*
+- [x] Wave 0 covers all MISSING references *(parser + executor tests embedded in Plans 05-01 and 05-02)*
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s *(quick: ~5s for grep, ~30s for platformio test --filter)*
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-06-02
