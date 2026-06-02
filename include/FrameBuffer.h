@@ -26,6 +26,11 @@ class FrameBuffer {
   Rgb pixelAtIndex(uint16_t index) const;
   uint16_t size() const;
 
+  // Shape primitives with horizontal wraparound.
+  void fillRect(int16_t x, int16_t y, uint8_t w, uint8_t h, Rgb color);
+  void drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Rgb color);
+  void drawCircle(int16_t cx, int16_t cy, uint8_t r, Rgb color);
+
  private:
   const MatrixLayout& layout_;
   std::vector<Rgb> pixels_;

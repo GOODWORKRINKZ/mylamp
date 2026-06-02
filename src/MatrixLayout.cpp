@@ -1,5 +1,7 @@
 #include "MatrixLayout.h"
 
+#include <cmath>
+
 namespace lamp {
 
 MatrixLayout::MatrixLayout()
@@ -44,5 +46,19 @@ uint16_t MatrixLayout::mapPanelPixel(uint8_t panelIndex, uint8_t localX, uint8_t
   const uint16_t panelBase = panelIndex * config::kPanelWidth * config::kPanelHeight;
   return panelBase + static_cast<uint16_t>(mappedY) * config::kPanelWidth + mappedX;
 }
+
+uint8_t MatrixLayout::angleToX(float degrees) const {
+  float wrapped = fmodf(degrees, 360.0f);
+  if (wrapped < 0.0f) wrapped += 360.0f;
+  return static_cast<uint8_t>(wrapped / 360.0f * kCircumference) % config::kLogicalWidth;
+}
+
+float MatrixLayout::xToAngle(uint8_t x) const {
+  return static_cast<float>(x % config::kLogicalWidth) / kCircumference * 360.0f;
+}
+
+uint8_t MatrixLayout::rowCount() const { return config::kLogicalHeight; }
+
+uint8_t MatrixLayout::colCount() const { return config::kLogicalWidth; }
 
 }  // namespace lamp

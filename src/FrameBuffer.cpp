@@ -1,5 +1,7 @@
 #include "FrameBuffer.h"
 
+#include <cstdlib>
+
 namespace lamp {
 
 namespace {
@@ -45,6 +47,59 @@ Rgb FrameBuffer::pixelAtIndex(uint16_t index) const {
 
 uint16_t FrameBuffer::size() const {
   return static_cast<uint16_t>(pixels_.size());
+}
+
+void FrameBuffer::fillRect(int16_t x, int16_t y, uint8_t w, uint8_t h, Rgb color) {
+  for (uint8_t dy = 0; dy < h; ++dy) {
+    for (uint8_t dx = 0; dx < w; ++dx) {
+      setPixel(x + dx, y + dy, color);
+    }
+  }
+}
+
+void FrameBuffer::drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Rgb color) {
+  // On a cylinder, choose the shorter horizontal direction.
+  // Direct Cartesian distance vs. wrapped distance around the cylinder.
+  const int16_t w = static_cast<int16_t>(layout_.colCount());
+  int16_t rawDx = x1 - x0;
+  int16_t wrapDx = rawDx;
+  if (rawDx > w / 2)       wrapDx = rawDx - w;
+  else if (rawDx < -w / 2) wrapDx = rawDx + w;
+
+  int16_t dx = abs(wrapDx);
+  int16_t dy = -abs(y1 - y0);
+  int16_t sx = wrapDx >= 0 ? 1 : -1;
+  int16_t sy = y0 < y1 ? 1 : -1;
+  int16_t err = dx + dy;
+
+  while (true) {
+    setPixel(x0, y0, color);
+    if (x0 == x1 && y0 == y1) break;
+    int16_t e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+
+void FrameBuffer::drawCircle(int16_t cx, int16_t cy, uint8_t r, Rgb color) {
+  // Midpoint circle algorithm.
+  int16_t f = 1 - r;
+  int16_t dx = 0;
+  int16_t dy = r;
+
+  while (dx <= dy) {
+    setPixel(cx + dx, cy + dy, color);
+    setPixel(cx + dy, cy + dx, color);
+    setPixel(cx - dx, cy + dy, color);
+    setPixel(cx - dy, cy + dx, color);
+    setPixel(cx + dx, cy - dy, color);
+    setPixel(cx + dy, cy - dx, color);
+    setPixel(cx - dx, cy - dy, color);
+    setPixel(cx - dy, cy - dx, color);
+    if (f >= 0) { --dy; f -= 2 * dy; }
+    ++dx;
+    f += 2 * dx;
+  }
 }
 
 }  // namespace lamp
