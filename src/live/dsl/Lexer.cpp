@@ -425,7 +425,8 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
                          {"rotation", TokenType::kKeywordRotation},
                          {"blend", TokenType::kKeywordBlend},
                          {"visible", TokenType::kKeywordVisible},
-                         {"frame", TokenType::kKeywordFrame}};
+                         {"frame", TokenType::kKeywordFrame},
+                         {"z", TokenType::kKeywordZ}};
 
     bool matchedProperty = false;
     for (const PropertyRule& rule : propertyRules) {

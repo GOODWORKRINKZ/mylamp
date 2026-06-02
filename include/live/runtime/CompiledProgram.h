@@ -87,6 +87,7 @@ struct CompiledLayer {
   BlendMode blendMode = BlendMode::kNormal;
   int16_t visibleExpression = -1;
   int16_t frameExpression = -1;
+  int16_t zExpression = -1;
 };
 
 struct CompiledProgram {

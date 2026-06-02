@@ -145,6 +145,7 @@ void renderEffectPass(unsigned long nowMs) {
 }
 
 void renderOverlayPass(unsigned long nowMs) {
+  if (g_liveProgramService.isEffectOnTop()) return;  // Lux effect has z >= 1
   g_clockOverlay.render(g_runtimeTimeState.currentTime, g_frameBuffer,
                         g_timeState.clockOverlayVisible,
                         static_cast<uint32_t>(nowMs),

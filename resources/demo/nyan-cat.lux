@@ -65,4 +65,5 @@ layer nyan {
   x = (t * 8) % 32
   y = 0
   visible = 1
+  z = 1
 }

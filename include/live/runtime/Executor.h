@@ -16,6 +16,11 @@ class Executor {
  public:
   void render(const CompiledProgram& program, const ExecutionContext& context,
               lamp::FrameBuffer& frameBuffer) const;
+
+  bool lastRenderOnTop() const { return lastRenderOnTop_; }
+
+ private:
+  mutable bool lastRenderOnTop_ = false;
 };
 
 }  // namespace lamp::live::runtime

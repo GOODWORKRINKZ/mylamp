@@ -190,7 +190,8 @@ bool parseLayer(ParserState& state, Program& program,
       case TokenType::kKeywordRotation:
       case TokenType::kKeywordBlend:
       case TokenType::kKeywordVisible:
-      case TokenType::kKeywordFrame: {
+      case TokenType::kKeywordFrame:
+      case TokenType::kKeywordZ: {
         const TokenType propertyType = state.current().type;
         state.match(propertyType);
         if (!state.expect(TokenType::kEquals, "Ожидался символ =", diagnostics)) {
@@ -219,6 +220,9 @@ bool parseLayer(ParserState& state, Program& program,
         } else if (propertyType == TokenType::kKeywordFrame) {
           layer.frameExpression = valueToken.text;
           layer.frameLine = valueToken.line;
+        } else if (propertyType == TokenType::kKeywordZ) {
+          layer.zExpression = valueToken.text;
+          layer.zLine = valueToken.line;
         } else {
           layer.visibleExpression = valueToken.text;
           layer.visibleLine = valueToken.line;
@@ -425,7 +429,8 @@ bool parseForLoop(ParserState& state, Program& program,
           case TokenType::kKeywordRotation:
           case TokenType::kKeywordBlend:
           case TokenType::kKeywordVisible:
-          case TokenType::kKeywordFrame: {
+          case TokenType::kKeywordFrame:
+          case TokenType::kKeywordZ: {
             const TokenType propertyType = state.current().type;
             state.match(propertyType);
             if (!state.expect(TokenType::kEquals, "Ожидался символ =", diagnostics)) {
@@ -453,6 +458,9 @@ bool parseForLoop(ParserState& state, Program& program,
             } else if (propertyType == TokenType::kKeywordFrame) {
               bodyLayer.frameExpression = valueToken.text;
               bodyLayer.frameLine = valueToken.line;
+            } else if (propertyType == TokenType::kKeywordZ) {
+              bodyLayer.zExpression = valueToken.text;
+              bodyLayer.zLine = valueToken.line;
             } else {
               bodyLayer.visibleExpression = valueToken.text;
               bodyLayer.visibleLine = valueToken.line;

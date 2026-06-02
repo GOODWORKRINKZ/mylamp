@@ -597,8 +597,7 @@ bool Compiler::compile(const dsl::Program& program, CompiledProgram& compiledPro
         replaceAll(layerTemplate.scaleExpression, forLoop.loopVariable, iStr);
         replaceAll(layerTemplate.rotationExpression, forLoop.loopVariable, iStr);
         replaceAll(layerTemplate.visibleExpression, forLoop.loopVariable, iStr);
-        replaceAll(layerTemplate.frameExpression, forLoop.loopVariable, iStr);
-        // Compile the substituted layer
+        replaceAll(layerTemplate.frameExpression, forLoop.loopVariable, iStr);          replaceAll(layerTemplate.zExpression, forLoop.loopVariable, iStr);        // Compile the substituted layer
         CompiledLayer compiledLayer;
         compiledLayer.name = layerTemplate.name;
 
@@ -705,6 +704,14 @@ bool Compiler::compile(const dsl::Program& program, CompiledProgram& compiledPro
     if (!layer.frameExpression.empty()) {
       if (!expressionCompiler.compile(layer.frameExpression, compiledLayer.frameExpression,
                                       diagnostics, layer.frameLine)) {
+        return false;
+      }
+    }
+
+    // Z-index expression (0 = behind clock, 1+ = on top)
+    if (!layer.zExpression.empty()) {
+      if (!expressionCompiler.compile(layer.zExpression, compiledLayer.zExpression,
+                                      diagnostics, layer.zLine)) {
         return false;
       }
     }

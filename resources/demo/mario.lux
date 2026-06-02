@@ -78,4 +78,5 @@ layer mario1 {
   y = 0
   frame = (t * 5) % 3
   visible = 1
+  z = 1
 }

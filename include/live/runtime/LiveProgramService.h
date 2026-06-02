@@ -30,6 +30,7 @@ class LiveProgramService {
   void setAutoplayActive(bool active);
   LiveProgramState state() const;
   bool render(const RuntimeContext& runtimeContext, lamp::FrameBuffer& frameBuffer) const;
+  bool isEffectOnTop() const { return executor_.lastRenderOnTop(); }
 
  private:
   bool compileSource(const std::string& source, CompiledProgram& program,

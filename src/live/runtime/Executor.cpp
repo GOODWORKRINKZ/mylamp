@@ -205,6 +205,8 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
                       lamp::FrameBuffer& frameBuffer) const {
   frameBuffer.clear();
 
+  lastRenderOnTop_ = false;
+
   EvaluationContext baseContext;
   baseContext.timeSeconds = context.timeSeconds;
   baseContext.deltaSeconds = context.deltaSeconds;
@@ -219,6 +221,14 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
     const float visible = evaluateNode(program.expressions, layer.visibleExpression, baseContext);
     if (visible <= 0.0f) {
       continue;
+    }
+
+    // Check z-index: if any visible layer has z >= 1, effect renders on top of clock
+    if (layer.zExpression >= 0) {
+      float zVal = evaluateNode(program.expressions, layer.zExpression, baseContext);
+      if (zVal >= 1.0f) {
+        lastRenderOnTop_ = true;
+      }
     }
 
     const int16_t originX = static_cast<int16_t>(std::lround(

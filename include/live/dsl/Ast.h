@@ -44,6 +44,7 @@ struct LayerDeclaration {
   std::string blendMode;
   std::string visibleExpression;
   std::string frameExpression;
+  std::string zExpression;
   uint32_t colorLine = 0;
   uint32_t xLine = 0;
   uint32_t yLine = 0;
@@ -52,6 +53,7 @@ struct LayerDeclaration {
   uint32_t blendLine = 0;
   uint32_t visibleLine = 0;
   uint32_t frameLine = 0;
+  uint32_t zLine = 0;
 };
 
 struct ForLoopStatement {
