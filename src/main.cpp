@@ -113,7 +113,11 @@ void renderEffectPass(unsigned long nowMs) {
 }
 
 void renderOverlayPass(unsigned long nowMs) {
-  g_clockOverlay.render(g_runtimeTimeState.currentTime, g_frameBuffer, g_timeState.clockOverlayVisible, static_cast<uint32_t>(nowMs));
+  g_clockOverlay.render(g_runtimeTimeState.currentTime, g_frameBuffer,
+                        g_timeState.clockOverlayVisible,
+                        static_cast<uint32_t>(nowMs),
+                        g_sensorState.temperatureC, g_sensorState.humidityPercent,
+                        g_sensorState.available);
 }
 
 void commitFrame() {
