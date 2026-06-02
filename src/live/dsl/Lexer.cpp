@@ -214,8 +214,7 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
                                                "Неожиданный токен в sprite: " + frameTrimmed));
           return false;
         }
-        // Adjust index back since the outer loop will increment it
-        if (index > 0) --index;
+        // Outer loop ++index will move past the sprite closing }
       } else {
         // Single-bitmap path: let the normal bitmap handler process it
         // (backward compatible, D-04)
@@ -262,7 +261,7 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
           appendToken(tokens, TokenType::kNewline, "", palLine, 1U);
         }
       }
-      if (index > 0) --index;
+      // Outer loop ++index will move past the palette closing }
       continue;
     }
 

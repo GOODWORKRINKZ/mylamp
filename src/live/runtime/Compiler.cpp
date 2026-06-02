@@ -677,9 +677,11 @@ bool Compiler::compile(const dsl::Program& program, CompiledProgram& compiledPro
     }
     compiledLayer.spriteIndex = static_cast<uint16_t>(spriteIndex);
 
-    if (!compileColor(layer.colorExpression, compiled.expressions, compiledLayer.color, diagnostics,
-                      layer.colorLine)) {
-      return false;
+    if (!layer.colorExpression.empty()) {
+      if (!compileColor(layer.colorExpression, compiled.expressions, compiledLayer.color, diagnostics,
+                        layer.colorLine)) {
+        return false;
+      }
     }
     if (!compileBlendMode(layer.blendMode.empty() ? "normal" : layer.blendMode,
                           compiledLayer.blendMode, diagnostics, layer.blendLine)) {
