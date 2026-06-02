@@ -111,9 +111,18 @@ bool ArduinoNtpTimeSource::syncTime(const char* timezone, const char* primarySer
     lastSyncStatus_ = NtpSyncStatus::kPending;
   }
 
-  // Skip re-sync if we already have valid time within the last 60 seconds.
-  if (validTime_ && syncAttemptMs_ > 0 && millis() - syncAttemptMs_ < 60000UL) {
-    return true;
+  // Already synced: compute local time from last known epoch + elapsed ms.
+  if (validTime_ && lastEpoch_ > 0) {
+    time_t now = lastEpoch_ + (millis() - syncAttemptMs_) / 1000UL;
+    tm timeinfo{};
+    if (gmtime_r(&now, &timeinfo) != nullptr) {
+      char buffer[16];
+      if (strftime(buffer, sizeof(buffer), "%H:%M:%S", &timeinfo) > 0) {
+        cachedFormattedTime_ = buffer;
+      }
+    }
+    // Re-sync via HTTP only after 60 s.
+    if (millis() - syncAttemptMs_ < 60000UL) return true;
   }
 
   syncAttemptMs_ = millis();
