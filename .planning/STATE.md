@@ -12,8 +12,8 @@ See: .planning/PROJECT.md (updated 2026-06-02)
 ## Current State
 
 - **Milestone:** v1 (initial)
-- **Active Phase:** Phase 3 (planned)
-- **Active Plan:** .planning/phase-3-clock/PLAN.md
+- **Active Phase:** Phase 4 (planned)
+- **Active Plan:** .planning/phase-4-perf/PLAN.md
 
 ## Phase Progress
 
@@ -22,13 +22,13 @@ See: .planning/PROJECT.md (updated 2026-06-02)
 | 1 | NTP Sync | ● Complete | NTP-01, NTP-02 |
 | 2 | Cylindrical Geometry | ● Complete | CYL-01–06 |
 | 3 | Clock Overlay | ● Complete | CLOCK-01–03 |
-| 4 | Perf & Bugs | ○ Pending | PERF-01–03 |
+| 4 | Perf & Bugs | ◐ Planned | PERF-01–03 |
 | 5 | Demo Effects & DSL | ○ Pending | DSL-01–03 |
 
 ## Next Actions
 
-1. Run `/gsd-execute-phase 1` to implement the NTP sync fix
-2. Run `/gsd-plan-phase 2` (can be parallel) for cylindrical geometry
+1. Run `/gsd-execute-phase 4` to implement performance fixes and bug fixes
+2. Run `/gsd-plan-phase 5` (can be parallel) for demo effects
 
 ---
 *Last updated: 2026-06-02 after Phase 1 planning*

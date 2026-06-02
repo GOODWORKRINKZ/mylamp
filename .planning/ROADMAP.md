@@ -68,10 +68,15 @@
 
 **Requirements:** PERF-01, PERF-02, PERF-03
 
+**Plans:** 1 plan
+
 **Success criteria:**
 - Нет видимого мерцания при смене эффектов
 - Фреймрейт стабилен при рендеринге DSL-эффектов средней сложности
 - В релизной сборке нет дебаг-паттернов
+
+**Plan:**
+- [ ] phase-4-perf/PLAN.md — FB clear on effect switch, debug output guards, recursion depth limit, FPS cap, frame timing diagnostics, tests, docs
 
 ---
 
