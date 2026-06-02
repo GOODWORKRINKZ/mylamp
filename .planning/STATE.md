@@ -12,8 +12,8 @@ See: .planning/PROJECT.md (updated 2026-06-02)
 ## Current State
 
 - **Milestone:** v1 (initial)
-- **Active Phase:** Phase 5 (context gathered)
-- **Active Plan:** None
+- **Active Phase:** Phase 5 (executing)
+- **Active Plan:** 05-01 (DSL Grammar Extensions)
 
 ## Phase Progress
 
