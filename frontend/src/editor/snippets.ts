@@ -162,7 +162,14 @@ layer indicator {
     description: "Котик с радужным шлейфом бежит по кругу.",
     source: `effect "nyan_cat"
 
-sprite cat {
+palette nyan_pal {
+  G = rgb(180, 180, 180)
+  P = rgb(255, 150, 180)
+  K = rgb(40, 40, 40)
+  W = rgb(255, 255, 255)
+}
+
+sprite cat palette nyan_pal {
   frame f0 { bitmap """
 .....GG.....
 ....GGGG....

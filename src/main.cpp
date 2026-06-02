@@ -166,6 +166,8 @@ void renderFrame(unsigned long nowMs) {
   commitFrame();
 }
 
+void seedFactoryPresets();
+
 void initializeFileSystem() {
   g_fileStore.setReady(false);
   g_fileSystemReady = LittleFS.begin(true);
