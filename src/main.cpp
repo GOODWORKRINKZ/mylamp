@@ -44,9 +44,7 @@ namespace {
 
 lamp::MatrixLayout g_layout;
 lamp::FrameBuffer g_frameBuffer(g_layout);
-lamp::effects::SolidColorEffect g_bootEffect(lamp::Rgb{0, 0, 24}, "boot-solid");
-lamp::effects::AlternatingColumnsEffect g_patternEffect(
-  lamp::Rgb{10, 0, 0}, lamp::Rgb{0, 10, 0}, "debug-columns");
+lamp::effects::SolidColorEffect g_bootEffect(lamp::Rgb{40, 15, 0}, "boot-solid");
 lamp::effects::ClockOverlay g_clockOverlay;
 lamp::effects::EffectRegistry g_effectRegistry;
 lamp::settings::AppSettings g_settings;
@@ -84,7 +82,6 @@ unsigned long g_lastTimeRefreshMs = 0;
 unsigned long g_lastSensorRefreshMs = 0;
 unsigned long g_lastPlaylistTickMs = 0;
 unsigned long g_lastRenderMs = 0;
-bool g_usePatternEffect = false;
 bool g_networkReconfigureRequested = false;
 bool g_fileSystemReady = false;
 bool g_restartRequested = false;
@@ -365,7 +362,6 @@ void setup() {
       g_wifiManager.startup(g_settings.network, g_wifiAdapter);
   refreshRuntimeState(wifiResult);
   g_effectRegistry.add(g_bootEffect);
-  g_effectRegistry.add(g_patternEffect);
   refreshSensorState();
   g_webServer.setStatusSnapshot(buildStatusSnapshot());
   g_webServer.begin();
@@ -404,16 +400,9 @@ void loop() {
   }
   if (now - g_lastHeartbeatMs >= 5000UL) {
     g_lastHeartbeatMs = now;
-    g_usePatternEffect = !g_usePatternEffect;
-    g_effectRegistry.setActiveByName(g_usePatternEffect ? "debug-columns" : "boot-solid");
     g_webServer.setStatusSnapshot(buildStatusSnapshot());
-    renderFrame(now);
     Serial.print("heartbeat uptime_ms=");
     Serial.println(now);
-    if (const lamp::effects::IEffect* effect = g_effectRegistry.active()) {
-      Serial.print("switched effect: ");
-      Serial.println(effect->name());
-    }
     Serial.print("network status: ");
     Serial.println(g_networkState.statusLine.c_str());
     Serial.print("clock state: ");
