@@ -30,6 +30,9 @@ struct StatusSnapshot {
   std::string liveErrorSummary;
   uint32_t fps = 0;
   uint32_t loopUs = 0;
+  uint32_t frameTimeMinUs = 0;
+  uint32_t frameTimeMaxUs = 0;
+  uint32_t frameTimeAvgUs = 0;
 };
 
 std::string buildStatusJson(const StatusSnapshot& snapshot);

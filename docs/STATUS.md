@@ -42,7 +42,16 @@
 
 - effect/render pipeline разделён на effect pass, overlay pass и commit stage;
 - clock overlay рисуется поверх эффекта в firmware runtime;
+- framebuffer очищается при переключении эффектов (EffectRegistry) и при переходе Live→Compiled;
+- глубина рекурсии DSL-выражений ограничена 64 уровнями (`kMaxExpressionDepth` в `AppConfig.h`);
+- frame rate capped на ~62.5 FPS (`kTargetFrameTimeUs = 16000` в `AppConfig.h`) для простых эффектов;
 - есть unit tests для overlay rendering.
+
+### Debug hygiene
+
+- serial heartbeat, boot banner и отладочные сообщения файловой системы — только в dev-сборках (`#if APP_IS_DEV`);
+- release-сборка (`esp32-c3-supermini-release`) выдаёт чистый serial output (только ошибки);
+- визуальный дебаг-паттерн (AlternatingColumnsEffect) удалён из активного использования, класс сохранён для тестов.
 
 ### Workflow
 

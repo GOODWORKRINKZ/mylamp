@@ -18,6 +18,9 @@ bool EffectRegistry::setActiveByName(const char* effectName) {
 
   for (IEffect* effect : effects_) {
     if (effect != nullptr && std::strcmp(effect->name(), effectName) == 0) {
+      if (active_ != effect) {
+        clearRequested_ = true;
+      }
       active_ = effect;
       return true;
     }
@@ -39,9 +42,20 @@ size_t EffectRegistry::count() const {
 }
 
 void EffectRegistry::renderActive(EffectContext& context) {
-  if (active_ != nullptr) {
-    active_->render(context);
+  if (active_ == nullptr) {
+    return;
   }
+
+  if (clearRequested_) {
+    context.frameBuffer.clear();
+    clearRequested_ = false;
+  }
+
+  active_->render(context);
+}
+
+void EffectRegistry::requestClear() {
+  clearRequested_ = true;
 }
 
 }  // namespace lamp::effects

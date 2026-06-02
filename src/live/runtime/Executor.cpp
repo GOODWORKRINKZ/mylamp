@@ -30,8 +30,12 @@ float smoothstep(float edge0, float edge1, float value) {
 }
 
 float evaluateNode(const std::vector<ExpressionNode>& nodes, int16_t index,
-                   const EvaluationContext& context) {
+                   const EvaluationContext& context, int16_t depth = 0) {
   if (index < 0 || static_cast<size_t>(index) >= nodes.size()) {
+    return 0.0f;
+  }
+
+  if (depth >= lamp::config::kMaxExpressionDepth) {
     return 0.0f;
   }
 
@@ -56,50 +60,50 @@ float evaluateNode(const std::vector<ExpressionNode>& nodes, int16_t index,
     case ExpressionOp::kCoordNy:
       return context.ny;
     case ExpressionOp::kAdd:
-      return evaluateNode(nodes, node.children[0], context) +
-             evaluateNode(nodes, node.children[1], context);
+      return evaluateNode(nodes, node.children[0], context, depth + 1) +
+             evaluateNode(nodes, node.children[1], context, depth + 1);
     case ExpressionOp::kSubtract:
-      return evaluateNode(nodes, node.children[0], context) -
-             evaluateNode(nodes, node.children[1], context);
+      return evaluateNode(nodes, node.children[0], context, depth + 1) -
+             evaluateNode(nodes, node.children[1], context, depth + 1);
     case ExpressionOp::kMultiply:
-      return evaluateNode(nodes, node.children[0], context) *
-             evaluateNode(nodes, node.children[1], context);
+      return evaluateNode(nodes, node.children[0], context, depth + 1) *
+             evaluateNode(nodes, node.children[1], context, depth + 1);
     case ExpressionOp::kDivide: {
-      const float denominator = evaluateNode(nodes, node.children[1], context);
-      return denominator == 0.0f ? 0.0f : evaluateNode(nodes, node.children[0], context) / denominator;
+      const float denominator = evaluateNode(nodes, node.children[1], context, depth + 1);
+      return denominator == 0.0f ? 0.0f : evaluateNode(nodes, node.children[0], context, depth + 1) / denominator;
     }
     case ExpressionOp::kModulo: {
-      const float denominator = evaluateNode(nodes, node.children[1], context);
-      return denominator == 0.0f ? 0.0f : std::fmod(evaluateNode(nodes, node.children[0], context), denominator);
+      const float denominator = evaluateNode(nodes, node.children[1], context, depth + 1);
+      return denominator == 0.0f ? 0.0f : std::fmod(evaluateNode(nodes, node.children[0], context, depth + 1), denominator);
     }
     case ExpressionOp::kNegate:
-      return -evaluateNode(nodes, node.children[0], context);
+      return -evaluateNode(nodes, node.children[0], context, depth + 1);
     case ExpressionOp::kSin:
-      return std::sin(evaluateNode(nodes, node.children[0], context));
+      return std::sin(evaluateNode(nodes, node.children[0], context, depth + 1));
     case ExpressionOp::kCos:
-      return std::cos(evaluateNode(nodes, node.children[0], context));
+      return std::cos(evaluateNode(nodes, node.children[0], context, depth + 1));
     case ExpressionOp::kAbs:
-      return std::fabs(evaluateNode(nodes, node.children[0], context));
+      return std::fabs(evaluateNode(nodes, node.children[0], context, depth + 1));
     case ExpressionOp::kMin:
-      return std::min(evaluateNode(nodes, node.children[0], context),
-                      evaluateNode(nodes, node.children[1], context));
+      return std::min(evaluateNode(nodes, node.children[0], context, depth + 1),
+                      evaluateNode(nodes, node.children[1], context, depth + 1));
     case ExpressionOp::kMax:
-      return std::max(evaluateNode(nodes, node.children[0], context),
-                      evaluateNode(nodes, node.children[1], context));
+      return std::max(evaluateNode(nodes, node.children[0], context, depth + 1),
+                      evaluateNode(nodes, node.children[1], context, depth + 1));
     case ExpressionOp::kClamp:
-      return clampFloat(evaluateNode(nodes, node.children[0], context),
-                        evaluateNode(nodes, node.children[1], context),
-                        evaluateNode(nodes, node.children[2], context));
+      return clampFloat(evaluateNode(nodes, node.children[0], context, depth + 1),
+                        evaluateNode(nodes, node.children[1], context, depth + 1),
+                        evaluateNode(nodes, node.children[2], context, depth + 1));
     case ExpressionOp::kMix: {
-      const float a = evaluateNode(nodes, node.children[0], context);
-      const float b = evaluateNode(nodes, node.children[1], context);
-      const float factor = evaluateNode(nodes, node.children[2], context);
+      const float a = evaluateNode(nodes, node.children[0], context, depth + 1);
+      const float b = evaluateNode(nodes, node.children[1], context, depth + 1);
+      const float factor = evaluateNode(nodes, node.children[2], context, depth + 1);
       return a + (b - a) * factor;
     }
     case ExpressionOp::kSmoothstep:
-      return smoothstep(evaluateNode(nodes, node.children[0], context),
-                        evaluateNode(nodes, node.children[1], context),
-                        evaluateNode(nodes, node.children[2], context));
+      return smoothstep(evaluateNode(nodes, node.children[0], context, depth + 1),
+                        evaluateNode(nodes, node.children[1], context, depth + 1),
+                        evaluateNode(nodes, node.children[2], context, depth + 1));
   }
 
   return 0.0f;

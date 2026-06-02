@@ -46,4 +46,11 @@ static constexpr uint32_t kTimeRefreshIntervalMs = 1000;
 static constexpr uint32_t kSensorRefreshIntervalMs = 5000;
 static constexpr uint8_t kSensorStaleReadLimit = 12;
 
+// Live DSL evaluation safety limits
+static constexpr int16_t kMaxExpressionDepth = 64;
+
+// Frame rate cap (~62.5 FPS target, ~125 FPS absolute floor)
+static constexpr uint32_t kTargetFrameTimeUs = 16000;
+static constexpr uint32_t kMinFrameTimeUs = 8000;
+
 }  // namespace lamp::config

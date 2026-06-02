@@ -30,6 +30,11 @@ void test_status_json_contains_build_and_runtime_fields() {
   snapshot.autoplayEnabled = true;
   snapshot.activePlaylistId = "evening";
   snapshot.liveErrorSummary = "";
+  snapshot.fps = 30;
+  snapshot.loopUs = 12345;
+  snapshot.frameTimeMinUs = 8000;
+  snapshot.frameTimeMaxUs = 32000;
+  snapshot.frameTimeAvgUs = 16000;
 
   const std::string json = lamp::web::buildStatusJson(snapshot);
 
@@ -50,6 +55,11 @@ void test_status_json_contains_build_and_runtime_fields() {
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"autoplayEnabled\":true")));
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"activePlaylistId\":\"evening\"")));
   TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"liveErrorSummary\":\"\"")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"fps\":30")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"loopUs\":12345")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"minFrameTimeUs\":8000")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"maxFrameTimeUs\":32000")));
+  TEST_ASSERT_NOT_EQUAL(-1, static_cast<int>(json.find("\"avgFrameTimeUs\":16000")));
 }
 
 void test_status_json_escapes_quotes_and_backslashes() {

@@ -103,7 +103,14 @@ unsigned long g_lastRenderMs = 0;
 bool g_networkReconfigureRequested = false;
 bool g_fileSystemReady = false;
 bool g_restartRequested = false;
+bool g_wasLiveActive = false;
 std::string g_liveErrorSummary;
+
+// Frame timing ring buffer for min/max/avg diagnostics.
+static constexpr size_t kFrameTimeWindow = 64;
+uint32_t g_frameTimesUs[kFrameTimeWindow] = {};
+size_t g_frameTimeIndex = 0;
+size_t g_frameTimeFilled = 0;
 
 lamp::web::StatusSnapshot buildStatusSnapshot();
 lamp::update::FirmwareReleaseInfo checkForFirmwareUpdates(const std::string& channelOverride);
@@ -119,8 +126,18 @@ void renderEffectPass(unsigned long nowMs) {
   runtimeContext.temperatureC = g_sensorState.temperatureC;
   runtimeContext.humidityPercent = g_sensorState.humidityPercent;
 
-  if (g_liveProgramService.render(runtimeContext, g_frameBuffer)) {
+  const bool liveRendered = g_liveProgramService.render(runtimeContext, g_frameBuffer);
+
+  if (liveRendered) {
+    g_wasLiveActive = true;
     return;
+  }
+
+  // Detect live→compiled transition: clear FB so stale DSL pixels
+  // don't persist under a compiled effect that may not fill every pixel.
+  if (g_wasLiveActive) {
+    g_frameBuffer.clear();
+    g_wasLiveActive = false;
   }
 
   lamp::effects::EffectContext effectContext{static_cast<uint32_t>(nowMs), g_frameBuffer};
@@ -167,10 +184,12 @@ void initializeFileSystem() {
 
   const std::vector<std::string> presets = g_fileStore.list(lamp::storage::kPresetsDirectory);
   const std::vector<std::string> playlists = g_fileStore.list(lamp::storage::kPlaylistsDirectory);
+#if APP_IS_DEV
   Serial.print("filesystem: mounted presets=");
   Serial.print(static_cast<unsigned long>(presets.size()));
   Serial.print(" playlists=");
   Serial.println(static_cast<unsigned long>(playlists.size()));
+#endif
 }
 
 void refreshSensorState() {
@@ -228,6 +247,23 @@ lamp::web::StatusSnapshot buildStatusSnapshot() {
                      ? g_frameCount * 1000UL / (millis() - g_lastFpsReportMs)
                      : 0;
   snapshot.loopUs = g_lastLoopUs;
+
+  // Compute min/max/avg frame time over the ring buffer window.
+  if (g_frameTimeFilled > 0) {
+    uint32_t frameMin = UINT32_MAX;
+    uint32_t frameMax = 0;
+    uint64_t frameSum = 0;
+    for (size_t i = 0; i < g_frameTimeFilled; ++i) {
+      const uint32_t ft = g_frameTimesUs[i];
+      if (ft < frameMin) frameMin = ft;
+      if (ft > frameMax) frameMax = ft;
+      frameSum += ft;
+    }
+    snapshot.frameTimeMinUs = frameMin;
+    snapshot.frameTimeMaxUs = frameMax;
+    snapshot.frameTimeAvgUs = static_cast<uint32_t>(frameSum / g_frameTimeFilled);
+  }
+
   return snapshot;
 }
 
@@ -391,7 +427,9 @@ void setup() {
   }
 
   renderFrame(0);
+#if APP_IS_DEV
   printBootBanner();
+#endif
 }
 
 void loop() {
@@ -426,6 +464,7 @@ void loop() {
   if (now - g_lastHeartbeatMs >= 5000UL) {
     g_lastHeartbeatMs = now;
     g_webServer.setStatusSnapshot(buildStatusSnapshot());
+#if APP_IS_DEV
     Serial.print("heartbeat uptime_ms=");
     Serial.println(now);
     Serial.print("network status: ");
@@ -434,13 +473,31 @@ void loop() {
     Serial.println(g_timeState.statusLine.c_str());
     Serial.print("sensor state: ");
     Serial.println(g_sensorState.statusLine.c_str());
+#endif
   }
   const unsigned long loopStart = micros();
   renderFrame(now);
   g_lastLoopUs = micros() - loopStart;
+  // Cap frame rate for simple effects to avoid burning CPU.
+  // Complex effects that already exceed the target are unaffected.
+  if (g_lastLoopUs < lamp::config::kTargetFrameTimeUs) {
+    delayMicroseconds(lamp::config::kTargetFrameTimeUs - g_lastLoopUs);
+    g_lastLoopUs = micros() - loopStart;  // re-measure to include delay
+  }
+
+  // Store frame time in ring buffer for min/max/avg diagnostics.
+  g_frameTimesUs[g_frameTimeIndex] = static_cast<uint32_t>(g_lastLoopUs);
+  g_frameTimeIndex = (g_frameTimeIndex + 1) % kFrameTimeWindow;
+  if (g_frameTimeFilled < kFrameTimeWindow) {
+    ++g_frameTimeFilled;
+  }
+
   ++g_frameCount;
   if (now - g_lastFpsReportMs >= 5000UL) {
     g_lastFpsReportMs = now;
     g_frameCount = 0;
+    // Reset frame timing window aligned with FPS window.
+    g_frameTimeIndex = 0;
+    g_frameTimeFilled = 0;
   }
 }

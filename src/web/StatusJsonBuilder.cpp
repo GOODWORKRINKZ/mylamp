@@ -113,7 +113,10 @@ std::string buildStatusJson(const StatusSnapshot& snapshot) {
   appendField(json, "activePlaylistId", snapshot.activePlaylistId, true);
   appendField(json, "liveErrorSummary", snapshot.liveErrorSummary, true);
   appendFloatField(json, "fps", true, static_cast<float>(snapshot.fps), true);
-  appendFloatField(json, "loopUs", true, static_cast<float>(snapshot.loopUs), false);
+  appendFloatField(json, "loopUs", true, static_cast<float>(snapshot.loopUs), true);
+  appendFloatField(json, "minFrameTimeUs", true, static_cast<float>(snapshot.frameTimeMinUs), true);
+  appendFloatField(json, "maxFrameTimeUs", true, static_cast<float>(snapshot.frameTimeMaxUs), true);
+  appendFloatField(json, "avgFrameTimeUs", true, static_cast<float>(snapshot.frameTimeAvgUs), false);
   json += '}';
   return json;
 }

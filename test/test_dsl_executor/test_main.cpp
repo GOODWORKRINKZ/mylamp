@@ -444,6 +444,95 @@ void test_executor_renders_text_as_sprite() {
   TEST_ASSERT_EQUAL_UINT8(50U, topB.b);
 }
 
+void test_expression_at_depth_limit_succeeds() {
+  // Generate sin(sin(...sin(t)...)) nested exactly 63 deep (under the 64 limit).
+  constexpr int kDepth = 63;
+  std::string expr = "t";
+  for (int i = 0; i < kDepth; ++i) {
+    expr = "sin(" + expr + ")";
+  }
+
+  const std::string source =
+      "effect \"deep_ok\"\n"
+      "sprite dot {\n"
+      "  bitmap \"\"\"\n"
+      "  #\n"
+      "  \"\"\"\n"
+      "}\n"
+      "layer d1 {\n"
+      "  use dot\n"
+      "  color rgb(100, 0, 0)\n"
+      "  x = " + expr + "\n"
+      "  y = 0\n"
+      "  scale = 1\n"
+      "  rotation = 0\n"
+      "  visible = 1\n"
+      "}\n";
+
+  lamp::live::runtime::CompiledProgram compiledProgram;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+  TEST_ASSERT_TRUE(compileSource(source, compiledProgram, diagnostics));
+
+  lamp::MatrixLayout layout;
+  lamp::FrameBuffer frameBuffer(layout);
+  lamp::live::runtime::Executor executor;
+  lamp::live::runtime::ExecutionContext context;
+  context.timeSeconds = 0.5f;
+  executor.render(compiledProgram, context, frameBuffer);
+
+  // sin(0.5) ≈ 0.479... after 63 more sin() calls converges near 0.
+  // The sprite pixel should be rendered somewhere; the key is that render didn't crash.
+  // We just verify at least one pixel was lit (not all black due to crash/clamp).
+  bool anyLit = false;
+  for (uint16_t i = 0; i < frameBuffer.size(); ++i) {
+    const lamp::Rgb p = frameBuffer.pixelAtIndex(i);
+    if (p.r > 0 || p.g > 0 || p.b > 0) {
+      anyLit = true;
+      break;
+    }
+  }
+  TEST_ASSERT_TRUE(anyLit);
+}
+
+void test_deeply_nested_expression_does_not_overflow() {
+  // Generate sin(sin(...sin(t)...)) nested 70 deep (exceeds the 64 limit).
+  constexpr int kDepth = 70;
+  std::string expr = "t";
+  for (int i = 0; i < kDepth; ++i) {
+    expr = "sin(" + expr + ")";
+  }
+
+  const std::string source =
+      "effect \"deep_bad\"\n"
+      "sprite dot {\n"
+      "  bitmap \"\"\"\n"
+      "  #\n"
+      "  \"\"\"\n"
+      "}\n"
+      "layer d1 {\n"
+      "  use dot\n"
+      "  color rgb(0, 100, 0)\n"
+      "  x = " + expr + "\n"
+      "  y = 0\n"
+      "  scale = 1\n"
+      "  rotation = 0\n"
+      "  visible = 1\n"
+      "}\n";
+
+  lamp::live::runtime::CompiledProgram compiledProgram;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+  TEST_ASSERT_TRUE(compileSource(source, compiledProgram, diagnostics));
+
+  lamp::MatrixLayout layout;
+  lamp::FrameBuffer frameBuffer(layout);
+  lamp::live::runtime::Executor executor;
+  lamp::live::runtime::ExecutionContext context;
+  context.timeSeconds = 0.5f;
+  // This must NOT crash (stack overflow → SIGSEGV).
+  executor.render(compiledProgram, context, frameBuffer);
+  // If we reach here, the depth guard worked.
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -461,5 +550,7 @@ int main(int argc, char** argv) {
   RUN_TEST(test_executor_multiply_blend_modulates_existing_color);
   RUN_TEST(test_compiler_rejects_unknown_blend_mode_with_line_number);
   RUN_TEST(test_executor_renders_text_as_sprite);
+  RUN_TEST(test_expression_at_depth_limit_succeeds);
+  RUN_TEST(test_deeply_nested_expression_does_not_overflow);
   return UNITY_END();
 }

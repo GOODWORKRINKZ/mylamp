@@ -16,10 +16,12 @@ class EffectRegistry {
   const IEffect* active() const;
   size_t count() const;
   void renderActive(EffectContext& context);
+  void requestClear();
 
  private:
   std::vector<IEffect*> effects_;
   IEffect* active_ = nullptr;
+  bool clearRequested_ = false;
 };
 
 }  // namespace lamp::effects
