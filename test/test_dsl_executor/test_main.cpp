@@ -533,6 +533,258 @@ void test_deeply_nested_expression_does_not_overflow() {
   // If we reach here, the depth guard worked.
 }
 
+void test_executor_renders_correct_sprite_frame() {
+  const std::string source =
+      "effect \"frames\"\n"
+      "sprite cat {\n"
+      "  frame walk1 {\n"
+      "    bitmap \"\"\"\n"
+      "    #.\n"
+      "    \"\"\"\n"
+      "  }\n"
+      "  frame walk2 {\n"
+      "    bitmap \"\"\"\n"
+      "    .#\n"
+      "    \"\"\"\n"
+      "  }\n"
+      "}\n"
+      "layer cat1 {\n"
+      "  use cat\n"
+      "  color rgb(255, 255, 255)\n"
+      "  x = 0\n"
+      "  y = 0\n"
+      "  scale = 1\n"
+      "  frame = 0\n"
+      "  visible = 1\n"
+      "}\n";
+
+  lamp::live::runtime::CompiledProgram compiledProgram;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+  TEST_ASSERT_TRUE(compileSource(source, compiledProgram, diagnostics));
+
+  lamp::MatrixLayout layout;
+  lamp::FrameBuffer frameBuffer(layout);
+  lamp::live::runtime::Executor executor;
+  lamp::live::runtime::ExecutionContext context;
+  executor.render(compiledProgram, context, frameBuffer);
+
+  // Frame 0: pixel at (0,0) should be lit, (1,0) empty
+  const lamp::Rgb px0 = frameBuffer.getPixel(0, 0);
+  TEST_ASSERT_EQUAL_UINT8(255U, px0.r);
+  const lamp::Rgb px1 = frameBuffer.getPixel(1, 0);
+  TEST_ASSERT_EQUAL_UINT8(0U, px1.r);
+}
+
+void test_executor_frame_expression_modulo() {
+  // 3-frame sprite, frame = (t * 4) % 3 — verify cycling
+  const std::string source =
+      "effect \"cycle\"\n"
+      "sprite tri {\n"
+      "  frame a {\n"
+      "    bitmap \"\"\"\n"
+      "    #..\n"
+      "    \"\"\"\n"
+      "  }\n"
+      "  frame b {\n"
+      "    bitmap \"\"\"\n"
+      "    .#.\n"
+      "    \"\"\"\n"
+      "  }\n"
+      "  frame c {\n"
+      "    bitmap \"\"\"\n"
+      "    ..#\n"
+      "    \"\"\"\n"
+      "  }\n"
+      "}\n"
+      "layer t1 {\n"
+      "  use tri\n"
+      "  color rgb(255, 255, 255)\n"
+      "  x = 0\n"
+      "  y = 0\n"
+      "  scale = 1\n"
+      "  frame = (t * 4) % 3\n"
+      "  visible = 1\n"
+      "}\n";
+
+  lamp::live::runtime::CompiledProgram compiledProgram;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+  TEST_ASSERT_TRUE(compileSource(source, compiledProgram, diagnostics));
+
+  lamp::MatrixLayout layout;
+  lamp::FrameBuffer frameBuffer(layout);
+  lamp::live::runtime::Executor executor;
+
+  // t=0: frame = 0 → pixel at (0,0)
+  {
+    lamp::live::runtime::ExecutionContext context;
+    context.timeSeconds = 0.0f;
+    executor.render(compiledProgram, context, frameBuffer);
+    TEST_ASSERT_EQUAL_UINT8(255U, frameBuffer.getPixel(0, 0).r);
+    TEST_ASSERT_EQUAL_UINT8(0U, frameBuffer.getPixel(1, 0).r);
+  }
+
+  // t=0.5: frame = 2 % 3 = 2 → pixel at (2,0)
+  {
+    lamp::live::runtime::ExecutionContext context;
+    context.timeSeconds = 0.5f;
+    frameBuffer.clear();
+    executor.render(compiledProgram, context, frameBuffer);
+    TEST_ASSERT_EQUAL_UINT8(255U, frameBuffer.getPixel(2, 0).r);
+    TEST_ASSERT_EQUAL_UINT8(0U, frameBuffer.getPixel(0, 0).r);
+  }
+}
+
+void test_executor_for_loop_unrolls_layers() {
+  const std::string source =
+      "effect \"unrolled\"\n"
+      "sprite dot {\n"
+      "  bitmap \"\"\"\n"
+      "  #\n"
+      "  \"\"\"\n"
+      "}\n"
+      "for i = 0; i < 3; i = i + 1 {\n"
+      "  layer s {\n"
+      "    use dot\n"
+      "    color rgb(100, 0, 0)\n"
+      "    x = i * 5\n"
+      "    y = 0\n"
+      "    scale = 1\n"
+      "    visible = 1\n"
+      "  }\n"
+      "}\n";
+
+  lamp::live::runtime::CompiledProgram compiledProgram;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+  TEST_ASSERT_TRUE(compileSource(source, compiledProgram, diagnostics));
+  TEST_ASSERT_EQUAL_UINT32(0U, static_cast<uint32_t>(diagnostics.size()));
+
+  // 3 unrolled layers
+  TEST_ASSERT_EQUAL_UINT32(3U, static_cast<uint32_t>(compiledProgram.layers.size()));
+  TEST_ASSERT_EQUAL_STRING("s_0", compiledProgram.layers[0].name.c_str());
+  TEST_ASSERT_EQUAL_STRING("s_1", compiledProgram.layers[1].name.c_str());
+  TEST_ASSERT_EQUAL_STRING("s_2", compiledProgram.layers[2].name.c_str());
+
+  lamp::MatrixLayout layout;
+  lamp::FrameBuffer frameBuffer(layout);
+  lamp::live::runtime::Executor executor;
+  lamp::live::runtime::ExecutionContext context;
+  executor.render(compiledProgram, context, frameBuffer);
+
+  // Layer s_0 at x=0, s_1 at x=5, s_2 at x=10
+  TEST_ASSERT_EQUAL_UINT8(100U, frameBuffer.getPixel(0, 0).r);
+  TEST_ASSERT_EQUAL_UINT8(100U, frameBuffer.getPixel(5, 0).r);
+  TEST_ASSERT_EQUAL_UINT8(100U, frameBuffer.getPixel(10, 0).r);
+  // Position at x=3 should be empty
+  TEST_ASSERT_EQUAL_UINT8(0U, frameBuffer.getPixel(3, 0).r);
+}
+
+void test_executor_single_frame_sprite_still_works() {
+  // Old-style single-bitmap sprite — backward compat (D-04)
+  const std::string source =
+      "effect \"oldschool\"\n"
+      "sprite dot {\n"
+      "  bitmap \"\"\"\n"
+      "  #\n"
+      "  \"\"\"\n"
+      "}\n"
+      "layer dot1 {\n"
+      "  use dot\n"
+      "  color rgb(50, 200, 100)\n"
+      "  x = 5\n"
+      "  y = 7\n"
+      "  scale = 1\n"
+      "  rotation = 0\n"
+      "  visible = 1\n"
+      "}\n";
+
+  lamp::live::runtime::CompiledProgram compiledProgram;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+  TEST_ASSERT_TRUE(compileSource(source, compiledProgram, diagnostics));
+  TEST_ASSERT_EQUAL_UINT32(0U, static_cast<uint32_t>(diagnostics.size()));
+
+  lamp::MatrixLayout layout;
+  lamp::FrameBuffer frameBuffer(layout);
+  lamp::live::runtime::Executor executor;
+  lamp::live::runtime::ExecutionContext context;
+  executor.render(compiledProgram, context, frameBuffer);
+
+  const lamp::Rgb pixel = frameBuffer.getPixel(5, 7);
+  TEST_ASSERT_EQUAL_UINT8(50U, pixel.r);
+  TEST_ASSERT_EQUAL_UINT8(200U, pixel.g);
+  TEST_ASSERT_EQUAL_UINT8(100U, pixel.b);
+}
+
+void test_executor_frame_index_bounded() {
+  // 2-frame sprite, frame=99 → renders frame 1 (99 % 2 = 1)
+  const std::string source =
+      "effect \"bounded\"\n"
+      "sprite two {\n"
+      "  frame a {\n"
+      "    bitmap \"\"\"\n"
+      "    #.\n"
+      "    \"\"\"\n"
+      "  }\n"
+      "  frame b {\n"
+      "    bitmap \"\"\"\n"
+      "    .#\n"
+      "    \"\"\"\n"
+      "  }\n"
+      "}\n"
+      "layer t1 {\n"
+      "  use two\n"
+      "  color rgb(255, 255, 255)\n"
+      "  x = 0\n"
+      "  y = 0\n"
+      "  scale = 1\n"
+      "  frame = 99\n"
+      "  visible = 1\n"
+      "}\n";
+
+  lamp::live::runtime::CompiledProgram compiledProgram;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+  TEST_ASSERT_TRUE(compileSource(source, compiledProgram, diagnostics));
+
+  lamp::MatrixLayout layout;
+  lamp::FrameBuffer frameBuffer(layout);
+  lamp::live::runtime::Executor executor;
+  lamp::live::runtime::ExecutionContext context;
+  executor.render(compiledProgram, context, frameBuffer);
+
+  // Frame 1: pixel at (1,0) should be lit (99 % 2 = 1)
+  TEST_ASSERT_EQUAL_UINT8(0U, frameBuffer.getPixel(0, 0).r);
+  TEST_ASSERT_EQUAL_UINT8(255U, frameBuffer.getPixel(1, 0).r);
+}
+
+void test_executor_max_unrolled_layers_enforced() {
+  // Create a for-loop that exceeds kMaxUnrolledLayers (64)
+  std::string source =
+      "effect \"overflow\"\n"
+      "sprite dot {\n"
+      "  bitmap \"\"\"\n"
+      "  #\n"
+      "  \"\"\"\n"
+      "}\n"
+      "for i = 0; i < 70; i = i + 1 {\n"
+      "  layer s {\n"
+      "    use dot\n"
+      "    color rgb(255, 0, 0)\n"
+      "    x = 0\n"
+      "    y = 0\n"
+      "    scale = 1\n"
+      "    visible = 1\n"
+      "  }\n"
+      "}\n";
+
+  lamp::live::runtime::CompiledProgram compiledProgram;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+  TEST_ASSERT_FALSE(compileSource(source, compiledProgram, diagnostics));
+  TEST_ASSERT_TRUE(diagnostics.size() >= 1U);
+  // Should contain "Слишком много слоёв" diagnostic
+  TEST_ASSERT_NOT_EQUAL(
+      -1,
+      static_cast<int>(diagnostics[0].message.find("Слишком много слоёв после развёртки for")));
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -552,5 +804,11 @@ int main(int argc, char** argv) {
   RUN_TEST(test_executor_renders_text_as_sprite);
   RUN_TEST(test_expression_at_depth_limit_succeeds);
   RUN_TEST(test_deeply_nested_expression_does_not_overflow);
+  RUN_TEST(test_executor_renders_correct_sprite_frame);
+  RUN_TEST(test_executor_frame_expression_modulo);
+  RUN_TEST(test_executor_for_loop_unrolls_layers);
+  RUN_TEST(test_executor_single_frame_sprite_still_works);
+  RUN_TEST(test_executor_frame_index_bounded);
+  RUN_TEST(test_executor_max_unrolled_layers_enforced);
   return UNITY_END();
 }
