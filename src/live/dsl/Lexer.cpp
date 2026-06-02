@@ -129,6 +129,164 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
       appendToken(tokens, TokenType::kLeftBrace, "{", lineNumber,
                   static_cast<uint32_t>(trimmed.find('{') + 1U));
       appendToken(tokens, TokenType::kNewline, "", lineNumber, 1U);
+
+      // Scan ahead to determine sprite style: single-bitmap or multi-frame
+      size_t peekIndex = index + 1;
+      while (peekIndex < lines.size() && trim(lines[peekIndex]).empty()) {
+        ++peekIndex;
+      }
+      std::string peekLine = (peekIndex < lines.size()) ? trim(lines[peekIndex]) : "";
+
+      if (startsWith(peekLine, "frame ")) {
+        // Multi-frame sprite mode
+        int braceDepth = 1;  // We already consumed the opening {
+        for (++index; index < lines.size() && braceDepth > 0; ++index) {
+          const uint32_t frameLineNumber = static_cast<uint32_t>(index + 1U);
+          const std::string frameTrimmed = trim(lines[index]);
+          if (frameTrimmed.empty()) {
+            appendToken(tokens, TokenType::kNewline, "", frameLineNumber, 1U);
+            continue;
+          }
+          if (frameTrimmed == "}") {
+            appendToken(tokens, TokenType::kRightBrace, "}", frameLineNumber, 1U);
+            appendToken(tokens, TokenType::kNewline, "", frameLineNumber, 1U);
+            --braceDepth;
+            continue;
+          }
+          if (startsWith(frameTrimmed, "frame ")) {
+            std::string frameName;
+            if (!parseBlockHeader(frameTrimmed, "frame", frameName)) {
+              diagnostics.push_back(makeDiagnostic(frameLineNumber, 1U,
+                                                   "Ожидалось имя кадра после frame"));
+              return false;
+            }
+            appendToken(tokens, TokenType::kKeywordFrame, "frame", frameLineNumber, 1U);
+            appendToken(tokens, TokenType::kIdentifier, frameName, frameLineNumber, 7U);
+            appendToken(tokens, TokenType::kLeftBrace, "{", frameLineNumber,
+                        static_cast<uint32_t>(frameTrimmed.find('{') + 1U));
+            appendToken(tokens, TokenType::kNewline, "", frameLineNumber, 1U);
+            continue;
+          }
+          if (frameTrimmed == "bitmap \"\"\"") {
+            std::string bitmap;
+            bool closed = false;
+            for (++index; index < lines.size(); ++index) {
+              const std::string bitmapLine = lines[index];
+              if (trim(bitmapLine) == "\"\"\"") {
+                closed = true;
+                break;
+              }
+              if (!bitmap.empty()) {
+                bitmap += '\n';
+              }
+              bitmap += trim(bitmapLine);
+            }
+            if (!closed) {
+              diagnostics.push_back(makeDiagnostic(frameLineNumber, 1U,
+                                                   "Не закрыт bitmap блок"));
+              return false;
+            }
+            appendToken(tokens, TokenType::kKeywordBitmap, "bitmap", frameLineNumber, 1U);
+            appendToken(tokens, TokenType::kMultilineString, bitmap, frameLineNumber, 8U);
+            appendToken(tokens, TokenType::kNewline, "",
+                        static_cast<uint32_t>(index + 1U), 1U);
+            continue;
+          }
+          if (frameTrimmed == "}") {
+            appendToken(tokens, TokenType::kRightBrace, "}", frameLineNumber, 1U);
+            appendToken(tokens, TokenType::kNewline, "", frameLineNumber, 1U);
+            continue;
+          }
+          // Unknown content inside sprite body
+          diagnostics.push_back(makeDiagnostic(frameLineNumber, 1U,
+                                               "Неожиданный токен в sprite: " + frameTrimmed));
+          return false;
+        }
+        // Adjust index back since the outer loop will increment it
+        if (index > 0) --index;
+      } else {
+        // Single-bitmap path: let the normal bitmap handler process it
+        // (backward compatible, D-04)
+      }
+      continue;
+    }
+
+    if (startsWith(trimmed, "for ")) {
+      appendToken(tokens, TokenType::kKeywordFor, "for", lineNumber, 1U);
+
+      // Parse for-header on this line: for i = 0; i < 3; i = i + 1 {
+      std::string header = trim(trimmed.substr(4));  // after "for "
+      // Check if header ends with { — if so, strip it
+      bool hasBrace = false;
+      if (!header.empty() && header.back() == '{') {
+        header = trim(header.substr(0, header.length() - 1));
+        hasBrace = true;
+      }
+
+      // Tokenize the for-header by splitting on semicolons
+      std::string::size_type pos = 0;
+      int clauseIndex = 0;
+      while (pos < header.length() && clauseIndex < 3) {
+        std::string::size_type semi = header.find(';', pos);
+        std::string clause;
+        if (semi == std::string::npos) {
+          clause = trim(header.substr(pos));
+          pos = header.length();
+        } else {
+          clause = trim(header.substr(pos, semi - pos));
+          pos = semi + 1;
+        }
+
+        // Tokenize each clause: identifier = expression
+        std::string::size_type eqPos = clause.find('=');
+        if (eqPos != std::string::npos) {
+          std::string varName = trim(clause.substr(0, eqPos));
+          std::string expr = trim(clause.substr(eqPos + 1));
+          appendToken(tokens, TokenType::kIdentifier, varName, lineNumber,
+                      static_cast<uint32_t>(trimmed.find(varName) + 1U));
+          appendToken(tokens, TokenType::kEquals, "=", lineNumber,
+                      static_cast<uint32_t>(trimmed.find('=') + 1U));
+          appendToken(tokens, TokenType::kExpression, expr, lineNumber,
+                      static_cast<uint32_t>(trimmed.find(expr) + 1U));
+        } else if (clauseIndex == 1) {
+          // Middle clause: loopVar comparisonOp expression
+          // Split on comparison operator
+          std::string op;
+          std::string::size_type opPos = std::string::npos;
+          const char* ops[] = {"<=", ">=", "<", ">"};
+          for (const char* candidate : ops) {
+            std::string::size_type found = clause.find(candidate);
+            if (found != std::string::npos) {
+              opPos = found;
+              op = candidate;
+              break;
+            }
+          }
+          if (opPos != std::string::npos) {
+            std::string leftVar = trim(clause.substr(0, opPos));
+            std::string rightExpr = trim(clause.substr(opPos + op.length()));
+            appendToken(tokens, TokenType::kIdentifier, leftVar, lineNumber,
+                        static_cast<uint32_t>(trimmed.find(leftVar) + 1U));
+            appendToken(tokens, TokenType::kUnknown, op, lineNumber,
+                        static_cast<uint32_t>(trimmed.find(op) + 1U));
+            appendToken(tokens, TokenType::kExpression, rightExpr, lineNumber,
+                        static_cast<uint32_t>(trimmed.find(rightExpr) + 1U));
+          }
+        }
+        ++clauseIndex;
+
+        if (semi != std::string::npos) {
+          appendToken(tokens, TokenType::kSemicolon, ";", lineNumber,
+                      static_cast<uint32_t>(trimmed.find(';', pos - 1) + 1U));
+        }
+      }
+
+      appendToken(tokens, TokenType::kNewline, "", lineNumber, 1U);
+      if (hasBrace) {
+        appendToken(tokens, TokenType::kLeftBrace, "{", lineNumber,
+                    static_cast<uint32_t>(trimmed.find('{') + 1U));
+        appendToken(tokens, TokenType::kNewline, "", lineNumber, 1U);
+      }
       continue;
     }
 
@@ -195,7 +353,8 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
                          {"scale", TokenType::kKeywordScale},
                          {"rotation", TokenType::kKeywordRotation},
                          {"blend", TokenType::kKeywordBlend},
-                         {"visible", TokenType::kKeywordVisible}};
+                         {"visible", TokenType::kKeywordVisible},
+                         {"frame", TokenType::kKeywordFrame}};
 
     bool matchedProperty = false;
     for (const PropertyRule& rule : propertyRules) {
