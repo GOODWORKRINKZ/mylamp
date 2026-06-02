@@ -765,7 +765,7 @@ async function savePreset(): Promise<void> {
   setText("editor-status", "Сохраняем эффект...");
 
   try {
-    const response = await fetch(`/api/presets?id=${encodeURIComponent(presetId)}`, {
+    const response = await fetch(`/api/presets/${encodeURIComponent(presetId)}`, {
       method: "PUT",
       headers: buildJsonHeaders(),
       body: JSON.stringify({
@@ -1151,11 +1151,45 @@ function bindPlaylistActions(): void {
   });
 }
 
+async function handleShare(): Promise<void> {
+  const source = getEditorValue().trim();
+  if (!source) {
+    setText("editor-status", "Нечего копировать: редактор пустой.");
+    return;
+  }
+  try {
+    const base64 = btoa(unescape(encodeURIComponent(source)));
+    const urlSafe = base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const shareUrl = `${window.location.origin}${window.location.pathname}?code=${urlSafe}`;
+    await navigator.clipboard.writeText(shareUrl);
+    setText("editor-status", "Ссылка скопирована. Отправь её кому угодно.");
+  } catch {
+    setText("editor-status", "Не удалось скопировать ссылку.");
+  }
+}
+
+function decodeShareLink(): void {
+  const urlParams = new URLSearchParams(window.location.search);
+  const codeParam = urlParams.get("code");
+  if (!codeParam) return;
+
+  try {
+    let base64 = codeParam.replace(/-/g, "+").replace(/_/g, "/");
+    while (base64.length % 4) base64 += "=";
+    const source = decodeURIComponent(escape(atob(base64)));
+    setEditorValue(source);
+    setText("editor-status", "Эффект загружен по ссылке. Можно запустить или сохранить.");
+  } catch {
+    setText("editor-status", "Не удалось загрузить эффект по ссылке.");
+  }
+}
+
 function bindActionButtons(): void {
   const newEffectButton = document.getElementById("new-effect-button") as HTMLButtonElement | null;
   const validateButton = document.getElementById("validate-button") as HTMLButtonElement | null;
   const runButton = document.getElementById("run-button") as HTMLButtonElement | null;
   const saveButton = document.getElementById("save-button") as HTMLButtonElement | null;
+  const shareButton = document.getElementById("share-button") as HTMLButtonElement | null;
 
   newEffectButton?.addEventListener("click", () => {
     createNewEffect();
@@ -1171,6 +1205,10 @@ function bindActionButtons(): void {
 
   saveButton?.addEventListener("click", () => {
     void savePreset();
+  });
+
+  shareButton?.addEventListener("click", () => {
+    void handleShare();
   });
 }
 
@@ -2207,6 +2245,7 @@ void loadPlaylistList();
 applySnippet(starterSnippets[0]);
 bindSnippetButtons();
 bindActionButtons();
+decodeShareLink();
 bindPresetListActions();
 bindPlaylistActions();
 bindUpdateControls();

@@ -41,6 +41,7 @@ export function renderShellMarkup(options: ShellTemplateOptions): string {
               <button id="validate-button" type="button">Проверить</button>
               <button id="run-button" type="button">Запустить</button>
               <button id="save-button" type="button">Сохранить</button>
+              <button id="share-button" type="button">Поделиться</button>
             </div>
             <div class="editor-bar__status" id="editor-status">Кликни в код и печатай</div>
           </div>

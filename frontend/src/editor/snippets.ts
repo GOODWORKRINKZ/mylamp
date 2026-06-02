@@ -156,4 +156,309 @@ layer indicator {
   visible = 1
 }`,
   },
+  {
+    id: "nyan-cat",
+    name: "Нян Кот",
+    description: "Котик с радужным шлейфом бежит по кругу.",
+    source: `effect "nyan_cat"
+
+sprite cat {
+  frame f0 { bitmap """
+.....GG.....
+....GGGG....
+...GGGGGG...
+..GGGGGGGG..
+.GGGGGGGGGG.
+GGKGGKGGKGGG
+GGGGGGGGGGGG
+.GGWWWWWWGG.
+.GGGGGGGGGG.
+..GGGGGGGG..
+.....PP.....
+.....PP.....
+""" }
+  frame f1 { bitmap """
+.....GG.....
+....GGGG....
+...GGGGGG...
+..GGGGGGGG..
+.GGGGGGGGGG.
+GGKGGKGGKGGG
+GGGGGGGGGGGG
+.GGGGGGGGGG.
+.GGWWWWWWGG.
+..GGGGGGGG..
+.....PP.....
+.....PP.....
+""" }
+  frame f2 { bitmap """
+.....GG.....
+....GGGG....
+...GGGGGG...
+..GGGGGGGG..
+.GGGGGGGGGG.
+GGKGGKGGKGGG
+GGGGGGGGGGGG
+..GGGGGGGG..
+.GGGGGGGGGG.
+.GGWWWWWWGG.
+.....PP.....
+.....PP.....
+""" }
+  frame f3 { bitmap """
+.....GG.....
+....GGGG....
+...GGGGGG...
+..GGGGGGGG..
+.GGGGGGGGGG.
+GGKGGKGGKGGG
+GGGGGGGGGGGG
+....GGGGGG..
+..GGGGGGGG..
+.GGWWWWWWGG.
+.....PP.....
+.....PP.....
+""" }
+}
+
+layer nyan {
+  use cat
+  x = (t * 8) % 32
+  y = 2
+  frame = (t * 4) % 4
+  visible = 1
+}`,
+  },
+  {
+    id: "mario",
+    name: "Марио",
+    description: "8-битный Марио шагает по цилиндру — прямо из SMB1!",
+    source: `effect "mario"
+
+palette mario_pal {
+  R = rgb(177, 52, 37)
+  S = rgb(255, 190, 130)
+  W = rgb(106, 107, 1)
+}
+
+sprite mario palette mario_pal {
+  frame f0 { bitmap """
+................
+................
+......RRRR......
+.....RRRRRR.....
+.....SSSSSS.....
+....SSWWWWSS....
+....SSSSSSSS....
+....RRRRRRRR....
+.....RRRRRR.....
+.....RRRRRR.....
+......RRRR......
+.....RRRRRR.....
+....RRR..RRR....
+...RRR....RRR...
+...RR......RR...
+.......RR.......
+""" }
+  frame f1 { bitmap """
+................
+................
+......RRRR......
+.....RRRRRR.....
+.....SSSSSS.....
+....SSWWWWSS....
+....SSSSSSSS....
+....RRRRRRRR....
+.....RRRRRR.....
+.....RRRRRR.....
+......RRRR......
+.....RRRRRR.....
+....RRR..RRRR...
+...RRR......RR..
+..RRR........RR.
+.......RR.......
+""" }
+  frame f2 { bitmap """
+................
+................
+......RRRR......
+.....RRRRRR.....
+.....SSSSSS.....
+....SSWWWWSS....
+....SSSSSSSS....
+....RRRRRRRR....
+.....RRRRRR.....
+.....RRRRRR.....
+......RRRR......
+.....RRRRRR.....
+....RRRR.RRR....
+...RR......RR...
+..RR........RR..
+.......RR.......
+""" }
+}
+
+layer mario1 {
+  use mario
+  x = (t * 5) % 32
+  y = 0
+  frame = (t * 5) % 3
+  visible = 1
+}`,
+  },
+  {
+    id: "plasma",
+    name: "Плазма",
+    description: "Абстрактные переливы — sin, cos и немного магии.",
+    source: `effect "plasma"
+
+sprite fullscreen {
+  bitmap """
+################################
+################################
+################################
+################################
+################################
+################################
+################################
+################################
+################################
+################################
+################################
+################################
+################################
+################################
+################################
+################################
+"""
+}
+
+layer plasma1 {
+  use fullscreen
+  color hsv(sin(nx * 8 + t) * 30 + cos(ny * 6 + t * 0.7) * 30 + t * 20, 1, 0.5 + 0.5 * sin(nx * 5 + ny * 4 + t))
+  x = 0
+  y = 0
+  scale = 1
+  visible = 1
+}`,
+  },
+  {
+    id: "scrolling-text",
+    name: "Бегущая строка",
+    description: "Текст движется по окружности, как на стадионе.",
+    source: `effect "scrolling_text"
+
+text msg "MYLAMP "
+
+layer scroller {
+  use msg
+  color rgb(255, 200, 50)
+  x = (t * 6) % 32
+  y = 5
+  scale = 1
+  visible = 1
+}`,
+  },
+  {
+    id: "snake",
+    name: "Змейка",
+    description: "Волна из точек — классика LED-анимации.",
+    source: `effect "snake"
+
+sprite dot {
+  bitmap """
+#
+"""
+}
+
+for j = 0; j < 10; j = j + 1 {
+  layer seg {
+    use dot
+    color hsv(j * 30, 1, 1)
+    x = sin(t * 2 + j * 0.6) * 12 + 16
+    y = cos(t * 2 + j * 0.6) * 6 + 8
+    scale = 1 + (j % 2)
+    visible = 1
+  }
+}`,
+  },
+  {
+    id: "fire-particles",
+    name: "Огоньки",
+    description: "Частицы пламени поднимаются вверх.",
+    source: `effect "fire_particles"
+
+sprite dot {
+  bitmap """
+#
+"""
+}
+
+for j = 0; j < 12; j = j + 1 {
+  layer p {
+    use dot
+    color hsv(15 + j * 2, 1, 1 - j * 0.08)
+    x = sin(j * 2.7 + t) * 3 + 8
+    y = (t * 3 + j * 2) % 32
+    scale = 1 + (j % 2)
+    blend = add
+    visible = 1
+  }
+}`,
+  },
+  {
+    id: "starfield",
+    name: "Звёздное поле",
+    description: "Пролетающие звёзды — как в космосе.",
+    source: `effect "starfield"
+
+sprite dot {
+  bitmap """
+#
+"""
+}
+
+for j = 0; j < 20; j = j + 1 {
+  layer s {
+    use dot
+    color rgb(200 + 55 * sin(t + j), 200 + 55 * cos(t + j * 0.7), 255)
+    x = (j * 7 + 3) % 16
+    y = (t * (3 + j % 4) + j * 11) % 32
+    scale = 1
+    blend = add
+    visible = 1
+  }
+}`,
+  },
+  {
+    id: "dna",
+    name: "Спираль ДНК",
+    description: "Двойная спираль крутится на матрице.",
+    source: `effect "dna"
+
+sprite dot {
+  bitmap """
+#
+"""
+}
+
+for j = 0; j < 16; j = j + 1 {
+  layer h1 {
+    use dot
+    color rgb(80, 200, 255)
+    x = 8 + sin(t * 2 + j * 0.4) * 6
+    y = j * 2
+    scale = 1
+    visible = 1
+  }
+  layer h2 {
+    use dot
+    color rgb(255, 80, 120)
+    x = 8 + sin(t * 2 + j * 0.4 + 3.1415) * 6
+    y = j * 2
+    scale = 1
+    visible = 1
+  }
+}`,
+  },
 ];

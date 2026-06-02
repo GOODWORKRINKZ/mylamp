@@ -6,6 +6,7 @@
 const LUX_KEYWORDS = new Set([
   "effect", "sprite", "text", "layer", "use", "color", "bitmap",
   "visible", "x", "y", "scale", "rotation", "blend",
+  "for", "frame", "palette",
 ]);
 
 const LUX_FUNCTIONS = new Set([

@@ -39,6 +39,8 @@ export const editorHelpSections: HelpSection[] = [
       { term: "color rgb(...) / hsv(...)", description: "Цвет слоя через RGB или HSV." },
       { term: "rotation / blend", description: "Вращение и режим наложения (normal, add, multiply, screen)." },
       { term: "visible", description: "0 скрывает слой, 1 показывает, дробные значения пригодятся позже." },
+      { term: "for", description: "Цикл для рисования повторяющихся фигур. Всё внутри { } повторится несколько раз." },
+      { term: "frame", description: "Выбор кадра анимации внутри sprite. Меняется по выражению: frame = (t * 4) % 3." },
     ],
   },
 ];
