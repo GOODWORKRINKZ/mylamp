@@ -76,6 +76,8 @@ bool parseSprite(ParserState& state, Program& program,
     return false;
   }
 
+  skipNewlines(state);
+
   // Detect sprite style: single-bitmap (kKeywordBitmap) or multi-frame (kKeywordFrame)
   if (state.current().type == TokenType::kKeywordFrame) {
     // Multi-frame sprite mode

@@ -1,70 +1,83 @@
 effect "nyan_cat"
 
-sprite cat {
-  frame walk1 {
+palette nyan_pal {
+  G = rgb(180, 180, 180)
+  P = rgb(255, 150, 180)
+  K = rgb(40, 40, 40)
+  W = rgb(255, 255, 255)
+}
+
+sprite cat palette nyan_pal {
+  frame f0 {
     bitmap """
-    .....##....
-    ....####...
-    ...######..
-    ..########.
-    .##########
-    ##.##.##.##
-    ############
-    .##......##
-    .##########
-    ..########.
+    .....GG.....
+    ....GGGG....
+    ...GGGGGG...
+    ..GGGGGGGG..
+    .GGGGGGGGGG.
+    GGKGGKGGKGGG
+    GGGGGGGGGGGG
+    .GGWWWWWWGG.
+    .GGGGGGGGGG.
+    ..GGGGGGGG..
+    .....PP.....
+    .....PP.....
     """
   }
-  frame walk2 {
+  frame f1 {
     bitmap """
-    .....##....
-    ....####...
-    ...######..
-    ..########.
-    .##########
-    ##.##.##.##
-    ############
-    .##########
-    .##......##
-    ..########.
+    .....GG.....
+    ....GGGG....
+    ...GGGGGG...
+    ..GGGGGGGG..
+    .GGGGGGGGGG.
+    GGKGGKGGKGGG
+    GGGGGGGGGGGG
+    .GGGGGGGGGG.
+    .GGWWWWWWGG.
+    ..GGGGGGGG..
+    .....PP.....
+    .....PP.....
     """
   }
-  frame walk3 {
+  frame f2 {
     bitmap """
-    .....##....
-    ....####...
-    ...######..
-    ..########.
-    .##########
-    ##.##.##.##
-    ############
-    ..########.
-    .##########
-    .##......##
+    .....GG.....
+    ....GGGG....
+    ...GGGGGG...
+    ..GGGGGGGG..
+    .GGGGGGGGGG.
+    GGKGGKGGKGGG
+    GGGGGGGGGGGG
+    ..GGGGGGGG..
+    .GGGGGGGGGG.
+    .GGWWWWWWGG.
+    .....PP.....
+    .....PP.....
     """
   }
-  frame walk4 {
+  frame f3 {
     bitmap """
-    .....##....
-    ....####...
-    ...######..
-    ..########.
-    .##########
-    ##.##.##.##
-    ############
-    ....######.
-    ..########.
-    .##......##
+    .....GG.....
+    ....GGGG....
+    ...GGGGGG...
+    ..GGGGGGGG..
+    .GGGGGGGGGG.
+    GGKGGKGGKGGG
+    GGGGGGGGGGGG
+    ....GGGGGG..
+    ..GGGGGGGG..
+    .GGWWWWWWGG.
+    .....PP.....
+    .....PP.....
     """
   }
 }
 
-layer bg {
+layer nyan {
   use cat
-  color hsv(nx * 30 + t * 50 + ny * 10, 1, 0.5 + 0.3 * sin(t + nx * 2))
   x = (t * 8) % 32
-  y = 3
-  scale = 1
+  y = 2
   frame = (t * 4) % 4
   visible = 1
 }
