@@ -8,6 +8,39 @@
 
 ---
 
+## must_haves
+
+```yaml
+truths:
+  - "No ghost pixels when switching between compiled effects"
+  - "No leftover live-program pixels after stopping DSL program"
+  - "Serial output silent in release builds (no heartbeat, no boot banner)"
+  - "Deeply nested DSL expressions do not crash device"
+  - "Simple effects capped at ~60 FPS; complex effects unaffected"
+  - "Frame timing diagnostics (min/max/avg) visible in /api/status"
+artifacts:
+  - path: "src/effects/EffectRegistry.cpp"
+    provides: "FB clear on effect switch via clearRequested_ flag"
+  - path: "src/main.cpp"
+    provides: "Live→compiled transition clear, debug output guards, FPS cap, frame timing ring buffer"
+  - path: "src/live/runtime/Executor.cpp"
+    provides: "Recursion depth limit (64 levels) in evaluateNode()"
+  - path: "src/web/StatusJsonBuilder.cpp"
+    provides: "Serialization of minFrameTimeUs, maxFrameTimeUs, avgFrameTimeUs"
+key_links:
+  - from: "EffectRegistry::setActiveByName()"
+    to: "EffectRegistry::renderActive()"
+    via: "clearRequested_ bool flag"
+  - from: "LiveProgramService::stop()"
+    to: "renderEffectPass()"
+    via: "g_wasLiveActive transition detection"
+  - from: "Executor::evaluateNode()"
+    to: "DSL user input"
+    via: "kMaxExpressionDepth = 64 guard"
+```
+
+---
+
 ## 1. Research Summary
 
 ### 1.1 Current State
@@ -113,6 +146,8 @@ Current loop time: `g_lastLoopUs = micros() - loopStart` — only last frame.
 - Unit test: Simulate live→compiled transition — verify FB is cleared
 - Visual UAT: Rapidly switch effects via web UI; no ghost pixels from previous effect
 
+**Done:** `renderEffectPass()` clears FB on live→compiled transition AND `EffectRegistry::renderActive()` clears on effect switch — verified by unit tests passing + clean visual UAT.
+
 ---
 
 ### Task 2: Guard serial debug output with APP_CHANNEL (PERF-03)
@@ -140,6 +175,8 @@ Current loop time: `g_lastLoopUs = micros() - loopStart` — only last frame.
 - Build both dev and release; flash release; verify serial output is silent (no heartbeat, no boot banner)
 - Dev build still prints heartbeat and boot banner
 - Run `platformio run --environment esp32-c3-supermini-release` — compiles without error
+
+**Done:** Release build (`esp32-c3-supermini-release`) compiles and produces zero debug lines (no heartbeat, no boot banner) during boot and 30s runtime. Dev build still emits debug output.
 
 ---
 
@@ -169,6 +206,8 @@ Current loop time: `g_lastLoopUs = micros() - loopStart` — only last frame.
 - Unit test: Expression at depth 63 succeeds, depth 64 returns 0.0f
 - Existing DSL tests still pass (none approach depth 64)
 
+**Done:** `evaluateNode()` returns 0.0f (not crash) when expression depth exceeds 64. Existing DSL tests pass unchanged. Unit test confirms depth clamping behavior.
+
 ---
 
 ### Task 4: Add configurable frame rate cap (PERF-02)
@@ -196,6 +235,8 @@ Current loop time: `g_lastLoopUs = micros() - loopStart` — only last frame.
 - Flash dev build; run simple SolidColor effect; observe FPS in `/api/status` — should be ~60 (not 500+)
 - Run complex DSL effect (fireplace); FPS should be unchanged (below cap) — no artificial slowdown
 - `loopUs` field in status reflects total loop time including optional delay
+
+**Done:** FPS is capped at ~60 for simple effects. Complex DSL effects (below cap) run at native speed unaffected. `kTargetFrameTimeUs = 16000` in AppConfig.h is single point of adjustment.
 
 ---
 
@@ -229,6 +270,8 @@ Current loop time: `g_lastLoopUs = micros() - loopStart` — only last frame.
 - Unit test: `buildStatusJson()` includes new fields with valid values
 - Visual: Check `/api/status` — see `minFrameTimeUs`, `maxFrameTimeUs`, `avgFrameTimeUs`
 - Frame times are consistent: min ≤ avg ≤ max for any given snapshot
+
+**Done:** `/api/status` JSON includes `minFrameTimeUs`, `maxFrameTimeUs`, `avgFrameTimeUs` fields. Values are valid (non-zero after frames have rendered). Ring buffer (64 samples) reflects most recent ~1 second of frames.
 
 ---
 
@@ -273,6 +316,8 @@ Current loop time: `g_lastLoopUs = micros() - loopStart` — only last frame.
 - Run all tests with `platformio test --environment native-test`
 - All existing tests continue to pass (no regressions)
 - New tests pass: effect switch clear, recursion depth limit, frame timing fields
+
+**Done:** `platformio test --environment native-test` passes with 0 failures. New tests cover: FB clear on effect switch, live→compiled transition, recursion depth clamping, frame timing JSON fields, and FB clear integrity.
 
 ---
 
@@ -405,6 +450,17 @@ Task 7 (docs) ── Wave 4: After all tests pass
 - [ ] `/api/status` JSON includes `minFrameTimeUs`, `maxFrameTimeUs`, `avgFrameTimeUs`
 - [ ] All existing tests pass; new tests for PERF-01/02/03 pass
 - [ ] Visual UAT confirms no flicker during effect transitions on real device
+
+**Done:** `docs/STATUS.md` reflects PERF-01/02/03 completion. Known issues section updated. Frame rate cap and recursion depth limit documented with adjustment pointers.
+
+---
+
+## 8. Deferred
+
+| Item | Reason |
+|------|--------|
+| Clock overlay redraw optimization | `ClockOverlay::render()` redraws identically 624/625 frames (rotation offset changes every 625ms). Impact negligible — ~50-100 `setPixel` calls per frame. Candidate for future micro-optimization phase. |
+| Manual JSON builders → ArduinoJson migration | `buildUpdateSettingsJson`, `buildCurrentUpdateJson`, `buildCheckUpdatesJson` use manual string concatenation. Not in render loop — negligible performance impact. Separately tracked as tech debt in CONCERNS.md. |
 
 ---
 
