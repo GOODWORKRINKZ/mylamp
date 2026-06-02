@@ -231,6 +231,20 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
     const float rotationRadians = evaluateNode(program.expressions, layer.rotationExpression, baseContext);
 
     const CompiledSprite& sprite = program.sprites[layer.spriteIndex];
+
+    // Determine which frame's pixels to render
+    const std::vector<CompiledSpritePixel>* framePixels = &sprite.pixels;  // default: single-frame
+    if (!sprite.frames.empty()) {
+      int frameIndex = 0;
+      if (layer.frameExpression >= 0) {
+        float rawIndex = evaluateNode(program.expressions, layer.frameExpression, baseContext);
+        int numFrames = static_cast<int>(sprite.frames.size());
+        frameIndex = static_cast<int>(std::floor(rawIndex)) % numFrames;
+        if (frameIndex < 0) frameIndex += numFrames;
+      }
+      framePixels = &sprite.frames[static_cast<size_t>(frameIndex)];
+    }
+
     const float centerX = static_cast<float>(originX) +
                           static_cast<float>(sprite.width * scale) * 0.5f;
     const float centerY = static_cast<float>(originY) +
@@ -238,7 +252,7 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
     const float cosRotation = std::cos(rotationRadians);
     const float sinRotation = std::sin(rotationRadians);
 
-    for (const CompiledSpritePixel& pixel : sprite.pixels) {
+    for (const CompiledSpritePixel& pixel : *framePixels) {
       for (int16_t scaledY = 0; scaledY < scale; ++scaledY) {
         for (int16_t scaledX = 0; scaledX < scale; ++scaledX) {
           const float pixelCenterX = static_cast<float>(originX + pixel.x * scale + scaledX) + 0.5f;

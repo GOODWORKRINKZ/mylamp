@@ -379,30 +379,49 @@ CompiledSprite compileSprite(const lamp::live::dsl::SpriteDeclaration& sprite) {
   CompiledSprite compiledSprite;
   compiledSprite.name = sprite.name;
 
-  int16_t y = 0;
-  int16_t maxWidth = 0;
-  std::string currentLine;
-  for (char ch : sprite.bitmap) {
-    if (ch == '\n') {
-      maxWidth = std::max(maxWidth, static_cast<int16_t>(currentLine.size()));
-      ++y;
-      currentLine.clear();
-      continue;
+  auto parseBitmap = [](const std::string& bitmap, CompiledSprite& cs) {
+    int16_t y = 0;
+    int16_t maxWidth = 0;
+    std::string currentLine;
+    for (char ch : bitmap) {
+      if (ch == '\n') {
+        maxWidth = std::max(maxWidth, static_cast<int16_t>(currentLine.size()));
+        ++y;
+        currentLine.clear();
+        continue;
+      }
+      const int16_t x = static_cast<int16_t>(currentLine.size());
+      currentLine.push_back(ch);
+      if (ch != '.' && ch != ' ' && ch != '\t') {
+        CompiledSpritePixel pixel;
+        pixel.x = x;
+        pixel.y = y;
+        cs.pixels.push_back(pixel);
+      }
     }
+    maxWidth = std::max(maxWidth, static_cast<int16_t>(currentLine.size()));
+    cs.width = std::max(cs.width, maxWidth);
+    cs.height = std::max(cs.height, static_cast<int16_t>(y + 1));
+  };
 
-    const int16_t x = static_cast<int16_t>(currentLine.size());
-    currentLine.push_back(ch);
-    if (ch != '.' && ch != ' ' && ch != '\t') {
-      CompiledSpritePixel pixel;
-      pixel.x = x;
-      pixel.y = y;
-      compiledSprite.pixels.push_back(pixel);
+  if (!sprite.frames.empty()) {
+    // Multi-frame sprite
+    for (const lamp::live::dsl::SpriteFrameDeclaration& frame : sprite.frames) {
+      CompiledSprite frameSprite;
+      frameSprite.name = frame.name;
+      parseBitmap(frame.bitmap, frameSprite);
+      compiledSprite.frames.push_back(frameSprite.pixels);
+      compiledSprite.width = std::max(compiledSprite.width, frameSprite.width);
+      compiledSprite.height = std::max(compiledSprite.height, frameSprite.height);
     }
+    // Copy frame 0 as default pixels for backward compat (D-04)
+    if (!compiledSprite.frames.empty()) {
+      compiledSprite.pixels = compiledSprite.frames[0];
+    }
+  } else {
+    // Single-bitmap sprite (backward compat, D-04)
+    parseBitmap(sprite.bitmap, compiledSprite);
   }
-
-  maxWidth = std::max(maxWidth, static_cast<int16_t>(currentLine.size()));
-  compiledSprite.width = maxWidth;
-  compiledSprite.height = static_cast<int16_t>(y + 1);
 
   return compiledSprite;
 }
@@ -444,6 +463,23 @@ CompiledSprite compileText(const lamp::live::dsl::TextDeclaration& text) {
 
 }  // namespace
 
+void replaceAll(std::string& str, const std::string& from, const std::string& to) {
+  if (from.empty()) return;
+  size_t pos = 0;
+  while ((pos = str.find(from, pos)) != std::string::npos) {
+    str.replace(pos, from.length(), to);
+    pos += to.length();
+  }
+}
+
+bool evaluateComparison(int val, int bound, const std::string& op) {
+  if (op == "<") return val < bound;
+  if (op == "<=") return val <= bound;
+  if (op == ">") return val > bound;
+  if (op == ">=") return val >= bound;
+  return false;
+}
+
 bool Compiler::compile(const dsl::Program& program, CompiledProgram& compiledProgram,
                        std::vector<lamp::live::Diagnostic>& diagnostics) const {
   CompiledProgram compiled;
@@ -458,6 +494,102 @@ bool Compiler::compile(const dsl::Program& program, CompiledProgram& compiledPro
   }
 
   ExpressionCompiler expressionCompiler(compiled.expressions);
+
+  // For-loop unrolling (per D-03)
+  for (const lamp::live::dsl::ForLoopStatement& forLoop : program.forLoops) {
+    int startVal = std::stoi(forLoop.startExpression);
+    int endVal = std::stoi(forLoop.endExpression);
+    int stepVal = std::stoi(forLoop.stepExpression);
+
+    // Count iterations
+    int iterationCount = 0;
+    for (int i = startVal; evaluateComparison(i, endVal, forLoop.comparisonOperator); i += stepVal) {
+      ++iterationCount;
+    }
+
+    // Check against MAX_UNROLLED_LAYERS
+    int newLayers = iterationCount * static_cast<int>(forLoop.body.size());
+    if (static_cast<int>(compiled.layers.size()) + newLayers > kMaxUnrolledLayers) {
+      diagnostics.push_back(makeDiagnostic(0,
+        "Слишком много слоёв после развёртки for. Максимум: " +
+        std::to_string(kMaxUnrolledLayers)));
+      return false;
+    }
+
+    // Unroll
+    for (int i = startVal; evaluateComparison(i, endVal, forLoop.comparisonOperator); i += stepVal) {
+      std::string iStr = std::to_string(i);
+      for (lamp::live::dsl::LayerDeclaration layerTemplate : forLoop.body) {
+        layerTemplate.name += "_" + iStr;
+        replaceAll(layerTemplate.xExpression, forLoop.loopVariable, iStr);
+        replaceAll(layerTemplate.yExpression, forLoop.loopVariable, iStr);
+        replaceAll(layerTemplate.colorExpression, forLoop.loopVariable, iStr);
+        replaceAll(layerTemplate.scaleExpression, forLoop.loopVariable, iStr);
+        replaceAll(layerTemplate.rotationExpression, forLoop.loopVariable, iStr);
+        replaceAll(layerTemplate.visibleExpression, forLoop.loopVariable, iStr);
+        replaceAll(layerTemplate.frameExpression, forLoop.loopVariable, iStr);
+        // Compile the substituted layer
+        CompiledLayer compiledLayer;
+        compiledLayer.name = layerTemplate.name;
+
+        size_t spriteIndex = compiled.sprites.size();
+        for (size_t idx = 0; idx < compiled.sprites.size(); ++idx) {
+          if (compiled.sprites[idx].name == layerTemplate.spriteName) {
+            spriteIndex = idx;
+            break;
+          }
+        }
+        if (spriteIndex == compiled.sprites.size()) {
+          diagnostics.push_back(makeDiagnostic(0,
+            "Не найден sprite: " + layerTemplate.spriteName));
+          return false;
+        }
+        compiledLayer.spriteIndex = static_cast<uint16_t>(spriteIndex);
+
+        if (!compileColor(layerTemplate.colorExpression.empty() ? "rgb(255,255,255)"
+                                                                  : layerTemplate.colorExpression,
+                          compiled.expressions, compiledLayer.color, diagnostics,
+                          layerTemplate.colorLine)) {
+          return false;
+        }
+        if (!compileBlendMode(layerTemplate.blendMode.empty() ? "normal" : layerTemplate.blendMode,
+                              compiledLayer.blendMode, diagnostics, layerTemplate.blendLine)) {
+          return false;
+        }
+        if (!expressionCompiler.compile(
+                layerTemplate.xExpression.empty() ? "0" : layerTemplate.xExpression,
+                compiledLayer.xExpression, diagnostics, layerTemplate.xLine) ||
+            !expressionCompiler.compile(
+                layerTemplate.yExpression.empty() ? "0" : layerTemplate.yExpression,
+                compiledLayer.yExpression, diagnostics, layerTemplate.yLine) ||
+            !expressionCompiler.compile(
+                layerTemplate.scaleExpression.empty() ? "1" : layerTemplate.scaleExpression,
+                compiledLayer.scaleExpression, diagnostics, layerTemplate.scaleLine) ||
+            !expressionCompiler.compile(
+                layerTemplate.rotationExpression.empty() ? "0"
+                                                         : layerTemplate.rotationExpression,
+                compiledLayer.rotationExpression, diagnostics, layerTemplate.rotationLine) ||
+            !expressionCompiler.compile(
+                layerTemplate.visibleExpression.empty() ? "1" : layerTemplate.visibleExpression,
+                compiledLayer.visibleExpression, diagnostics, layerTemplate.visibleLine)) {
+          return false;
+        }
+
+        // Frame expression for unrolled layers
+        if (!layerTemplate.frameExpression.empty()) {
+          if (!expressionCompiler.compile(layerTemplate.frameExpression,
+                                          compiledLayer.frameExpression, diagnostics,
+                                          layerTemplate.frameLine)) {
+            return false;
+          }
+        }
+
+        compiled.layers.push_back(compiledLayer);
+      }
+    }
+  }
+
+  // Compile top-level layers (those not inside for-loops)
   for (const lamp::live::dsl::LayerDeclaration& layer : program.layers) {
     CompiledLayer compiledLayer;
     compiledLayer.name = layer.name;
@@ -495,6 +627,14 @@ bool Compiler::compile(const dsl::Program& program, CompiledProgram& compiledPro
         !expressionCompiler.compile(layer.visibleExpression.empty() ? "1" : layer.visibleExpression,
                                     compiledLayer.visibleExpression, diagnostics, layer.visibleLine)) {
       return false;
+    }
+
+    // Frame expression (per D-02)
+    if (!layer.frameExpression.empty()) {
+      if (!expressionCompiler.compile(layer.frameExpression, compiledLayer.frameExpression,
+                                      diagnostics, layer.frameLine)) {
+        return false;
+      }
     }
 
     compiled.layers.push_back(compiledLayer);

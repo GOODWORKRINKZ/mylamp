@@ -31,7 +31,10 @@ enum class ExpressionOp {
   kClamp,
   kMix,
   kSmoothstep,
+  kLoopIndex,
 };
+
+static constexpr int16_t kMaxUnrolledLayers = 64;
 
 struct ExpressionNode {
   ExpressionOp op = ExpressionOp::kConstant;
@@ -65,6 +68,7 @@ struct CompiledSprite {
   int16_t width = 0;
   int16_t height = 0;
   std::vector<CompiledSpritePixel> pixels;
+  std::vector<std::vector<CompiledSpritePixel>> frames;
 };
 
 struct CompiledLayer {
@@ -77,6 +81,7 @@ struct CompiledLayer {
   int16_t rotationExpression = -1;
   BlendMode blendMode = BlendMode::kNormal;
   int16_t visibleExpression = -1;
+  int16_t frameExpression = -1;
 };
 
 struct CompiledProgram {
