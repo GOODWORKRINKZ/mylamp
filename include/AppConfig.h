@@ -4,13 +4,26 @@
 
 namespace lamp::config {
 
+// ═══════════════════════════════════════════════════════════════════════════
+//  Физическая раскладка LED-панелей
+// ═══════════════════════════════════════════════════════════════════════════
+//
+//  Две панели 16×16, рядом друг с другом, скручены в цилиндр.
+//  Панель 0 → первая на линии данных, панель 1 → вторая.
+//
+//  Логическая система координат (после XY-swap):
+//    X = 0..15   — высота цилиндра (вдоль оси), НЕ зациклена
+//    Y = 0..31   — окружность цилиндра, ЗАЦИКЛЕНА (y=0 сосед y=31)
+//
+//  Чтобы изменить раскладку — правь MatrixLayout.cpp (PanelLayout).
+//  Чтобы поменять оси местами — правь kLogicalWidth/Height и
+//  renderSpritePixel() в Executor.cpp.
+
 static constexpr uint8_t kPanelWidth = 16;
 static constexpr uint8_t kPanelHeight = 16;
 static constexpr uint8_t kPanelCount = 2;
-static constexpr uint8_t kCylinderHeight = kPanelWidth;          // 16 rows along cylinder axis
-static constexpr uint8_t kCylinderCircumference = kPanelHeight * kPanelCount;  // 32 cols around
-static constexpr uint8_t kLogicalWidth = kCylinderHeight;         // X = height (wraps? NO)
-static constexpr uint8_t kLogicalHeight = kCylinderCircumference; // Y = circumference (wraps? YES)
+static constexpr uint8_t kLogicalWidth = kPanelWidth;              // X = высота (16)
+static constexpr uint8_t kLogicalHeight = kPanelHeight * kPanelCount;  // Y = окружность (32)
 static constexpr uint16_t kPixelCount = kLogicalWidth * kLogicalHeight;
 
 static constexpr uint8_t kLedDataPin = 2;
