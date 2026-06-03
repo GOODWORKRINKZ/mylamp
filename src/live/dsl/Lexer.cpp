@@ -57,22 +57,13 @@ bool parseQuotedString(const std::string& line, const std::string& prefix, std::
 }
 
 bool parseBlockHeader(const std::string& line, const std::string& keyword, std::string& name) {
-  if (!startsWith(line, keyword + " ") || line.empty() || line.back() != '{') {
-    return false;
-  }
-
-  std::string remainder = trim(line.substr(keyword.length()));
-  if (remainder.empty() || remainder.back() != '{') {
-    return false;
-  }
-
-  remainder = trim(remainder.substr(0, remainder.length() - 1));
-  if (remainder.empty()) {
-    return false;
-  }
-
-  name = remainder;
-  return true;
+  if (!startsWith(line, keyword + " ")) return false;
+  std::string r = trim(line.substr(keyword.length()));
+  if (r.empty()) return false;
+  size_t b = r.find('{');
+  if (b == std::string::npos) return false;
+  name = trim(r.substr(0, b));
+  return !name.empty();
 }
 
 }  // namespace
@@ -216,8 +207,19 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
         }
         // Outer loop ++index will move past the sprite closing }
       } else {
-        // Single-bitmap path: let the normal bitmap handler process it
-        // (backward compatible, D-04)
+        // Single-bitmap path; also handle inline: sprite dot { bitmap """ # """ }
+        size_t bp = trimmed.find('{');
+        std::string ab = trim(trimmed.substr(bp + 1));
+        if (startsWith(ab, "bitmap \"\"\"") && ab.size() > 10) {
+          size_t eq = ab.rfind("\"\"\"", 10);
+          if (eq != std::string::npos) {
+            appendToken(tokens, TokenType::kKeywordBitmap, "bitmap", lineNumber, 1U);
+            appendToken(tokens, TokenType::kMultilineString, trim(ab.substr(10, eq - 10)), lineNumber, 1U);
+            appendToken(tokens, TokenType::kNewline, "", lineNumber, 1U);
+            appendToken(tokens, TokenType::kRightBrace, "}", lineNumber, 1U);
+            appendToken(tokens, TokenType::kNewline, "", lineNumber, 1U);
+          }
+        }
       }
       continue;
     }
@@ -361,12 +363,15 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
       continue;
     }
 
-    if (parseBlockHeader(trimmed, "layer", value)) {
-      appendToken(tokens, TokenType::kKeywordLayer, "layer", lineNumber, 1U);
-      appendToken(tokens, TokenType::kIdentifier, value, lineNumber, 7U);
-      appendToken(tokens, TokenType::kLeftBrace, "{", lineNumber,
-                  static_cast<uint32_t>(trimmed.find('{') + 1U));
-      appendToken(tokens, TokenType::kNewline, "", lineNumber, 1U);
+    if (startsWith(trimmed, "layer ") && trimmed.back() == '{') {
+      std::string value;
+      if (parseBlockHeader(trimmed, "layer", value)) {
+        appendToken(tokens, TokenType::kKeywordLayer, "layer", lineNumber, 1U);
+        appendToken(tokens, TokenType::kIdentifier, value, lineNumber, 7U);
+        appendToken(tokens, TokenType::kLeftBrace, "{", lineNumber,
+                    static_cast<uint32_t>(trimmed.find('{') + 1U));
+        appendToken(tokens, TokenType::kNewline, "", lineNumber, 1U);
+      }
       continue;
     }
 
