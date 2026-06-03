@@ -229,29 +229,6 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
       appendToken(tokens, TokenType::kLeftBrace, "{", lineNumber,
                   static_cast<uint32_t>(trimmed.find('{') + 1U));
       appendToken(tokens, TokenType::kNewline, "", lineNumber, 1U);
-      // Parse body on same line: "clock { enabled = 0 }"
-      std::string body = trim(trimmed.substr(trimmed.find('{') + 1));
-      bool hasClosingBrace = !body.empty() && body.back() == '}';
-      if (hasClosingBrace) body = trim(body.substr(0, body.length() - 1));
-      if (!body.empty()) {
-        size_t eqPos = body.find('=');
-        if (eqPos != std::string::npos) {
-          std::string key = trim(body.substr(0, eqPos));
-          std::string val = trim(body.substr(eqPos + 1));
-          appendToken(tokens, TokenType::kIdentifier, key, lineNumber,
-                      static_cast<uint32_t>(trimmed.find(key) + 1U));
-          appendToken(tokens, TokenType::kEquals, "=", lineNumber,
-                      static_cast<uint32_t>(trimmed.find('=') + 1U));
-          appendToken(tokens, TokenType::kExpression, val, lineNumber,
-                      static_cast<uint32_t>(trimmed.find(val) + 1U));
-          appendToken(tokens, TokenType::kNewline, "", lineNumber, 1U);
-        }
-      }
-      if (hasClosingBrace) {
-        appendToken(tokens, TokenType::kRightBrace, "}", lineNumber,
-                    static_cast<uint32_t>(trimmed.rfind('}') + 1U));
-        appendToken(tokens, TokenType::kNewline, "", lineNumber, 1U);
-      }
       continue;
     }
 
