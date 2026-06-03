@@ -575,6 +575,58 @@ bool parseProgram(const std::string& source, Program& program,
   skipNewlines(state);
 
   while (state.current().type != TokenType::kEof) {
+    if (state.current().type == TokenType::kKeywordClock) {
+      state.match(TokenType::kKeywordClock);
+      parsedProgram.clockBlock.hasBlock = true;
+      if (!state.expect(TokenType::kLeftBrace, "Ожидался символ { после clock", diagnostics)) {
+        return false;
+      }
+      skipNewlines(state);
+      while (state.current().type != TokenType::kRightBrace && state.current().type != TokenType::kEof) {
+        // Parse clock properties: enabled = expr, z = expr, blend = ident, alpha = expr
+        Token propToken = state.current();
+        if (propToken.type == TokenType::kIdentifier && propToken.text == "enabled") {
+          state.match(TokenType::kIdentifier);
+          if (!state.expect(TokenType::kEquals, "Ожидался знак = после enabled", diagnostics)) return false;
+          Token val = state.current();
+          if (!state.expect(TokenType::kExpression, "Ожидалось выражение для enabled", diagnostics)) return false;
+          parsedProgram.clockBlock.enabledExpression = val.text;
+          parsedProgram.clockBlock.enabledLine = val.line;
+        } else if (propToken.type == TokenType::kKeywordZ) {
+          state.match(TokenType::kKeywordZ);
+          if (!state.expect(TokenType::kEquals, "Ожидался знак = после z", diagnostics)) return false;
+          Token val = state.current();
+          if (!state.expect(TokenType::kExpression, "Ожидалось выражение для z", diagnostics)) return false;
+          parsedProgram.clockBlock.zExpression = val.text;
+          parsedProgram.clockBlock.zLine = val.line;
+        } else if (propToken.type == TokenType::kKeywordBlend) {
+          state.match(TokenType::kKeywordBlend);
+          if (!state.expect(TokenType::kEquals, "Ожидался знак = после blend", diagnostics)) return false;
+          Token val = state.current();
+          if (!state.expect(TokenType::kExpression, "Ожидался режим blend (normal, add, multiply, screen)", diagnostics)) return false;
+          parsedProgram.clockBlock.blendMode = val.text;
+          parsedProgram.clockBlock.blendLine = val.line;
+        } else if (propToken.type == TokenType::kIdentifier && propToken.text == "alpha") {
+          state.match(TokenType::kIdentifier);
+          if (!state.expect(TokenType::kEquals, "Ожидался знак = после alpha", diagnostics)) return false;
+          Token val = state.current();
+          if (!state.expect(TokenType::kExpression, "Ожидалось выражение для alpha", diagnostics)) return false;
+          parsedProgram.clockBlock.alphaExpression = val.text;
+          parsedProgram.clockBlock.alphaLine = val.line;
+        } else {
+          diagnostics.push_back(makeDiagnostic(propToken.line, propToken.column,
+              "Неизвестное свойство в блоке clock: " + propToken.text));
+          return false;
+        }
+        skipNewlines(state);
+      }
+      if (!state.expect(TokenType::kRightBrace, "Ожидался символ } после блока clock", diagnostics)) {
+        return false;
+      }
+      skipNewlines(state);
+      continue;
+    }
+
     if (state.current().type == TokenType::kKeywordPalette) {
       state.match(TokenType::kKeywordPalette);
       if (!parsePalette(state, parsedProgram, diagnostics)) {

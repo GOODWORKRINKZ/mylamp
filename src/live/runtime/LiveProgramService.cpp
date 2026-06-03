@@ -1,5 +1,6 @@
 #include "live/runtime/LiveProgramService.h"
 
+#include "effects/ClockOverlay.h"
 #include "live/dsl/Parser.h"
 
 namespace lamp::live::runtime {
@@ -59,7 +60,10 @@ LiveProgramState LiveProgramService::state() const {
 }
 
 bool LiveProgramService::render(const RuntimeContext& runtimeContext,
-                                lamp::FrameBuffer& frameBuffer) const {
+                                lamp::FrameBuffer& frameBuffer,
+                                const void* clockOverlay,
+                                const std::string& currentTime,
+                                bool clockVisible) const {
   if (!state_.active) {
     return false;
   }
@@ -69,6 +73,11 @@ bool LiveProgramService::render(const RuntimeContext& runtimeContext,
   context.deltaSeconds = static_cast<float>(runtimeContext.deltaMs) / 1000.0f;
   context.temperatureC = runtimeContext.temperatureC;
   context.humidityPercent = runtimeContext.humidityPercent;
+  context.clockOverlay = static_cast<const lamp::effects::ClockOverlay*>(clockOverlay);
+  context.currentTime = currentTime;
+  context.clockVisible = clockVisible;
+  context.nowMs = runtimeContext.nowMs;
+  context.sensorAvailable = (runtimeContext.temperatureC > -100.0f);
   executor_.render(activeProgram_, context, frameBuffer);
   return true;
 }

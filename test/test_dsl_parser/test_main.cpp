@@ -296,6 +296,57 @@ void test_parser_rejects_for_loop_with_non_integer_bounds() {
       static_cast<int>(diagnostics[0].message.find("должны быть целыми числами")));
 }
 
+void test_parser_parses_clock_block() {
+  const std::string source =
+      "effect \"with_clock\"\n"
+      "clock {\n"
+      "  enabled = 1\n"
+      "  z = 5\n"
+      "  blend = add\n"
+      "  alpha = 0.7\n"
+      "}\n"
+      "sprite dot {\n"
+      "  bitmap \"\"\"\n"
+      "  #\n"
+      "  \"\"\"\n"
+      "}\n"
+      "layer d1 {\n"
+      "  use dot\n"
+      "  color rgb(255,0,0)\n"
+      "  x = 0\n"
+      "  y = 0\n"
+      "  visible = 1\n"
+      "}\n";
+
+  lamp::live::dsl::Program program;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+
+  const bool parsed = lamp::live::dsl::parseProgram(source, program, diagnostics);
+  TEST_ASSERT_TRUE(parsed);
+  TEST_ASSERT_EQUAL_UINT32(0U, static_cast<uint32_t>(diagnostics.size()));
+  TEST_ASSERT_TRUE(program.clockBlock.hasBlock);
+  TEST_ASSERT_EQUAL_STRING("1", program.clockBlock.enabledExpression.c_str());
+  TEST_ASSERT_EQUAL_STRING("5", program.clockBlock.zExpression.c_str());
+  TEST_ASSERT_EQUAL_STRING("add", program.clockBlock.blendMode.c_str());
+  TEST_ASSERT_EQUAL_STRING("0.7", program.clockBlock.alphaExpression.c_str());
+}
+
+void test_parser_clock_disabled() {
+  const std::string source =
+      "effect \"no_clock\"\n"
+      "clock {\n"
+      "  enabled = 0\n"
+      "}\n";
+
+  lamp::live::dsl::Program program;
+  std::vector<lamp::live::Diagnostic> diagnostics;
+
+  const bool parsed = lamp::live::dsl::parseProgram(source, program, diagnostics);
+  TEST_ASSERT_TRUE(parsed);
+  TEST_ASSERT_TRUE(program.clockBlock.hasBlock);
+  TEST_ASSERT_EQUAL_STRING("0", program.clockBlock.enabledExpression.c_str());
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -311,5 +362,7 @@ int main(int argc, char** argv) {
   RUN_TEST(test_parser_parses_layer_with_frame_expression);
   RUN_TEST(test_parser_rejects_for_loop_with_reserved_variable);
   RUN_TEST(test_parser_rejects_for_loop_with_non_integer_bounds);
+  RUN_TEST(test_parser_parses_clock_block);
+  RUN_TEST(test_parser_clock_disabled);
   return UNITY_END();
 }

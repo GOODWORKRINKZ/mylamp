@@ -1,5 +1,7 @@
 #include "effects/ClockOverlay.h"
 
+#include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 
@@ -8,6 +10,45 @@
 namespace lamp::effects {
 
 namespace {
+
+using lamp::live::runtime::BlendMode;
+
+lamp::Rgb blendColors(BlendMode blendMode, lamp::Rgb destination, lamp::Rgb source) {
+  switch (blendMode) {
+    case BlendMode::kNormal:
+      return source;
+    case BlendMode::kAdd:
+      return lamp::Rgb{
+          static_cast<uint8_t>(std::min<uint16_t>(255U, destination.r + source.r)),
+          static_cast<uint8_t>(std::min<uint16_t>(255U, destination.g + source.g)),
+          static_cast<uint8_t>(std::min<uint16_t>(255U, destination.b + source.b)),
+      };
+    case BlendMode::kMultiply:
+      return lamp::Rgb{
+          static_cast<uint8_t>((static_cast<uint16_t>(destination.r) * source.r) / 255U),
+          static_cast<uint8_t>((static_cast<uint16_t>(destination.g) * source.g) / 255U),
+          static_cast<uint8_t>((static_cast<uint16_t>(destination.b) * source.b) / 255U),
+      };
+    case BlendMode::kScreen:
+      return lamp::Rgb{
+          static_cast<uint8_t>(255U - ((255U - destination.r) * (255U - source.r)) / 255U),
+          static_cast<uint8_t>(255U - ((255U - destination.g) * (255U - source.g)) / 255U),
+          static_cast<uint8_t>(255U - ((255U - destination.b) * (255U - source.b)) / 255U),
+      };
+  }
+  return source;
+}
+
+lamp::Rgb blendWithAlpha(BlendMode mode, lamp::Rgb dst, lamp::Rgb src, float alpha) {
+  lamp::Rgb blended = blendColors(mode, dst, src);
+  if (alpha >= 1.0f) return blended;
+  if (alpha <= 0.0f) return dst;
+  return lamp::Rgb{
+      static_cast<uint8_t>(blended.r * alpha + dst.r * (1.0f - alpha)),
+      static_cast<uint8_t>(blended.g * alpha + dst.g * (1.0f - alpha)),
+      static_cast<uint8_t>(blended.b * alpha + dst.b * (1.0f - alpha)),
+  };
+}
 
 constexpr lamp::Rgb kDigitColor{255, 220, 160};
 constexpr lamp::Rgb kSeparatorColor{180, 220, 255};
@@ -44,59 +85,59 @@ const uint8_t* glyphFor(char c) {
   return nullptr;
 }
 
-void drawChar(int16_t originX, int16_t originY, char c, lamp::Rgb color, lamp::FrameBuffer& fb) {
+void drawChar(int16_t originX, int16_t originY, char c, lamp::Rgb color, lamp::FrameBuffer& fb,
+              BlendMode blendMode = BlendMode::kNormal, float alpha = 1.0f) {
   const uint8_t* g = glyphFor(c);
   if (!g) return;
-  // Dark shadow/outline behind the glyph for contrast.
   for (int16_t row = 0; row < kDigitHeight; ++row) {
-    uint8_t bits = g[row];
     for (int16_t col = 0; col < kDigitWidth; ++col) {
-      if (bits & (0b100 >> col)) {
-        fb.setPixel(originX + row, originY + col, color);
+      if (g[row] & (1 << (kDigitWidth - 1 - col))) {
+        const int16_t px = originX + col;
+        const int16_t py = originY + row;
+        const lamp::Rgb dst = fb.getPixel(px, py);
+        fb.setPixel(px, py, blendWithAlpha(blendMode, dst, color, alpha));
       }
     }
   }
 }
 
-void drawDarkBg(int16_t x, int16_t y, int16_t w, int16_t h, lamp::FrameBuffer& fb) {
-  constexpr lamp::Rgb kShadow{2, 1, 0};
-  for (int16_t dy = 0; dy < h; ++dy)
-    for (int16_t dx = 0; dx < w; ++dx)
-      fb.setPixel(x + dy, y + dx, kShadow);
-}
-
-void drawString(int16_t x, int16_t y, const char* s, lamp::Rgb color, lamp::FrameBuffer& fb) {
-  while (*s) {
-    drawChar(x, y, *s, color, fb);
-    y += kDigitWidth + kDigitGap;
-    ++s;
+void drawString(int16_t x, int16_t y, const char* text, lamp::Rgb color, lamp::FrameBuffer& fb,
+                BlendMode blendMode = BlendMode::kNormal, float alpha = 1.0f) {
+  int16_t cx = x;
+  for (size_t i = 0; text[i] != '\0'; ++i) {
+    drawChar(cx, y, text[i], color, fb, blendMode, alpha);
+    cx += kDigitWidth + kDigitGap;
   }
 }
 
-void drawNumber2(int16_t x, int16_t y, int16_t num, lamp::Rgb color, lamp::FrameBuffer& fb) {
+void drawNumber2(int16_t x, int16_t y, int16_t num, lamp::Rgb color, lamp::FrameBuffer& fb,
+                 BlendMode blendMode = BlendMode::kNormal, float alpha = 1.0f) {
   char buf[4];
   snprintf(buf, sizeof(buf), "%d", num);
-  drawString(x, y, buf, color, fb);
+  drawString(x, y, buf, color, fb, blendMode, alpha);
 }
 
-bool isDigit(char value) {
-  return value >= '0' && value <= '9';
-}
-
-void drawColon(int16_t originX, int16_t originY, lamp::FrameBuffer& fb) {
-  fb.setPixel(originX + 1, originY, kSeparatorColor);
-  fb.setPixel(originX + 3, originY, kSeparatorColor);
+void drawColon(int16_t originX, int16_t originY, lamp::FrameBuffer& fb,
+               BlendMode blendMode = BlendMode::kNormal, float alpha = 1.0f) {
+  const lamp::Rgb d1 = fb.getPixel(originX + 1, originY);
+  const lamp::Rgb d3 = fb.getPixel(originX + 3, originY);
+  fb.setPixel(originX + 1, originY, blendWithAlpha(blendMode, d1, kSeparatorColor, alpha));
+  fb.setPixel(originX + 3, originY, blendWithAlpha(blendMode, d3, kSeparatorColor, alpha));
 }
 
 }  // namespace
 
 void ClockOverlay::render(const std::string& currentTime, lamp::FrameBuffer& frameBuffer,
                           bool visible, uint32_t nowMs,
-                          float temperatureC, float humidityPercent, bool sensorAvailable) const {
+                          float temperatureC, float humidityPercent, bool sensorAvailable,
+                          BlendMode blendMode, float alpha) const {
   if (!visible || currentTime.size() < 8U) return;
-  if (!isDigit(currentTime[0]) || !isDigit(currentTime[1]) || currentTime[2] != ':' ||
-      !isDigit(currentTime[3]) || !isDigit(currentTime[4]) || currentTime[5] != ':' ||
-      !isDigit(currentTime[6]) || !isDigit(currentTime[7])) {
+  if (!std::isdigit(static_cast<unsigned char>(currentTime[0])) ||
+      !std::isdigit(static_cast<unsigned char>(currentTime[1])) || currentTime[2] != ':' ||
+      !std::isdigit(static_cast<unsigned char>(currentTime[3])) ||
+      !std::isdigit(static_cast<unsigned char>(currentTime[4])) || currentTime[5] != ':' ||
+      !std::isdigit(static_cast<unsigned char>(currentTime[6])) ||
+      !std::isdigit(static_cast<unsigned char>(currentTime[7]))) {
     return;
   }
 
@@ -113,14 +154,14 @@ void ClockOverlay::render(const std::string& currentTime, lamp::FrameBuffer& fra
   const int16_t originX = kOverlayMarginTop;
 
   int16_t y = originY;
-  drawChar(originX, y, currentTime[0], kDigitColor, frameBuffer);  y += kDigitWidth + kDigitGap;
-  drawChar(originX, y, currentTime[1], kDigitColor, frameBuffer);  y += kDigitWidth + kDigitGap;
-  drawColon(originX, y, frameBuffer);                               y += 1 + kDigitGap;
-  drawChar(originX, y, currentTime[3], kDigitColor, frameBuffer);  y += kDigitWidth + kDigitGap;
-  drawChar(originX, y, currentTime[4], kDigitColor, frameBuffer);  y += kDigitWidth + kDigitGap;
-  drawColon(originX, y, frameBuffer);                               y += 1 + kDigitGap;
-  drawChar(originX, y, currentTime[6], kDigitColor, frameBuffer);  y += kDigitWidth + kDigitGap;
-  drawChar(originX, y, currentTime[7], kDigitColor, frameBuffer);
+  drawChar(originX, y, currentTime[0], kDigitColor, frameBuffer, blendMode, alpha);  y += kDigitWidth + kDigitGap;
+  drawChar(originX, y, currentTime[1], kDigitColor, frameBuffer, blendMode, alpha);  y += kDigitWidth + kDigitGap;
+  drawColon(originX, y, frameBuffer, blendMode, alpha);                               y += 1 + kDigitGap;
+  drawChar(originX, y, currentTime[3], kDigitColor, frameBuffer, blendMode, alpha);  y += kDigitWidth + kDigitGap;
+  drawChar(originX, y, currentTime[4], kDigitColor, frameBuffer, blendMode, alpha);  y += kDigitWidth + kDigitGap;
+  drawColon(originX, y, frameBuffer, blendMode, alpha);                               y += 1 + kDigitGap;
+  drawChar(originX, y, currentTime[6], kDigitColor, frameBuffer, blendMode, alpha);  y += kDigitWidth + kDigitGap;
+  drawChar(originX, y, currentTime[7], kDigitColor, frameBuffer, blendMode, alpha);
 
   // Sensor line below clock — rotates opposite direction.
   if (sensorAvailable) {
@@ -132,14 +173,14 @@ void ClockOverlay::render(const std::string& currentTime, lamp::FrameBuffer& fra
 
     char buf[6];
     snprintf(buf, sizeof(buf), "%d", static_cast<int>(temperatureC));
-    drawString(sx, sensorY, buf, kTempColor, frameBuffer);
+    drawString(sx, sensorY, buf, kTempColor, frameBuffer, blendMode, alpha);
     int16_t sy = sensorY + static_cast<int16_t>(strlen(buf)) * (kDigitWidth + kDigitGap);
-    drawChar(sx, sy, 'C', kTempColor, frameBuffer);
+    drawChar(sx, sy, 'C', kTempColor, frameBuffer, blendMode, alpha);
     sy += kDigitWidth + kDigitGap + 2;
     snprintf(buf, sizeof(buf), "%d", static_cast<int>(humidityPercent));
-    drawString(sx, sy, buf, kHumColor, frameBuffer);
+    drawString(sx, sy, buf, kHumColor, frameBuffer, blendMode, alpha);
     sy += static_cast<int16_t>(strlen(buf)) * (kDigitWidth + kDigitGap);
-    drawChar(sx, sy, '%', kHumColor, frameBuffer);
+    drawChar(sx, sy, '%', kHumColor, frameBuffer, blendMode, alpha);
   }
 }
 

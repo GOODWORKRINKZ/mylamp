@@ -24,6 +24,7 @@ enum class TokenType {
   kKeywordFor,
   kKeywordFrame,
   kKeywordPalette,
+  kKeywordClock,
   kIdentifier,
   kString,
   kMultilineString,

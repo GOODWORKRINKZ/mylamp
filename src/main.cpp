@@ -126,7 +126,10 @@ void renderEffectPass(unsigned long nowMs) {
   runtimeContext.temperatureC = g_sensorState.temperatureC;
   runtimeContext.humidityPercent = g_sensorState.humidityPercent;
 
-  const bool liveRendered = g_liveProgramService.render(runtimeContext, g_frameBuffer);
+  const bool liveRendered = g_liveProgramService.render(runtimeContext, g_frameBuffer,
+      &g_clockOverlay,
+      g_runtimeTimeState.currentTime,
+      g_timeState.clockOverlayVisible);
 
   if (liveRendered) {
     g_wasLiveActive = true;
@@ -145,7 +148,7 @@ void renderEffectPass(unsigned long nowMs) {
 }
 
 void renderOverlayPass(unsigned long nowMs) {
-  if (g_liveProgramService.isEffectOnTop()) return;  // Lux effect has z >= 1
+  // Clock overlay for compiled effects only (live effects render clock via Executor z-sorting)
   g_clockOverlay.render(g_runtimeTimeState.currentTime, g_frameBuffer,
                         g_timeState.clockOverlayVisible,
                         static_cast<uint32_t>(nowMs),

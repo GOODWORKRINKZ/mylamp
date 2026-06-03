@@ -65,8 +65,21 @@ struct ForLoopStatement {
   std::vector<LayerDeclaration> body;
 };
 
+struct ClockBlock {
+  bool hasBlock = false;
+  std::string enabledExpression;
+  std::string zExpression;
+  std::string blendMode;
+  std::string alphaExpression;
+  uint32_t enabledLine = 0;
+  uint32_t zLine = 0;
+  uint32_t blendLine = 0;
+  uint32_t alphaLine = 0;
+};
+
 struct Program {
   std::string effectName;
+  ClockBlock clockBlock;
   std::vector<PaletteDeclaration> palettes;
   std::vector<SpriteDeclaration> sprites;
   std::vector<TextDeclaration> texts;

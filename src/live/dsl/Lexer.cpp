@@ -224,6 +224,61 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
       continue;
     }
 
+    if (startsWith(trimmed, "clock {") || trimmed == "clock {") {
+      appendToken(tokens, TokenType::kKeywordClock, "clock", lineNumber,
+                  static_cast<uint32_t>(trimmed.find("clock") + 1U));
+      appendToken(tokens, TokenType::kLeftBrace, "{", lineNumber,
+                  static_cast<uint32_t>(trimmed.find('{') + 1U));
+      appendToken(tokens, TokenType::kNewline, "", lineNumber, 1U);
+
+      // Parse clock block body: enabled = ..., z = ..., blend = ..., alpha = ...
+      for (++index; index < lines.size(); ++index) {
+        const uint32_t bodyLine = static_cast<uint32_t>(index + 1U);
+        const std::string bodyTrimmed = trim(lines[index]);
+        if (bodyTrimmed.empty()) {
+          appendToken(tokens, TokenType::kNewline, "", bodyLine, 1U);
+          continue;
+        }
+        if (bodyTrimmed == "}") {
+          appendToken(tokens, TokenType::kRightBrace, "}", bodyLine, 1U);
+          appendToken(tokens, TokenType::kNewline, "", bodyLine, 1U);
+          break;
+        }
+        // Parse property = value inside clock block
+        const struct ClockPropRule {
+          const char* keyword;
+          TokenType tokenType;
+        } clockPropRules[] = {
+            {"enabled", TokenType::kIdentifier},
+            {"z", TokenType::kKeywordZ},
+            {"blend", TokenType::kKeywordBlend},
+            {"alpha", TokenType::kIdentifier},
+        };
+        bool matched = false;
+        for (const ClockPropRule& rule : clockPropRules) {
+          const std::string prefix = std::string(rule.keyword) + " = ";
+          if (!startsWith(bodyTrimmed, prefix)) continue;
+          appendToken(tokens, rule.tokenType, rule.keyword, bodyLine,
+                      static_cast<uint32_t>(bodyTrimmed.find(rule.keyword) + 1U));
+          appendToken(tokens, TokenType::kEquals, "=", bodyLine,
+                      static_cast<uint32_t>(bodyTrimmed.find('=') + 1U));
+          std::string expr = trim(bodyTrimmed.substr(prefix.length()));
+          appendToken(tokens, TokenType::kExpression, expr, bodyLine,
+                      static_cast<uint32_t>(bodyTrimmed.find(expr) + 1U));
+          appendToken(tokens, TokenType::kNewline, "", bodyLine, 1U);
+          matched = true;
+          break;
+        }
+        if (!matched) {
+          diagnostics.push_back(makeDiagnostic(bodyLine, 1U,
+              "Неизвестное свойство в блоке clock: " + bodyTrimmed));
+          return false;
+        }
+      }
+      // Outer loop ++index will move past clock's closing }
+      continue;
+    }
+
     if (startsWith(trimmed, "palette ")) {
       std::string paletteName;
       if (!parseBlockHeader(trimmed, "palette", paletteName)) {

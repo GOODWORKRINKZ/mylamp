@@ -52,6 +52,14 @@ enum class BlendMode {
   kNormal,
   kAdd,
   kMultiply,
+  kScreen,
+};
+
+struct CompiledClockConfig {
+  bool enabled = true;
+  int16_t zExpression = -1;
+  BlendMode blendMode = BlendMode::kNormal;
+  int16_t alphaExpression = -1;
 };
 
 struct CompiledColor {
@@ -96,6 +104,7 @@ struct CompiledProgram {
   std::vector<CompiledSprite> sprites;
   std::vector<ExpressionNode> expressions;
   std::vector<CompiledLayer> layers;
+  CompiledClockConfig clockConfig;
 };
 
 }  // namespace lamp::live::runtime
