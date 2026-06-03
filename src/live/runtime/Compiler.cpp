@@ -716,6 +716,15 @@ bool Compiler::compile(const dsl::Program& program, CompiledProgram& compiledPro
           }
         }
 
+        // Z-index for unrolled layers
+        if (!layerTemplate.zExpression.empty()) {
+          if (!expressionCompiler.compile(layerTemplate.zExpression,
+                                          compiledLayer.zExpression, diagnostics,
+                                          layerTemplate.zLine)) {
+            return false;
+          }
+        }
+
         compiled.layers.push_back(compiledLayer);
       }
     }
