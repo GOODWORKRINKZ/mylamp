@@ -126,7 +126,11 @@ void renderEffectPass(unsigned long nowMs) {
   runtimeContext.temperatureC = g_sensorState.temperatureC;
   runtimeContext.humidityPercent = g_sensorState.humidityPercent;
 
-  const bool liveRendered = g_liveProgramService.render(runtimeContext, g_frameBuffer);
+  const bool liveRendered = g_liveProgramService.render(
+      runtimeContext, g_frameBuffer,
+      &g_clockOverlay,
+      g_runtimeTimeState.currentTime,
+      g_timeState.clockOverlayVisible);
 
   if (liveRendered) {
     g_wasLiveActive = true;
