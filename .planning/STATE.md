@@ -7,13 +7,13 @@
 See: .planning/PROJECT.md (updated 2026-06-02)
 
 **Core value:** Живое программирование света — пользователь пишет код эффекта в браузере и мгновенно видит его на LED-матрице лампы.
-**Current focus:** Phase 7 — Layer Compositing & Blend (complete)
+**Current focus:** Phase 7 — Layer Compositing & Blend (context gathered)
 
 ## Current State
 
 - **Milestone:** v1 (initial)
-- **Active Phase:** Phase 7 (complete, ready to flash)
-- **Active Plan:** 07-PLAN.md (executed)
+- **Active Phase:** Phase 7 (context gathered, ready for planning)
+- **Active Plan:** None
 
 ## Phase Progress
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-02)
 | 4 | Perf & Bugs | ● Complete | PERF-01–03 |
 | 5 | Demo Effects & DSL | ● Complete | DSL-01–03 |
 | 6 | Expressiveness (random/if/compute) | ● Complete | — |
-| 7 | Layer Compositing & Blend | ● Complete | — |
+| 7 | Layer Compositing & Blend | ○ Context | — |
 
 ## Next Actions
 
-1. `cd /home/ros2/mylamp && cat .planning/phase-7-compositing/07-PLAN.md` — изучить план
-2. `/gsd-execute-phase 7` — выполнить фазу по задачам
+1. `/gsd-plan-phase 7` — создать план реализации
+2. Или открыть `.planning/phase-7-compositing/07-CONTEXT.md` для ревью
 
 ---
-*Last updated: 2026-06-03 after Phase 7 planning*
+*Last updated: 2026-06-03 after Phase 7 context*

@@ -29,10 +29,8 @@ class LiveProgramService {
   void stop();
   void setAutoplayActive(bool active);
   LiveProgramState state() const;
-  bool render(const RuntimeContext& runtimeContext, lamp::FrameBuffer& frameBuffer,
-              const void* clockOverlay = nullptr,
-              const std::string& currentTime = "",
-              bool clockVisible = true) const;
+  bool render(const RuntimeContext& runtimeContext, lamp::FrameBuffer& frameBuffer) const;
+  bool isEffectOnTop() const { return executor_.lastRenderOnTop(); }
 
  private:
   bool compileSource(const std::string& source, CompiledProgram& program,

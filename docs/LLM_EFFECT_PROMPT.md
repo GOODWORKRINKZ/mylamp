@@ -30,7 +30,6 @@
 
 Разрешённый синтаксис Lux:
 - effect "name"
-- clock { enabled = 1|0, z = число, blend = normal|add|multiply|screen, alpha = 0.0-1.0 }
 - sprite <name> { bitmap """ ... """ }
 - text <name> "<content>"
 - layer <name> { ... }
@@ -43,8 +42,7 @@
 - y = <expression>
 - scale = <expression>
 - rotation = <expression>
-- blend = normal|add|multiply|screen
-- z = <expression>
+- blend = normal|add|multiply
 - visible = <expression>
 
 Разрешённые переменные:
