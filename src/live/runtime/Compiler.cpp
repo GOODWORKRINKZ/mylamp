@@ -69,7 +69,7 @@ class ExpressionCompiler {
   }
 
   bool parseComparison(int16_t& index, std::vector<lamp::live::Diagnostic>& diagnostics) {
-    if (!parseTerm(index, diagnostics)) return false;
+    if (!parseAddSub(index, diagnostics)) return false;
     while (true) {
       skipWhitespace();
       ExpressionOp cmpOp;
@@ -87,9 +87,25 @@ class ExpressionCompiler {
         else { return true; }
       }
       int16_t rhs = -1;
-      if (!parseTerm(rhs, diagnostics)) return false;
+      if (!parseAddSub(rhs, diagnostics)) return false;
       ExpressionNode node;
       node.op = cmpOp;
+      node.children[0] = index;
+      node.children[1] = rhs;
+      index = appendNode(node);
+    }
+  }
+
+  bool parseAddSub(int16_t& index, std::vector<lamp::live::Diagnostic>& diagnostics) {
+    if (!parseTerm(index, diagnostics)) return false;
+    while (true) {
+      skipWhitespace();
+      if (!match('+') && !match('-')) return true;
+      const char op = input_[position_ - 1U];
+      int16_t rhs = -1;
+      if (!parseTerm(rhs, diagnostics)) return false;
+      ExpressionNode node;
+      node.op = (op == '+') ? ExpressionOp::kAdd : ExpressionOp::kSubtract;
       node.children[0] = index;
       node.children[1] = rhs;
       index = appendNode(node);
