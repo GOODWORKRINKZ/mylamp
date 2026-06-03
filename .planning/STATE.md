@@ -7,13 +7,13 @@
 See: .planning/PROJECT.md (updated 2026-06-02)
 
 **Core value:** Живое программирование света — пользователь пишет код эффекта в браузере и мгновенно видит его на LED-матрице лампы.
-**Current focus:** Phase 7 — Layer Compositing & Blend (plan ready)
+**Current focus:** Phase 7 — Layer Compositing & Blend (complete)
 
 ## Current State
 
 - **Milestone:** v1 (initial)
-- **Active Phase:** Phase 7 (plan ready for execution)
-- **Active Plan:** 07-PLAN.md
+- **Active Phase:** Phase 7 (complete, ready to flash)
+- **Active Plan:** 07-PLAN.md (executed)
 
 ## Phase Progress
 
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-06-02)
 | 4 | Perf & Bugs | ● Complete | PERF-01–03 |
 | 5 | Demo Effects & DSL | ● Complete | DSL-01–03 |
 | 6 | Expressiveness (random/if/compute) | ● Complete | — |
-| 7 | Layer Compositing & Blend | ◉ Planned | — |
+| 7 | Layer Compositing & Blend | ● Complete | — |
 
 ## Next Actions
 
