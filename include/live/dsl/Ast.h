@@ -65,6 +65,27 @@ struct ForLoopStatement {
   std::vector<LayerDeclaration> body;
 };
 
+// Phase 6: Compute block — imperative per-pixel computation
+enum class StatementKind {
+  kLet,
+  kAssign,
+  kWhile,
+  kExpr,
+};
+
+struct Statement {
+  StatementKind kind = StatementKind::kExpr;
+  std::string varName;
+  std::string expression;
+  std::string condition;
+  std::vector<Statement> body;
+};
+
+struct ComputeBlock {
+  std::string name;
+  std::vector<Statement> body;
+};
+
 struct Program {
   std::string effectName;
   std::vector<PaletteDeclaration> palettes;
@@ -72,6 +93,7 @@ struct Program {
   std::vector<TextDeclaration> texts;
   std::vector<LayerDeclaration> layers;
   std::vector<ForLoopStatement> forLoops;
+  std::vector<ComputeBlock> computes;
 };
 
 }  // namespace lamp::live::dsl

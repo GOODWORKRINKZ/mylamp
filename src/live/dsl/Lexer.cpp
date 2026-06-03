@@ -361,6 +361,93 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
       continue;
     }
 
+    // Phase 6: compute block header
+    if (parseBlockHeader(trimmed, "compute", value)) {
+      appendToken(tokens, TokenType::kKeywordCompute, "compute", lineNumber, 1U);
+      appendToken(tokens, TokenType::kIdentifier, value, lineNumber, 9U);
+      appendToken(tokens, TokenType::kLeftBrace, "{", lineNumber,
+                  static_cast<uint32_t>(trimmed.find('{') + 1U));
+      appendToken(tokens, TokenType::kNewline, "", lineNumber, 1U);
+
+      // Parse compute body: let, while, assign, expressions until }
+      int braceDepth = 1;
+      for (++index; index < lines.size() && braceDepth > 0; ++index) {
+        const uint32_t bodyLine = static_cast<uint32_t>(index + 1U);
+        const std::string bodyTrimmed = trim(lines[index]);
+        if (bodyTrimmed.empty()) {
+          appendToken(tokens, TokenType::kNewline, "", bodyLine, 1U);
+          continue;
+        }
+        if (bodyTrimmed == "}") {
+          appendToken(tokens, TokenType::kRightBrace, "}", bodyLine, 1U);
+          appendToken(tokens, TokenType::kNewline, "", bodyLine, 1U);
+          --braceDepth;
+          continue;
+        }
+        // let x = expr
+        if (startsWith(bodyTrimmed, "let ")) {
+          std::string rest = trim(bodyTrimmed.substr(4));
+          std::string::size_type eqPos = rest.find('=');
+          if (eqPos != std::string::npos) {
+            std::string varName = trim(rest.substr(0, eqPos));
+            std::string expr = trim(rest.substr(eqPos + 1));
+            appendToken(tokens, TokenType::kKeywordLet, "let", bodyLine, 1U);
+            appendToken(tokens, TokenType::kIdentifier, varName, bodyLine, 5U);
+            appendToken(tokens, TokenType::kEquals, "=", bodyLine,
+                        static_cast<uint32_t>(bodyTrimmed.find('=') + 1U));
+            appendToken(tokens, TokenType::kExpression, expr, bodyLine,
+                        static_cast<uint32_t>(bodyTrimmed.find(expr) + 1U));
+            appendToken(tokens, TokenType::kNewline, "", bodyLine, 1U);
+            continue;
+          }
+        }
+        // while (cond) {
+        if (startsWith(bodyTrimmed, "while (")) {
+          std::string condPart = bodyTrimmed.substr(6);  // after "while ("
+          std::string::size_type closeParen = condPart.find(')');
+          if (closeParen != std::string::npos) {
+            std::string cond = trim(condPart.substr(0, closeParen));
+            appendToken(tokens, TokenType::kKeywordWhile, "while", bodyLine, 1U);
+            appendToken(tokens, TokenType::kExpression, cond, bodyLine, 7U);
+            appendToken(tokens, TokenType::kLeftBrace, "{", bodyLine,
+                        static_cast<uint32_t>(bodyTrimmed.find('{') + 1U));
+            appendToken(tokens, TokenType::kNewline, "", bodyLine, 1U);
+            ++braceDepth;
+            continue;
+          }
+        }
+        // Assignment: x = expr (variable reassignment)
+        std::string::size_type assignEq = bodyTrimmed.find('=');
+        if (assignEq != std::string::npos) {
+          std::string leftPart = trim(bodyTrimmed.substr(0, assignEq));
+          // Only match if left side looks like an identifier (no spaces, no operators)
+          bool isIdentifier = !leftPart.empty();
+          for (char c : leftPart) {
+            if (!isalnum(static_cast<unsigned char>(c)) && c != '_') {
+              isIdentifier = false;
+              break;
+            }
+          }
+          if (isIdentifier && assignEq + 1 < bodyTrimmed.length()) {
+            std::string expr = trim(bodyTrimmed.substr(assignEq + 1));
+            appendToken(tokens, TokenType::kIdentifier, leftPart, bodyLine,
+                        static_cast<uint32_t>(bodyTrimmed.find(leftPart) + 1U));
+            appendToken(tokens, TokenType::kEquals, "=", bodyLine,
+                        static_cast<uint32_t>(assignEq + 1U));
+            appendToken(tokens, TokenType::kExpression, expr, bodyLine,
+                        static_cast<uint32_t>(bodyTrimmed.find(expr) + 1U));
+            appendToken(tokens, TokenType::kNewline, "", bodyLine, 1U);
+            continue;
+          }
+        }
+        // Expression statement (result of block)
+        appendToken(tokens, TokenType::kExpression, bodyTrimmed, bodyLine,
+                    static_cast<uint32_t>(bodyTrimmed.find_first_not_of(" \t") + 1U));
+        appendToken(tokens, TokenType::kNewline, "", bodyLine, 1U);
+      }
+      continue;
+    }
+
     if (parseBlockHeader(trimmed, "layer", value)) {
       appendToken(tokens, TokenType::kKeywordLayer, "layer", lineNumber, 1U);
       appendToken(tokens, TokenType::kIdentifier, value, lineNumber, 7U);
