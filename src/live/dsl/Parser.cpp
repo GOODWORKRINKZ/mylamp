@@ -257,7 +257,6 @@ void skipToNextTopLevel(ParserState& state) {
          state.current().type != TokenType::kKeywordSprite &&
          state.current().type != TokenType::kKeywordText &&
          state.current().type != TokenType::kKeywordLayer &&
-         state.current().type != TokenType::kKeywordCompute &&
          state.current().type != TokenType::kKeywordFor) {
     // Consume tokens until next top-level construct
     state.match(state.current().type);
@@ -546,142 +545,6 @@ bool parsePalette(ParserState& state, Program& program,
   return true;
 }
 
-// Phase 6: Parse compute block body — sequence of statements
-bool parseStatement(ParserState& state, ComputeBlock& block,
-                    std::vector<lamp::live::Diagnostic>& diagnostics) {
-  if (state.current().type == TokenType::kKeywordLet) {
-    // let x = expr
-    state.match(TokenType::kKeywordLet);
-    Token varToken = state.current();
-    if (!state.expect(TokenType::kIdentifier, "Ожидалось имя переменной после let", diagnostics)) {
-      return false;
-    }
-    if (!state.expect(TokenType::kEquals, "Ожидался символ = после let", diagnostics)) {
-      return false;
-    }
-    Token exprToken = state.current();
-    if (!state.expect(TokenType::kExpression, "Ожидалось выражение после let", diagnostics)) {
-      return false;
-    }
-    Statement stmt;
-    stmt.kind = StatementKind::kLet;
-    stmt.varName = varToken.text;
-    stmt.expression = exprToken.text;
-    block.body.push_back(stmt);
-    return true;
-  }
-
-  if (state.current().type == TokenType::kKeywordWhile) {
-    // while (cond) { ... }
-    state.match(TokenType::kKeywordWhile);
-    Token condToken = state.current();
-    if (!state.expect(TokenType::kExpression, "Ожидалось условие while", diagnostics)) {
-      return false;
-    }
-    if (!state.expect(TokenType::kLeftBrace, "Ожидался символ { после while", diagnostics)) {
-      return false;
-    }
-
-    Statement stmt;
-    stmt.kind = StatementKind::kWhile;
-    stmt.condition = condToken.text;
-
-    skipNewlines(state);
-    while (state.current().type != TokenType::kRightBrace && state.current().type != TokenType::kEof) {
-      ComputeBlock tempBlock;  // reuse parseStatement for body
-      if (!parseStatement(state, tempBlock, diagnostics)) {
-        return false;
-      }
-      // Move parsed statement into while body
-      for (auto& s : tempBlock.body) {
-        stmt.body.push_back(std::move(s));
-      }
-      skipNewlines(state);
-    }
-
-    if (!state.expect(TokenType::kRightBrace, "Ожидался символ } после тела while", diagnostics)) {
-      return false;
-    }
-    block.body.push_back(stmt);
-    return true;
-  }
-
-  // Identifier = expr (reassignment)
-  if (state.current().type == TokenType::kIdentifier) {
-    Token idToken = state.current();
-    // Peek ahead: if next is =, it's an assignment
-    // We need to check without consuming — save state
-    size_t savedIndex = 0;  // Can't easily peek with ParserState
-    state.match(TokenType::kIdentifier);
-    if (state.current().type == TokenType::kEquals) {
-      state.match(TokenType::kEquals);
-      Token exprToken = state.current();
-      if (!state.expect(TokenType::kExpression, "Ожидалось выражение присваивания", diagnostics)) {
-        return false;
-      }
-      Statement stmt;
-      stmt.kind = StatementKind::kAssign;
-      stmt.varName = idToken.text;
-      stmt.expression = exprToken.text;
-      block.body.push_back(stmt);
-      return true;
-    }
-    // Not an assignment — treat as expression statement (result)
-    // Put back the identifier by treating whole line as expression
-    // Reconstruct: the current token is now whatever came after =
-    // This is complex — for now, treat remaining as expression
-    diagnostics.push_back(makeDiagnostic(idToken.line, idToken.column,
-      "Ожидалось присваивание или оператор"));
-    return false;
-  }
-
-  // Expression statement (result value of block)
-  if (state.current().type == TokenType::kExpression) {
-    Token exprToken = state.current();
-    state.match(TokenType::kExpression);
-    Statement stmt;
-    stmt.kind = StatementKind::kExpr;
-    stmt.expression = exprToken.text;
-    block.body.push_back(stmt);
-    return true;
-  }
-
-  diagnostics.push_back(makeDiagnostic(state.current().line, state.current().column,
-    "Неожиданный токен в compute-блоке"));
-  return false;
-}
-
-// Phase 6: Parse compute block
-bool parseCompute(ParserState& state, Program& program,
-                  std::vector<lamp::live::Diagnostic>& diagnostics) {
-  Token nameToken = state.current();
-  if (!state.expect(TokenType::kIdentifier, "Ожидалось имя compute-блока", diagnostics)) {
-    return false;
-  }
-  if (!state.expect(TokenType::kLeftBrace, "Ожидался символ { после compute", diagnostics)) {
-    return false;
-  }
-
-  ComputeBlock block;
-  block.name = nameToken.text;
-
-  skipNewlines(state);
-  while (state.current().type != TokenType::kRightBrace && state.current().type != TokenType::kEof) {
-    if (!parseStatement(state, block, diagnostics)) {
-      return false;
-    }
-    skipNewlines(state);
-  }
-
-  if (!state.expect(TokenType::kRightBrace, "Ожидался символ } после compute-блока", diagnostics)) {
-    return false;
-  }
-
-  program.computes.push_back(block);
-  skipNewlines(state);
-  return true;
-}
-
 }  // namespace
 
 bool parseProgram(const std::string& source, Program& program,
@@ -715,14 +578,6 @@ bool parseProgram(const std::string& source, Program& program,
     if (state.current().type == TokenType::kKeywordPalette) {
       state.match(TokenType::kKeywordPalette);
       if (!parsePalette(state, parsedProgram, diagnostics)) {
-        return false;
-      }
-      continue;
-    }
-
-    if (state.current().type == TokenType::kKeywordCompute) {
-      state.match(TokenType::kKeywordCompute);
-      if (!parseCompute(state, parsedProgram, diagnostics)) {
         return false;
       }
       continue;

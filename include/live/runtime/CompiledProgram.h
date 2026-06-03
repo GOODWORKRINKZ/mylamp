@@ -32,24 +32,7 @@ enum class ExpressionOp {
   kMix,
   kSmoothstep,
   kLoopIndex,
-  // Phase 6: random functions
-  kRandom,       // random(max) — per-pixel, esp_random()
-  kRandf,        // randf(max) — per-frame, cached
-  // Phase 6: comparison operators (GLSL-style, return 0.0/1.0)
-  kGt,           // >
-  kLt,           // <
-  kGte,          // >=
-  kLte,          // <=
-  kEq,           // ==
-  kNeq,          // !=
-  // Phase 6: logical operators
-  kAnd,          // &&
-  kNot,          // ! (unary)
-  // Phase 6: conditional
-  kIf,           // if(cond, a, b)
-  // Phase 6: compute block reference
-  kComputeRef,   // reference to compute block result
-  kComputeVar,   // compute local variable (resolved via vars map at runtime)
+  kRandom, kRandf, kGt, kLt, kGte, kLte, kEq, kNeq, kAnd, kNot, kIf,
 };
 
 static constexpr int16_t kMaxUnrolledLayers = 64;
@@ -108,29 +91,11 @@ struct CompiledLayer {
   int16_t zExpression = -1;
 };
 
-// Phase 6: Compute block — imperative per-pixel computation
-struct CompiledComputeStmt {
-  enum Kind { kLet, kAssign, kWhile, kExpr };
-  Kind kind = kExpr;
-  std::string varName;
-  int16_t exprIndex = -1;     // expression index for let/assign/expr
-  int16_t condIndex = -1;     // condition index for while
-  std::vector<CompiledComputeStmt> body;  // while body
-};
-
-struct CompiledComputeBlock {
-  std::string name;
-  std::vector<CompiledComputeStmt> body;
-};
-
 struct CompiledProgram {
   std::string effectName;
   std::vector<CompiledSprite> sprites;
   std::vector<ExpressionNode> expressions;
   std::vector<CompiledLayer> layers;
-  std::vector<CompiledComputeBlock> computes;      // Phase 6
-  std::vector<std::string> computeNames;            // Phase 6: ordered compute block names
-  std::vector<std::string> computeVarNames;         // Phase 6: compute variable name table (for kComputeVar)
 };
 
 }  // namespace lamp::live::runtime
