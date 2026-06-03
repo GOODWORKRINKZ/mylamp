@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -79,12 +80,14 @@ struct ClockBlock {
 
 struct Program {
   std::string effectName;
-  ClockBlock clockBlock;
   std::vector<PaletteDeclaration> palettes;
   std::vector<SpriteDeclaration> sprites;
   std::vector<TextDeclaration> texts;
   std::vector<LayerDeclaration> layers;
   std::vector<ForLoopStatement> forLoops;
+  // Heap-allocated to avoid stack overflow in parseProgram()
+  std::unique_ptr<ClockBlock> clockBlock;
+  Program() : clockBlock(new ClockBlock()) {}
 };
 
 }  // namespace lamp::live::dsl

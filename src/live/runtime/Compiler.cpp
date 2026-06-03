@@ -633,34 +633,34 @@ bool Compiler::compile(const dsl::Program& program, CompiledProgram& compiledPro
   ExpressionCompiler expressionCompiler(compiled.expressions);
 
   // Compile clock block (D-08, D-09, D-10)
-  if (program.clockBlock.hasBlock) {
+  if (program.clockBlock && program.clockBlock->hasBlock) {
     compiled.clockConfig.enabled = true;
-    if (!program.clockBlock.enabledExpression.empty()) {
-      const std::string trimmedEnabled = trim(program.clockBlock.enabledExpression);
+    if (!program.clockBlock->enabledExpression.empty()) {
+      const std::string trimmedEnabled = trim(program.clockBlock->enabledExpression);
       if (trimmedEnabled == "0") {
         compiled.clockConfig.enabled = false;
       } else if (trimmedEnabled != "1") {
-        diagnostics.push_back(makeDiagnostic(program.clockBlock.enabledLine,
+        diagnostics.push_back(makeDiagnostic(program.clockBlock->enabledLine,
             "clock.enabled поддерживает только 0 или 1 (константы)"));
       }
     }
-    if (!program.clockBlock.blendMode.empty()) {
-      if (!compileBlendMode(program.clockBlock.blendMode, compiled.clockConfig.blendMode,
-                            diagnostics, program.clockBlock.blendLine)) {
+    if (!program.clockBlock->blendMode.empty()) {
+      if (!compileBlendMode(program.clockBlock->blendMode, compiled.clockConfig.blendMode,
+                            diagnostics, program.clockBlock->blendLine)) {
         return false;
       }
     }
-    if (!program.clockBlock.zExpression.empty()) {
-      if (!expressionCompiler.compile(program.clockBlock.zExpression,
+    if (!program.clockBlock->zExpression.empty()) {
+      if (!expressionCompiler.compile(program.clockBlock->zExpression,
                                       compiled.clockConfig.zExpression, diagnostics,
-                                      program.clockBlock.zLine)) {
+                                      program.clockBlock->zLine)) {
         return false;
       }
     }
-    if (!program.clockBlock.alphaExpression.empty()) {
-      if (!expressionCompiler.compile(program.clockBlock.alphaExpression,
+    if (!program.clockBlock->alphaExpression.empty()) {
+      if (!expressionCompiler.compile(program.clockBlock->alphaExpression,
                                       compiled.clockConfig.alphaExpression, diagnostics,
-                                      program.clockBlock.alphaLine)) {
+                                      program.clockBlock->alphaLine)) {
         return false;
       }
     }
