@@ -2,8 +2,18 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 #include "AppConfig.h"
+
+// Platform-adaptive hardware random
+#ifdef ESP_PLATFORM
+#include "esp_system.h"
+inline uint32_t hwRandom() { return esp_random(); }
+#else
+#include <cstdlib>
+inline uint32_t hwRandom() { return static_cast<uint32_t>(rand()); }
+#endif
 
 namespace lamp::live::runtime {
 
@@ -30,7 +40,8 @@ float smoothstep(float edge0, float edge1, float value) {
 }
 
 float evaluateNode(const std::vector<ExpressionNode>& nodes, int16_t index,
-                   const EvaluationContext& context, int16_t depth = 0) {
+                   const EvaluationContext& context, int16_t depth = 0,
+                   float* frameRandCache = nullptr) {
   if (index < 0 || static_cast<size_t>(index) >= nodes.size()) {
     return 0.0f;
   }
@@ -60,50 +71,114 @@ float evaluateNode(const std::vector<ExpressionNode>& nodes, int16_t index,
     case ExpressionOp::kCoordNy:
       return context.ny;
     case ExpressionOp::kAdd:
-      return evaluateNode(nodes, node.children[0], context, depth + 1) +
-             evaluateNode(nodes, node.children[1], context, depth + 1);
+      return evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache) +
+             evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache);
     case ExpressionOp::kSubtract:
-      return evaluateNode(nodes, node.children[0], context, depth + 1) -
-             evaluateNode(nodes, node.children[1], context, depth + 1);
+      return evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache) -
+             evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache);
     case ExpressionOp::kMultiply:
-      return evaluateNode(nodes, node.children[0], context, depth + 1) *
-             evaluateNode(nodes, node.children[1], context, depth + 1);
+      return evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache) *
+             evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache);
     case ExpressionOp::kDivide: {
-      const float denominator = evaluateNode(nodes, node.children[1], context, depth + 1);
-      return denominator == 0.0f ? 0.0f : evaluateNode(nodes, node.children[0], context, depth + 1) / denominator;
+      const float denominator = evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache);
+      return denominator == 0.0f ? 0.0f :
+        evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache) / denominator;
     }
     case ExpressionOp::kModulo: {
-      const float denominator = evaluateNode(nodes, node.children[1], context, depth + 1);
-      return denominator == 0.0f ? 0.0f : std::fmod(evaluateNode(nodes, node.children[0], context, depth + 1), denominator);
+      const float denominator = evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache);
+      return denominator == 0.0f ? 0.0f :
+        std::fmod(evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache), denominator);
     }
     case ExpressionOp::kNegate:
-      return -evaluateNode(nodes, node.children[0], context, depth + 1);
+      return -evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache);
     case ExpressionOp::kSin:
-      return std::sin(evaluateNode(nodes, node.children[0], context, depth + 1));
+      return std::sin(evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache));
     case ExpressionOp::kCos:
-      return std::cos(evaluateNode(nodes, node.children[0], context, depth + 1));
+      return std::cos(evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache));
     case ExpressionOp::kAbs:
-      return std::fabs(evaluateNode(nodes, node.children[0], context, depth + 1));
+      return std::fabs(evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache));
     case ExpressionOp::kMin:
-      return std::min(evaluateNode(nodes, node.children[0], context, depth + 1),
-                      evaluateNode(nodes, node.children[1], context, depth + 1));
+      return std::min(evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache),
+                      evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache));
     case ExpressionOp::kMax:
-      return std::max(evaluateNode(nodes, node.children[0], context, depth + 1),
-                      evaluateNode(nodes, node.children[1], context, depth + 1));
+      return std::max(evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache),
+                      evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache));
     case ExpressionOp::kClamp:
-      return clampFloat(evaluateNode(nodes, node.children[0], context, depth + 1),
-                        evaluateNode(nodes, node.children[1], context, depth + 1),
-                        evaluateNode(nodes, node.children[2], context, depth + 1));
+      return clampFloat(evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache),
+                        evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache),
+                        evaluateNode(nodes, node.children[2], context, depth + 1, frameRandCache));
     case ExpressionOp::kMix: {
-      const float a = evaluateNode(nodes, node.children[0], context, depth + 1);
-      const float b = evaluateNode(nodes, node.children[1], context, depth + 1);
-      const float factor = evaluateNode(nodes, node.children[2], context, depth + 1);
+      const float a = evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache);
+      const float b = evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache);
+      const float factor = evaluateNode(nodes, node.children[2], context, depth + 1, frameRandCache);
       return a + (b - a) * factor;
     }
     case ExpressionOp::kSmoothstep:
-      return smoothstep(evaluateNode(nodes, node.children[0], context, depth + 1),
-                        evaluateNode(nodes, node.children[1], context, depth + 1),
-                        evaluateNode(nodes, node.children[2], context, depth + 1));
+      return smoothstep(evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache),
+                        evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache),
+                        evaluateNode(nodes, node.children[2], context, depth + 1, frameRandCache));
+    // Phase 6: random functions
+    case ExpressionOp::kRandom: {
+      const float maxVal = evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache);
+      if (maxVal <= 0.0f) return 0.0f;
+      return (static_cast<float>(hwRandom()) / 4294967295.0f) * maxVal;
+    }
+    case ExpressionOp::kRandf: {
+      if (frameRandCache != nullptr && !std::isnan(frameRandCache[index])) {
+        return frameRandCache[index];
+      }
+      const float maxVal = evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache);
+      float result = 0.0f;
+      if (maxVal > 0.0f) {
+        result = (static_cast<float>(hwRandom()) / 4294967295.0f) * maxVal;
+      }
+      if (frameRandCache != nullptr) {
+        frameRandCache[index] = result;
+      }
+      return result;
+    }
+    // Phase 6: comparison operators
+    case ExpressionOp::kGt:
+      return evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache) >
+             evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache) ? 1.0f : 0.0f;
+    case ExpressionOp::kLt:
+      return evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache) <
+             evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache) ? 1.0f : 0.0f;
+    case ExpressionOp::kGte:
+      return evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache) >=
+             evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache) ? 1.0f : 0.0f;
+    case ExpressionOp::kLte:
+      return evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache) <=
+             evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache) ? 1.0f : 0.0f;
+    case ExpressionOp::kEq: {
+      const float diff = evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache) -
+                         evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache);
+      return std::fabs(diff) < 0.00001f ? 1.0f : 0.0f;
+    }
+    case ExpressionOp::kNeq: {
+      const float diff = evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache) -
+                         evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache);
+      return std::fabs(diff) >= 0.00001f ? 1.0f : 0.0f;
+    }
+    // Phase 6: logical operators
+    case ExpressionOp::kAnd: {
+      const float a = evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache);
+      const float b = evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache);
+      return (a != 0.0f && b != 0.0f) ? 1.0f : 0.0f;
+    }
+    case ExpressionOp::kNot:
+      return evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache) == 0.0f ? 1.0f : 0.0f;
+    // Phase 6: conditional
+    case ExpressionOp::kIf: {
+      const float cond = evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache);
+      if (cond != 0.0f) {
+        return evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache);
+      }
+      return evaluateNode(nodes, node.children[2], context, depth + 1, frameRandCache);
+    }
+    // Phase 6: compute block reference
+    case ExpressionOp::kComputeRef:
+      return node.constant;  // value set by compute block evaluation before rendering
   }
 
   return 0.0f;
@@ -144,10 +219,10 @@ lamp::Rgb hsvToRgb(float hueDegrees, float saturation, float value) {
 }
 
 lamp::Rgb evaluateColor(const CompiledProgram& program, const CompiledColor& color,
-                        const EvaluationContext& context) {
-  const float first = evaluateNode(program.expressions, color.channels[0], context);
-  const float second = evaluateNode(program.expressions, color.channels[1], context);
-  const float third = evaluateNode(program.expressions, color.channels[2], context);
+                        const EvaluationContext& context, float* frameRandCache = nullptr) {
+  const float first = evaluateNode(program.expressions, color.channels[0], context, 0, frameRandCache);
+  const float second = evaluateNode(program.expressions, color.channels[1], context, 0, frameRandCache);
+  const float third = evaluateNode(program.expressions, color.channels[2], context, 0, frameRandCache);
   if (color.model == ColorModel::kHsv) {
     return hsvToRgb(first, second, third);
   }
@@ -180,7 +255,7 @@ lamp::Rgb blendColors(BlendMode blendMode, lamp::Rgb destination, lamp::Rgb sour
 
 void renderSpritePixel(const CompiledProgram& program, const CompiledLayer& layer,
                        const EvaluationContext& baseContext, lamp::FrameBuffer& frameBuffer,
-                       int16_t renderX, int16_t renderY) {
+                       int16_t renderX, int16_t renderY, float* frameRandCache = nullptr) {
   // XY swap: DSL "x" axis = physical Y (cylinder circumference, wraps),
   //          DSL "y" axis = physical X (cylinder height, bounded).
   const int16_t physX = renderY;  // DSL x → physical Y
@@ -195,7 +270,7 @@ void renderSpritePixel(const CompiledProgram& program, const CompiledLayer& laye
                     static_cast<float>(lamp::config::kLogicalWidth - 1U);
 
   const lamp::Rgb destinationColor = frameBuffer.getPixel(physX, physY);
-  const lamp::Rgb sourceColor = evaluateColor(program, layer.color, pixelContext);
+  const lamp::Rgb sourceColor = evaluateColor(program, layer.color, pixelContext, frameRandCache);
   frameBuffer.setPixel(physX, physY, blendColors(layer.blendMode, destinationColor, sourceColor));
 }
 
@@ -206,6 +281,9 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
   frameBuffer.clear();
 
   lastRenderOnTop_ = false;
+
+  // Phase 6: per-frame random cache for randf()
+  std::vector<float> frameRandCache(program.expressions.size(), NAN);
 
   EvaluationContext baseContext;
   baseContext.timeSeconds = context.timeSeconds;
@@ -218,27 +296,27 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
       continue;
     }
 
-    const float visible = evaluateNode(program.expressions, layer.visibleExpression, baseContext);
+    const float visible = evaluateNode(program.expressions, layer.visibleExpression, baseContext, 0, frameRandCache.data());
     if (visible <= 0.0f) {
       continue;
     }
 
     // Check z-index: if any visible layer has z >= 1, effect renders on top of clock
     if (layer.zExpression >= 0) {
-      float zVal = evaluateNode(program.expressions, layer.zExpression, baseContext);
+      float zVal = evaluateNode(program.expressions, layer.zExpression, baseContext, 0, frameRandCache.data());
       if (zVal >= 1.0f) {
         lastRenderOnTop_ = true;
       }
     }
 
     const int16_t originX = static_cast<int16_t>(std::lround(
-        evaluateNode(program.expressions, layer.xExpression, baseContext)));
+        evaluateNode(program.expressions, layer.xExpression, baseContext, 0, frameRandCache.data())));
     const int16_t originY = static_cast<int16_t>(std::lround(
-        evaluateNode(program.expressions, layer.yExpression, baseContext)));
+        evaluateNode(program.expressions, layer.yExpression, baseContext, 0, frameRandCache.data())));
     const int16_t scale = std::max<int16_t>(1, static_cast<int16_t>(std::lround(
                                                   evaluateNode(program.expressions, layer.scaleExpression,
-                                                               baseContext))));
-    const float rotationRadians = evaluateNode(program.expressions, layer.rotationExpression, baseContext);
+                                                               baseContext, 0, frameRandCache.data()))));
+    const float rotationRadians = evaluateNode(program.expressions, layer.rotationExpression, baseContext, 0, frameRandCache.data());
 
     const CompiledSprite& sprite = program.sprites[layer.spriteIndex];
 
@@ -247,7 +325,7 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
     if (!sprite.frames.empty()) {
       int frameIndex = 0;
       if (layer.frameExpression >= 0) {
-        float rawIndex = evaluateNode(program.expressions, layer.frameExpression, baseContext);
+        float rawIndex = evaluateNode(program.expressions, layer.frameExpression, baseContext, 0, frameRandCache.data());
         int numFrames = static_cast<int>(sprite.frames.size());
         frameIndex = static_cast<int>(std::floor(rawIndex)) % numFrames;
         if (frameIndex < 0) frameIndex += numFrames;
@@ -283,7 +361,7 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
             frameBuffer.setPixel(physX, physY,
                                  blendColors(layer.blendMode, destinationColor, sourceColor));
           } else {
-            renderSpritePixel(program, layer, baseContext, frameBuffer, renderX, renderY);
+            renderSpritePixel(program, layer, baseContext, frameBuffer, renderX, renderY, frameRandCache.data());
           }
         }
       }

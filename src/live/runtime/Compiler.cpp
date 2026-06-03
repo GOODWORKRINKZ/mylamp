@@ -45,24 +45,87 @@ class ExpressionCompiler {
 
  private:
   bool parseExpression(int16_t& index, std::vector<lamp::live::Diagnostic>& diagnostics) {
+    // Phase 6: expression → and_expr
+    return parseAnd(index, diagnostics);
+  }
+
+  // Phase 6: and_expr → comparison (('&&') comparison)*
+  bool parseAnd(int16_t& index, std::vector<lamp::live::Diagnostic>& diagnostics) {
+    if (!parseComparison(index, diagnostics)) {
+      return false;
+    }
+
+    while (true) {
+      skipWhitespace();
+      if (position_ + 1 >= input_.size() || input_[position_] != '&' || input_[position_ + 1] != '&') {
+        return true;
+      }
+      position_ += 2;  // consume &&
+
+      int16_t rhs = -1;
+      if (!parseComparison(rhs, diagnostics)) {
+        return false;
+      }
+
+      ExpressionNode node;
+      node.op = ExpressionOp::kAnd;
+      node.children[0] = index;
+      node.children[1] = rhs;
+      index = appendNode(node);
+    }
+  }
+
+  // Phase 6: comparison → term (('>'|'<'|'>='|'<='|'=='|'!=') term)*
+  bool parseComparison(int16_t& index, std::vector<lamp::live::Diagnostic>& diagnostics) {
     if (!parseTerm(index, diagnostics)) {
       return false;
     }
 
     while (true) {
       skipWhitespace();
-      if (!match('+') && !match('-')) {
-        return true;
+      ExpressionOp cmpOp;
+      if (position_ + 1 < input_.size()) {
+        if (input_[position_] == '>' && input_[position_ + 1] == '=') {
+          cmpOp = ExpressionOp::kGte;
+          position_ += 2;
+        } else if (input_[position_] == '<' && input_[position_ + 1] == '=') {
+          cmpOp = ExpressionOp::kLte;
+          position_ += 2;
+        } else if (input_[position_] == '=' && input_[position_ + 1] == '=') {
+          cmpOp = ExpressionOp::kEq;
+          position_ += 2;
+        } else if (input_[position_] == '!' && input_[position_ + 1] == '=') {
+          cmpOp = ExpressionOp::kNeq;
+          position_ += 2;
+        } else if (input_[position_] == '>') {
+          cmpOp = ExpressionOp::kGt;
+          position_ += 1;
+        } else if (input_[position_] == '<') {
+          cmpOp = ExpressionOp::kLt;
+          position_ += 1;
+        } else {
+          return true;
+        }
+      } else {
+        // Single char at end — only > or < possible
+        if (input_[position_] == '>') {
+          cmpOp = ExpressionOp::kGt;
+          position_ += 1;
+        } else if (input_[position_] == '<') {
+          cmpOp = ExpressionOp::kLt;
+          position_ += 1;
+        } else {
+          return true;
+        }
       }
 
-      const char op = input_[position_ - 1U];
       int16_t rhs = -1;
       if (!parseTerm(rhs, diagnostics)) {
         return false;
       }
 
       ExpressionNode node;
-      node.op = op == '+' ? ExpressionOp::kAdd : ExpressionOp::kSubtract;
+      node.op = cmpOp;
       node.children[0] = index;
       node.children[1] = rhs;
       index = appendNode(node);
@@ -102,6 +165,20 @@ class ExpressionCompiler {
 
   bool parseUnary(int16_t& index, std::vector<lamp::live::Diagnostic>& diagnostics) {
     skipWhitespace();
+    // Phase 6: support unary ! (logical NOT)
+    if (match('!')) {
+      int16_t child = -1;
+      if (!parseUnary(child, diagnostics)) {
+        return false;
+      }
+
+      ExpressionNode node;
+      node.op = ExpressionOp::kNot;
+      node.children[0] = child;
+      index = appendNode(node);
+      return true;
+    }
+
     if (match('-')) {
       int16_t child = -1;
       if (!parseUnary(child, diagnostics)) {
@@ -259,6 +336,19 @@ class ExpressionCompiler {
       node.children[2] = arguments[2];
     } else if (name == "smoothstep" && arguments.size() == 3U) {
       node.op = ExpressionOp::kSmoothstep;
+      node.children[0] = arguments[0];
+      node.children[1] = arguments[1];
+      node.children[2] = arguments[2];
+    // Phase 6: random functions
+    } else if (name == "random" && arguments.size() == 1U) {
+      node.op = ExpressionOp::kRandom;
+      node.children[0] = arguments[0];
+    } else if (name == "randf" && arguments.size() == 1U) {
+      node.op = ExpressionOp::kRandf;
+      node.children[0] = arguments[0];
+    // Phase 6: conditional
+    } else if (name == "if" && arguments.size() == 3U) {
+      node.op = ExpressionOp::kIf;
       node.children[0] = arguments[0];
       node.children[1] = arguments[1];
       node.children[2] = arguments[2];

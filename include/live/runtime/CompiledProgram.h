@@ -32,6 +32,23 @@ enum class ExpressionOp {
   kMix,
   kSmoothstep,
   kLoopIndex,
+  // Phase 6: random functions
+  kRandom,       // random(max) — per-pixel, esp_random()
+  kRandf,        // randf(max) — per-frame, cached
+  // Phase 6: comparison operators (GLSL-style, return 0.0/1.0)
+  kGt,           // >
+  kLt,           // <
+  kGte,          // >=
+  kLte,          // <=
+  kEq,           // ==
+  kNeq,          // !=
+  // Phase 6: logical operators
+  kAnd,          // &&
+  kNot,          // ! (unary)
+  // Phase 6: conditional
+  kIf,           // if(cond, a, b)
+  // Phase 6: compute block reference
+  kComputeRef,   // reference to compute block result
 };
 
 static constexpr int16_t kMaxUnrolledLayers = 64;

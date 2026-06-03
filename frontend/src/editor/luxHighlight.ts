@@ -6,12 +6,13 @@
 const LUX_KEYWORDS = new Set([
   "effect", "sprite", "text", "layer", "use", "color", "bitmap",
   "visible", "x", "y", "scale", "rotation", "blend",
-  "for", "frame", "palette",
+  "for", "frame", "palette", "z",
+  "compute", "let", "while",
 ]);
 
 const LUX_FUNCTIONS = new Set([
   "sin", "cos", "abs", "min", "max", "clamp", "fmod", "step", "smoothstep",
-  "lerp", "rgb", "hsv", "temp", "humidity", "random",
+  "lerp", "rgb", "hsv", "temp", "humidity", "random", "randf", "if",
 ]);
 
 const BLEND_MODES = new Set([

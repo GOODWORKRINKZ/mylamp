@@ -1,0 +1,200 @@
+[
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/FrameBuffer.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/FrameBuffer.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/FrameBuffer.cpp",
+        "output": ".pio/build/native-test/src/FrameBuffer.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/MatrixLayout.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/MatrixLayout.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/MatrixLayout.cpp",
+        "output": ".pio/build/native-test/src/MatrixLayout.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/effects/AlternatingColumnsEffect.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/effects/AlternatingColumnsEffect.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/effects/AlternatingColumnsEffect.cpp",
+        "output": ".pio/build/native-test/src/effects/AlternatingColumnsEffect.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/effects/ClockOverlay.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/effects/ClockOverlay.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/effects/ClockOverlay.cpp",
+        "output": ".pio/build/native-test/src/effects/ClockOverlay.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/effects/EffectRegistry.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/effects/EffectRegistry.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/effects/EffectRegistry.cpp",
+        "output": ".pio/build/native-test/src/effects/EffectRegistry.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/effects/SolidColorEffect.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/effects/SolidColorEffect.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/effects/SolidColorEffect.cpp",
+        "output": ".pio/build/native-test/src/effects/SolidColorEffect.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/live/LiveRequestJson.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/live/LiveRequestJson.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/live/LiveRequestJson.cpp",
+        "output": ".pio/build/native-test/src/live/LiveRequestJson.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/live/PlaylistJson.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/live/PlaylistJson.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/live/PlaylistJson.cpp",
+        "output": ".pio/build/native-test/src/live/PlaylistJson.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/live/PlaylistRepository.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/live/PlaylistRepository.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/live/PlaylistRepository.cpp",
+        "output": ".pio/build/native-test/src/live/PlaylistRepository.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/live/PresetJson.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/live/PresetJson.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/live/PresetJson.cpp",
+        "output": ".pio/build/native-test/src/live/PresetJson.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/live/PresetRepository.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/live/PresetRepository.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/live/PresetRepository.cpp",
+        "output": ".pio/build/native-test/src/live/PresetRepository.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/live/dsl/Lexer.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/live/dsl/Lexer.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/live/dsl/Lexer.cpp",
+        "output": ".pio/build/native-test/src/live/dsl/Lexer.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/live/dsl/Parser.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/live/dsl/Parser.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/live/dsl/Parser.cpp",
+        "output": ".pio/build/native-test/src/live/dsl/Parser.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/live/runtime/Compiler.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/live/runtime/Compiler.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/live/runtime/Compiler.cpp",
+        "output": ".pio/build/native-test/src/live/runtime/Compiler.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/live/runtime/Executor.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/live/runtime/Executor.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/live/runtime/Executor.cpp",
+        "output": ".pio/build/native-test/src/live/runtime/Executor.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/live/runtime/LiveProgramService.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/live/runtime/LiveProgramService.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/live/runtime/LiveProgramService.cpp",
+        "output": ".pio/build/native-test/src/live/runtime/LiveProgramService.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/live/runtime/PixelFont.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/live/runtime/PixelFont.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/live/runtime/PixelFont.cpp",
+        "output": ".pio/build/native-test/src/live/runtime/PixelFont.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/live/runtime/PlaylistScheduler.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/live/runtime/PlaylistScheduler.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/live/runtime/PlaylistScheduler.cpp",
+        "output": ".pio/build/native-test/src/live/runtime/PlaylistScheduler.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/network/NetworkPlanner.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/network/NetworkPlanner.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/network/NetworkPlanner.cpp",
+        "output": ".pio/build/native-test/src/network/NetworkPlanner.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/network/WiFiManager.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/network/WiFiManager.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/network/WiFiManager.cpp",
+        "output": ".pio/build/native-test/src/network/WiFiManager.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/sensors/SensorRuntimeService.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/sensors/SensorRuntimeService.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/sensors/SensorRuntimeService.cpp",
+        "output": ".pio/build/native-test/src/sensors/SensorRuntimeService.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/settings/AppSettingsPersistence.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/settings/AppSettingsPersistence.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/settings/AppSettingsPersistence.cpp",
+        "output": ".pio/build/native-test/src/settings/AppSettingsPersistence.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/time/TimePlanner.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/time/TimePlanner.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/time/TimePlanner.cpp",
+        "output": ".pio/build/native-test/src/time/TimePlanner.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/time/TimeRuntimeService.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/time/TimeRuntimeService.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/time/TimeRuntimeService.cpp",
+        "output": ".pio/build/native-test/src/time/TimeRuntimeService.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/update/ChecksumFileParser.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/update/ChecksumFileParser.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/update/ChecksumFileParser.cpp",
+        "output": ".pio/build/native-test/src/update/ChecksumFileParser.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/update/FirmwareUpdateService.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/update/FirmwareUpdateService.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/update/FirmwareUpdateService.cpp",
+        "output": ".pio/build/native-test/src/update/FirmwareUpdateService.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/update/GitHubReleaseParser.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/update/GitHubReleaseParser.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/update/GitHubReleaseParser.cpp",
+        "output": ".pio/build/native-test/src/update/GitHubReleaseParser.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/web/LiveApi.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/web/LiveApi.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/web/LiveApi.cpp",
+        "output": ".pio/build/native-test/src/web/LiveApi.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/web/NetworkSettingsJson.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/web/NetworkSettingsJson.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/web/NetworkSettingsJson.cpp",
+        "output": ".pio/build/native-test/src/web/NetworkSettingsJson.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/web/PlaylistApi.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/web/PlaylistApi.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/web/PlaylistApi.cpp",
+        "output": ".pio/build/native-test/src/web/PlaylistApi.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/web/PresetApi.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/web/PresetApi.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/web/PresetApi.cpp",
+        "output": ".pio/build/native-test/src/web/PresetApi.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/web/StatusJsonBuilder.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/web/StatusJsonBuilder.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/web/StatusJsonBuilder.cpp",
+        "output": ".pio/build/native-test/src/web/StatusJsonBuilder.o"
+    },
+    {
+        "command": "/usr/bin/g++ -o .pio/build/native-test/src/web/TimeSettingsJson.o -c -DPLATFORMIO=60119 -DAPP_VERSION=\\\"0.1.0-test\\\" -DAPP_CHANNEL=\\\"test\\\" -DAPP_BOARD=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"native\\\" -DAPP_HARDWARE_TYPE=\\\"c3-cylinder32x16\\\" -DAPP_GITHUB_REPO=\\\"GOODWORKRINKZ/mylamp\\\" -Iinclude -Isrc -I.pio/libdeps/native-test/ArduinoJson/src -I/home/ros2/.platformio/platforms/native/builder/test/test_arduino_ntp src/web/TimeSettingsJson.cpp",
+        "directory": "/home/ros2/mylamp",
+        "file": "src/web/TimeSettingsJson.cpp",
+        "output": ".pio/build/native-test/src/web/TimeSettingsJson.o"
+    }
+]
