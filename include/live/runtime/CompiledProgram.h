@@ -49,6 +49,7 @@ enum class ExpressionOp {
   kIf,           // if(cond, a, b)
   // Phase 6: compute block reference
   kComputeRef,   // reference to compute block result
+  kComputeVar,   // compute local variable (resolved via vars map at runtime)
 };
 
 static constexpr int16_t kMaxUnrolledLayers = 64;
@@ -129,6 +130,7 @@ struct CompiledProgram {
   std::vector<CompiledLayer> layers;
   std::vector<CompiledComputeBlock> computes;      // Phase 6
   std::vector<std::string> computeNames;            // Phase 6: ordered compute block names
+  std::vector<std::string> computeVarNames;         // Phase 6: compute variable name table (for kComputeVar)
 };
 
 }  // namespace lamp::live::runtime

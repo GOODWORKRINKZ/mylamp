@@ -25,7 +25,9 @@ lamp::live::Diagnostic makeDiagnostic(uint32_t line, const std::string& message)
 
 class ExpressionCompiler {
  public:
-  explicit ExpressionCompiler(std::vector<ExpressionNode>& nodes) : nodes_(nodes) {}
+  explicit ExpressionCompiler(std::vector<ExpressionNode>& nodes,
+                              std::vector<std::string>* varNames = nullptr)
+      : nodes_(nodes), varNames_(varNames) {}
 
   bool compile(const std::string& expression, int16_t& rootIndex,
                std::vector<lamp::live::Diagnostic>& diagnostics, uint32_t sourceLine = 0) {
@@ -285,8 +287,14 @@ class ExpressionCompiler {
     } else if (name == "ny") {
       node.op = ExpressionOp::kCoordNy;
     } else {
-      diagnostics.push_back(makeDiagnostic(sourceLine_, "Неизвестный идентификатор: " + name));
-      return false;
+      // Phase 6: compute variable — resolved at runtime via vars map
+      node.op = ExpressionOp::kComputeVar;
+      if (varNames_ != nullptr) {
+        node.constant = static_cast<float>(varNames_->size());
+        varNames_->push_back(name);
+      } else {
+        node.constant = 0.0f;
+      }
     }
 
     index = appendNode(node);
@@ -383,6 +391,7 @@ class ExpressionCompiler {
   }
 
   std::vector<ExpressionNode>& nodes_;
+  std::vector<std::string>* varNames_ = nullptr;
   std::string input_;
   size_t position_ = 0;
   uint32_t sourceLine_ = 0;
@@ -654,7 +663,7 @@ bool Compiler::compile(const dsl::Program& program, CompiledProgram& compiledPro
     compiled.sprites.push_back(compileText(text));
   }
 
-  ExpressionCompiler expressionCompiler(compiled.expressions);
+  ExpressionCompiler expressionCompiler(compiled.expressions, &compiled.computeVarNames);
 
   // For-loop unrolling (per D-03)
   for (const lamp::live::dsl::ForLoopStatement& forLoop : program.forLoops) {

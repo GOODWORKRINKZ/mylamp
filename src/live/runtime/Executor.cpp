@@ -44,6 +44,10 @@ float smoothstep(float edge0, float edge1, float value) {
 
 // Phase 6: per-pixel compute results pointer
 static const float* g_computeResults = nullptr;
+// Phase 6: per-pixel compute variable map (for kComputeVar resolution)
+static const std::unordered_map<std::string, float>* g_computeVars = nullptr;
+// Phase 6: compute variable name table (index → name)
+static const std::vector<std::string>* g_computeVarNames = nullptr;
 
 float evaluateNode(const std::vector<ExpressionNode>& nodes, int16_t index,
                    const EvaluationContext& context, int16_t depth = 0,
@@ -190,6 +194,20 @@ float evaluateNode(const std::vector<ExpressionNode>& nodes, int16_t index,
       }
       return 0.0f;
     }
+    // Phase 6: compute local variable
+    case ExpressionOp::kComputeVar: {
+      if (g_computeVarNames != nullptr && g_computeVars != nullptr) {
+        int vi = static_cast<int>(node.constant);
+        if (vi >= 0 && static_cast<size_t>(vi) < g_computeVarNames->size()) {
+          const std::string& varName = (*g_computeVarNames)[static_cast<size_t>(vi)];
+          auto it = g_computeVars->find(varName);
+          if (it != g_computeVars->end()) {
+            return it->second;
+          }
+        }
+      }
+      return 0.0f;
+    }
   }
 
   return 0.0f;
@@ -306,6 +324,7 @@ void renderSpritePixel(const CompiledProgram& program, const CompiledLayer& laye
                     static_cast<float>(lamp::config::kLogicalWidth - 1U);
 
   // Phase 6: evaluate compute blocks per-pixel
+  g_computeVarNames = &program.computeVarNames;
   std::vector<float> computeResults(program.computes.size(), 0.0f);
   for (size_t ci = 0; ci < program.computes.size(); ++ci) {
     std::unordered_map<std::string, float> vars;
@@ -315,11 +334,13 @@ void renderSpritePixel(const CompiledProgram& program, const CompiledLayer& laye
     vars["ny"] = pixelContext.ny;
     vars["t"] = pixelContext.timeSeconds;
     vars["dt"] = pixelContext.deltaSeconds;
+    g_computeVars = &vars;
     float result = 0.0f;
     execComputeStmts(program.computes[ci].body, program.expressions,
                      pixelContext, frameRandCache, vars, result);
     computeResults[ci] = result;
   }
+  g_computeVars = nullptr;
   g_computeResults = computeResults.data();
 
   const lamp::Rgb destinationColor = frameBuffer.getPixel(physX, physY);
