@@ -113,6 +113,7 @@ graph TD
     P2[Phase 2: Cylindrical Geometry] --> P3
     P2 --> P4[Phase 4: Perf & Bugs]
     P2 --> P5[Phase 5: Demo Effects]
+    P5 --> P6[Phase 6: Random function]
 ```
 
 **Parallel execution:** P1 и P2 независимы — могут выполняться параллельно.
@@ -128,8 +129,22 @@ graph TD
 | 3 | Clock Overlay | 3 | P1, P2 |
 | 4 | Perf & Bugs | 3 | P2 |
 | 5 | Demo Effects & DSL | 3 | P2 |
+| 6 | Random function | TBD | P5 |
 
-**Total:** 5 phases, 17 requirements
+**Total:** 6 phases, 17 requirements
+
+### Phase 6: Выразительность Lux DSL — random, условия, императив
+
+**Goal:** Добавлены random-функции, условный оператор, сравнения, логические операторы и compute-блоки (let/while) для per-pixel вычислений. Можно написать множество Мандельброта на чистом Lux.
+
+**Why:** Без random и условий невозможно писать generative-эффекты. Без compute/while — фракталы и итеративные алгоритмы.
+
+**Dependencies:** Phase 5 (DSL base)
+
+**Requirements:** TBD
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 6 to break down)
 
 ---
 *Created: 2026-06-02*
