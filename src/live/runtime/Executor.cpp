@@ -272,7 +272,6 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
                       lamp::FrameBuffer& frameBuffer) const {
   frameBuffer.clear();
 
-  lastRenderOnTop_ = false;
 
   std::vector<float> frameRandCache(program.expressions.size(), NAN);
 
@@ -296,7 +295,6 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
     if (layer.zExpression >= 0) {
       float zVal = evaluateNode(program.expressions, layer.zExpression, baseContext, 0, frameRandCache.data());
       if (zVal >= 1.0f) {
-        lastRenderOnTop_ = true;
       }
     }
 
