@@ -718,6 +718,9 @@ async function postLiveAction(endpoint: "/api/live/validate" | "/api/live/run"):
     const payload = (await response.json()) as LiveDiagnosticResponse;
 
     renderDiagnosticsConsole(payload);
+    const firstError = (!payload.ok && payload.errors.length > 0) 
+      ? `Строка ${payload.errors[0].line}: ${payload.errors[0].message}` 
+      : "";
     setText(
       "diagnostics-status",
       payload.ok
@@ -732,7 +735,7 @@ async function postLiveAction(endpoint: "/api/live/validate" | "/api/live/run"):
         ? endpoint === "/api/live/validate"
           ? "Код проверен. Можно запускать или сохранить."
           : "Код запущен. Смотри, как лампа откликнется."
-        : "Проверка завершилась с ошибками.",
+        : `Ошибка: ${firstError}`,
     );
 
     void refreshStatus();
