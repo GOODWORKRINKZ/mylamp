@@ -42,14 +42,12 @@ float smoothstep(float edge0, float edge1, float value) {
   return normalized * normalized * (3.0f - 2.0f * normalized);
 }
 
-// Phase 6: compute results pointer (set by Executor::render before layer evaluation)
-// Single-threaded ESP32 — safe static
+// Phase 6: per-pixel compute results pointer
 static const float* g_computeResults = nullptr;
 
 float evaluateNode(const std::vector<ExpressionNode>& nodes, int16_t index,
                    const EvaluationContext& context, int16_t depth = 0,
-                   float* frameRandCache = nullptr,
-                   const float* computeResults = nullptr) {
+                   float* frameRandCache = nullptr) {
   if (index < 0 || static_cast<size_t>(index) >= nodes.size()) {
     return 0.0f;
   }
@@ -180,23 +178,18 @@ float evaluateNode(const std::vector<ExpressionNode>& nodes, int16_t index,
     case ExpressionOp::kIf: {
       const float cond = evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache);
       if (cond != 0.0f) {
-        return evaluateNode(nodes,  {
-      int idx = static_cast<int>(node.constant);
-      if (g_computeResults != nullptr && idx >= 0) {
-        return g_computeResults[idx];
+        return evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache);
       }
-      return 0.0f;
-    }
       return evaluateNode(nodes, node.children[2], context, depth + 1, frameRandCache);
     }
-    // Phase 6: compute block refer {
-      int idx = static_cast<int>(node.constant);
-      if (computeResults != nullptr && idx >= 0) {
-        return computeResults[idx];
+    // Phase 6: compute block reference
+    case ExpressionOp::kComputeRef: {
+      int ci = static_cast<int>(node.constant);
+      if (g_computeResults != nullptr && ci >= 0) {
+        return g_computeResults[ci];
       }
       return 0.0f;
     }
-      return node.constant;  // value set by compute block evaluation before rendering
   }
 
   return 0.0f;
@@ -271,6 +264,31 @@ lamp::Rgb blendColors(BlendMode blendMode, lamp::Rgb destination, lamp::Rgb sour
   return source;
 }
 
+// Phase 6: execute compute block statements (per-pixel)
+void execComputeStmts(const std::vector<CompiledComputeStmt>& stmts,
+                      const std::vector<ExpressionNode>& expressions,
+                      const EvaluationContext& ctx, float* frameRandCache,
+                      std::unordered_map<std::string, float>& vars, float& lastResult) {
+  for (const auto& stmt : stmts) {
+    if (stmt.kind == CompiledComputeStmt::kLet || stmt.kind == CompiledComputeStmt::kAssign) {
+      float val = evaluateNode(expressions, stmt.exprIndex, ctx, 0, frameRandCache);
+      vars[stmt.varName] = val;
+      lastResult = val;
+    } else if (stmt.kind == CompiledComputeStmt::kWhile) {
+      int iter = 0;
+      while (iter < lamp::config::kMaxExpressionDepth) {
+        float cond = evaluateNode(expressions, stmt.condIndex, ctx, 0, frameRandCache);
+        if (cond == 0.0f) break;
+        execComputeStmts(stmt.body, expressions, ctx, frameRandCache, vars, lastResult);
+        ++iter;
+      }
+    } else if (stmt.kind == CompiledComputeStmt::kExpr) {
+      float val = evaluateNode(expressions, stmt.exprIndex, ctx, 0, frameRandCache);
+      lastResult = val;
+    }
+  }
+}
+
 void renderSpritePixel(const CompiledProgram& program, const CompiledLayer& layer,
                        const EvaluationContext& baseContext, lamp::FrameBuffer& frameBuffer,
                        int16_t renderX, int16_t renderY, float* frameRandCache = nullptr) {
@@ -286,6 +304,23 @@ void renderSpritePixel(const CompiledProgram& program, const CompiledLayer& laye
                     static_cast<float>(lamp::config::kLogicalHeight - 1U);
   pixelContext.ny = static_cast<float>(physY) /
                     static_cast<float>(lamp::config::kLogicalWidth - 1U);
+
+  // Phase 6: evaluate compute blocks per-pixel
+  std::vector<float> computeResults(program.computes.size(), 0.0f);
+  for (size_t ci = 0; ci < program.computes.size(); ++ci) {
+    std::unordered_map<std::string, float> vars;
+    vars["x"] = pixelContext.x;
+    vars["y"] = pixelContext.y;
+    vars["nx"] = pixelContext.nx;
+    vars["ny"] = pixelContext.ny;
+    vars["t"] = pixelContext.timeSeconds;
+    vars["dt"] = pixelContext.deltaSeconds;
+    float result = 0.0f;
+    execComputeStmts(program.computes[ci].body, program.expressions,
+                     pixelContext, frameRandCache, vars, result);
+    computeResults[ci] = result;
+  }
+  g_computeResults = computeResults.data();
 
   const lamp::Rgb destinationColor = frameBuffer.getPixel(physX, physY);
   const lamp::Rgb sourceColor = evaluateColor(program, layer.color, pixelContext, frameRandCache);
@@ -308,44 +343,6 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
   baseContext.deltaSeconds = context.deltaSeconds;
   baseContext.temperatureC = context.temperatureC;
   baseContext.humidityPercent = context.humidityPercent;
-
-  // Phase 6: Evaluate compute blocks (per-frame, same for all pixels)
-  // Use frameRandCache so randf() inside compute is stable
-  std::vector<float> computeResults(program.computes.size(), 0.0f);
-
-  // Helper to execute compute statements
-  std::function<void(const std::vector<CompiledComputeStmt>&, std::unordered_map<std::string, float>&, float&)> execStmts;
-  execStmts = [&](const std::vector<CompiledComputeStmt>& stmts,
-                  std::unordered_map<std::string, float>& vars, float& lastResult) {
-    for (const auto& stmt : stmts) {
-      if (stmt.kind == CompiledComputeStmt::kLet || stmt.kind == CompiledComputeStmt::kAssign) {
-        float val = evaluateNode(program.expressions, stmt.exprIndex, baseContext, 0, frameRandCache.data());
-        vars[stmt.varName] = val;
-        lastResult = val;
-      } else if (stmt.kind == CompiledComputeStmt::kWhile) {
-        int iter = 0;
-        while (iter < lamp::config::kMaxExpressionDepth) {
-          float cond = evaluateNode(program.expressions, stmt.condIndex, baseContext, 0, frameRandCache.data());
-          if (cond == 0.0f) break;
-          execStmts(stmt.body, vars, lastResult);
-          ++iter;
-        }
-  g_computeResults = computeResults.data();
-  };
-
-  for (size_t ci = 0; ci < program.computes.size(); ++ci) {
-    std::unordered_map<std::string, float> vars;
-    float result = 0.0f;
-    execStmts(program.computes[ci].body, vars, result);
-    computeResults[ci] = result;
-  }
-
-  // Make compute results available for layer expressions via kComputeRef
-  // Store compute names → result index mapping in a local array
-  // We'll modify expression nodes temporarily (ugly but works):
-  // Actually, we can't modify const nodes. Instead, we search for kComputeRef nodes
-  // and use node.constant as the compute index, then return computeResults[idx]
-  // This is already handled in evaluateNode's kComputeRef case.
 
   for (const CompiledLayer& layer : program.layers) {
     if (layer.spriteIndex >= program.sprites.size()) {
