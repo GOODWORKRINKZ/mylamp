@@ -376,6 +376,20 @@ bool Lexer::tokenize(const std::string& source, std::vector<Token>& tokens,
       continue;
     }
 
+    // One-line bitmap: bitmap """ content """ (single-line tolerance)
+    if (startsWith(trimmed, "bitmap \"\"\"") && trimmed.size() > 10) {
+      std::string afterStart = trimmed.substr(10);  // after "bitmap \"\"\""
+      // Find closing """
+      size_t closePos = afterStart.rfind("\"\"\"");
+      if (closePos != std::string::npos) {
+        std::string content = trim(afterStart.substr(0, closePos));
+        appendToken(tokens, TokenType::kKeywordBitmap, "bitmap", lineNumber, 1U);
+        appendToken(tokens, TokenType::kMultilineString, content, lineNumber, 8U);
+        appendToken(tokens, TokenType::kNewline, "", lineNumber, 1U);
+        continue;
+      }
+    }
+
     if (trimmed == "bitmap \"\"\"") {
       std::string bitmap;
       bool closed = false;
