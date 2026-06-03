@@ -91,9 +91,9 @@ void drawChar(int16_t originX, int16_t originY, char c, lamp::Rgb color, lamp::F
   if (!g) return;
   for (int16_t row = 0; row < kDigitHeight; ++row) {
     for (int16_t col = 0; col < kDigitWidth; ++col) {
-      if (g[row] & (1 << (kDigitWidth - 1 - col))) {
-        const int16_t px = originX + col;
-        const int16_t py = originY + row;
+      if (g[row] & (0b100 >> col)) {
+        const int16_t px = originX + row;  // X is vertical
+        const int16_t py = originY + col;  // Y is horizontal
         const lamp::Rgb dst = fb.getPixel(px, py);
         fb.setPixel(px, py, blendWithAlpha(blendMode, dst, color, alpha));
       }
@@ -103,10 +103,10 @@ void drawChar(int16_t originX, int16_t originY, char c, lamp::Rgb color, lamp::F
 
 void drawString(int16_t x, int16_t y, const char* text, lamp::Rgb color, lamp::FrameBuffer& fb,
                 BlendMode blendMode = BlendMode::kNormal, float alpha = 1.0f) {
-  int16_t cx = x;
+  int16_t cy = y;
   for (size_t i = 0; text[i] != '\0'; ++i) {
-    drawChar(cx, y, text[i], color, fb, blendMode, alpha);
-    cx += kDigitWidth + kDigitGap;
+    drawChar(x, cy, text[i], color, fb, blendMode, alpha);
+    cy += kDigitWidth + kDigitGap;
   }
 }
 
