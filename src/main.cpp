@@ -145,6 +145,8 @@ void renderEffectPass(unsigned long nowMs) {
 }
 
 void renderOverlayPass(unsigned long nowMs) {
+  // Clock for live effects rendered inside Executor via z-sorting
+  if (g_liveProgramService.state().active) return;
   g_clockOverlay.render(g_runtimeTimeState.currentTime, g_frameBuffer,
                         g_timeState.clockOverlayVisible,
                         static_cast<uint32_t>(nowMs),

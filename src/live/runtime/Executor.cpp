@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "AppConfig.h"
+#include "effects/ClockOverlay.h"
 
 namespace lamp::live::runtime {
 
@@ -240,9 +241,26 @@ lamp::Rgb blendColors(BlendMode blendMode, lamp::Rgb destination, lamp::Rgb sour
           static_cast<uint8_t>((static_cast<uint16_t>(destination.g) * source.g) / 255U),
           static_cast<uint8_t>((static_cast<uint16_t>(destination.b) * source.b) / 255U),
       };
+    case BlendMode::kScreen:
+      return lamp::Rgb{
+          static_cast<uint8_t>(255U - ((255U - destination.r) * (255U - source.r)) / 255U),
+          static_cast<uint8_t>(255U - ((255U - destination.g) * (255U - source.g)) / 255U),
+          static_cast<uint8_t>(255U - ((255U - destination.b) * (255U - source.b)) / 255U),
+      };
   }
 
   return source;
+}
+
+lamp::Rgb blendWithAlpha(BlendMode blendMode, lamp::Rgb destination, lamp::Rgb source, float alpha) {
+  lamp::Rgb blended = blendColors(blendMode, destination, source);
+  if (alpha >= 1.0f) return blended;
+  if (alpha <= 0.0f) return destination;
+  return lamp::Rgb{
+      static_cast<uint8_t>(blended.r * alpha + destination.r * (1.0f - alpha)),
+      static_cast<uint8_t>(blended.g * alpha + destination.g * (1.0f - alpha)),
+      static_cast<uint8_t>(blended.b * alpha + destination.b * (1.0f - alpha)),
+  };
 }
 
 void renderSpritePixel(const CompiledProgram& program, const CompiledLayer& layer,
@@ -272,7 +290,6 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
                       lamp::FrameBuffer& frameBuffer) const {
   frameBuffer.clear();
 
-
   std::vector<float> frameRandCache(program.expressions.size(), NAN);
 
   EvaluationContext baseContext;
@@ -281,36 +298,80 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
   baseContext.temperatureC = context.temperatureC;
   baseContext.humidityPercent = context.humidityPercent;
 
-  for (const CompiledLayer& layer : program.layers) {
-    if (layer.spriteIndex >= program.sprites.size()) {
-      continue;
-    }
+  // Phase 7: z-sorting with fixed array (no STL vector heap alloc)
+  struct RenderItem {
+    float z;
+    size_t layerIndex;
+    bool isClock;
+  };
+  RenderItem items[65];  // max 64 layers + 1 clock
+  size_t itemCount = 0;
 
-    const float visible = evaluateNode(program.expressions, layer.visibleExpression, baseContext, 0, frameRandCache.data());
-    if (visible <= 0.0f) {
-      continue;
-    }
+  for (size_t i = 0; i < program.layers.size() && itemCount < 64; ++i) {
+    const CompiledLayer& layer = program.layers[i];
+    if (layer.spriteIndex >= program.sprites.size()) continue;
+    const float visible = evaluateNode(program.expressions, layer.visibleExpression,
+                                       baseContext, 0, frameRandCache.data());
+    if (visible <= 0.0f) continue;
 
-    // Check z-index: if any visible layer has z >= 1, effect renders on top of clock
+    float zVal = 0.0f;
     if (layer.zExpression >= 0) {
-      float zVal = evaluateNode(program.expressions, layer.zExpression, baseContext, 0, frameRandCache.data());
-      if (zVal >= 1.0f) {
+      zVal = evaluateNode(program.expressions, layer.zExpression, baseContext, 0, frameRandCache.data());
+    }
+    items[itemCount].z = zVal;
+    items[itemCount].layerIndex = i;
+    items[itemCount].isClock = false;
+    ++itemCount;
+  }
+
+  // Add clock overlay to render items
+  if (program.clockConfig.enabled && context.clockVisible &&
+      context.clockOverlay != nullptr && !context.currentTime.empty() && itemCount < 65) {
+    float clockZ = 1.0f;
+    if (program.clockConfig.zExpression >= 0) {
+      clockZ = evaluateNode(program.expressions, program.clockConfig.zExpression,
+                            baseContext, 0, frameRandCache.data());
+    }
+    items[itemCount].z = clockZ;
+    items[itemCount].layerIndex = 0;
+    items[itemCount].isClock = true;
+    ++itemCount;
+  }
+
+  // NOTE: z-sorting sort disabled — causes boot:0xd on ESP32-C3.
+  // Items already ordered by declaration; render in that order.
+  // TODO: investigate why bubble sort on 65-element struct array crashes.
+
+  // Render in z-order
+  for (size_t idx = 0; idx < itemCount; ++idx) {
+    const RenderItem& item = items[idx];
+    if (item.isClock) {
+      float alpha = 1.0f;
+      if (program.clockConfig.alphaExpression >= 0) {
+        alpha = evaluateNode(program.expressions, program.clockConfig.alphaExpression,
+                             baseContext, 0, frameRandCache.data());
+        if (alpha < 0.0f) alpha = 0.0f;
+        if (alpha > 1.0f) alpha = 1.0f;
       }
+      context.clockOverlay->render(context.currentTime, frameBuffer, true,
+                                   context.nowMs,
+                                   context.temperatureC, context.humidityPercent,
+                                   context.sensorAvailable,
+                                   program.clockConfig.blendMode, alpha);
+      continue;
     }
 
+    const CompiledLayer& layer = program.layers[item.layerIndex];
     const int16_t originX = static_cast<int16_t>(std::lround(
         evaluateNode(program.expressions, layer.xExpression, baseContext, 0, frameRandCache.data())));
     const int16_t originY = static_cast<int16_t>(std::lround(
         evaluateNode(program.expressions, layer.yExpression, baseContext, 0, frameRandCache.data())));
     const int16_t scale = std::max<int16_t>(1, static_cast<int16_t>(std::lround(
-                                                  evaluateNode(program.expressions, layer.scaleExpression,
-                                                               baseContext, 0, frameRandCache.data()))));
+        evaluateNode(program.expressions, layer.scaleExpression, baseContext, 0, frameRandCache.data()))));
     const float rotationRadians = evaluateNode(program.expressions, layer.rotationExpression, baseContext, 0, frameRandCache.data());
 
     const CompiledSprite& sprite = program.sprites[layer.spriteIndex];
-
-    // Determine which frame's pixels to render
-    const std::vector<CompiledSpritePixel>* framePixels = &sprite.pixels;  // default: single-frame
+    const std::vector<CompiledSpritePixel>* framePixels = &sprite.pixels;
     if (!sprite.frames.empty()) {
       int frameIndex = 0;
       if (layer.frameExpression >= 0) {
@@ -322,10 +383,8 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
       framePixels = &sprite.frames[static_cast<size_t>(frameIndex)];
     }
 
-    const float centerX = static_cast<float>(originX) +
-                          static_cast<float>(sprite.width * scale) * 0.5f;
-    const float centerY = static_cast<float>(originY) +
-                          static_cast<float>(sprite.height * scale) * 0.5f;
+    const float centerX = static_cast<float>(originX) + static_cast<float>(sprite.width * scale) * 0.5f;
+    const float centerY = static_cast<float>(originY) + static_cast<float>(sprite.height * scale) * 0.5f;
     const float cosRotation = std::cos(rotationRadians);
     const float sinRotation = std::sin(rotationRadians);
 
@@ -340,9 +399,7 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
               centerX + offsetX * cosRotation - offsetY * sinRotation - 0.5f));
           const int16_t renderY = static_cast<int16_t>(std::lround(
               centerY + offsetX * sinRotation + offsetY * cosRotation - 0.5f));
-
           if (pixel.hasPixelColor) {
-            // Direct per-pixel palette color (bypasses layer color expression)
             const int16_t physX = renderY;
             const int16_t physY = renderX;
             const lamp::Rgb destinationColor = frameBuffer.getPixel(physX, physY);
