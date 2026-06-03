@@ -42,9 +42,14 @@ float smoothstep(float edge0, float edge1, float value) {
   return normalized * normalized * (3.0f - 2.0f * normalized);
 }
 
+// Phase 6: compute results pointer (set by Executor::render before layer evaluation)
+// Single-threaded ESP32 — safe static
+static const float* g_computeResults = nullptr;
+
 float evaluateNode(const std::vector<ExpressionNode>& nodes, int16_t index,
                    const EvaluationContext& context, int16_t depth = 0,
-                   float* frameRandCache = nullptr) {
+                   float* frameRandCache = nullptr,
+                   const float* computeResults = nullptr) {
   if (index < 0 || static_cast<size_t>(index) >= nodes.size()) {
     return 0.0f;
   }
@@ -175,12 +180,22 @@ float evaluateNode(const std::vector<ExpressionNode>& nodes, int16_t index,
     case ExpressionOp::kIf: {
       const float cond = evaluateNode(nodes, node.children[0], context, depth + 1, frameRandCache);
       if (cond != 0.0f) {
-        return evaluateNode(nodes, node.children[1], context, depth + 1, frameRandCache);
+        return evaluateNode(nodes,  {
+      int idx = static_cast<int>(node.constant);
+      if (g_computeResults != nullptr && idx >= 0) {
+        return g_computeResults[idx];
       }
+      return 0.0f;
+    }
       return evaluateNode(nodes, node.children[2], context, depth + 1, frameRandCache);
     }
-    // Phase 6: compute block reference
-    case ExpressionOp::kComputeRef:
+    // Phase 6: compute block refer {
+      int idx = static_cast<int>(node.constant);
+      if (computeResults != nullptr && idx >= 0) {
+        return computeResults[idx];
+      }
+      return 0.0f;
+    }
       return node.constant;  // value set by compute block evaluation before rendering
   }
 
@@ -315,11 +330,7 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
           execStmts(stmt.body, vars, lastResult);
           ++iter;
         }
-      } else if (stmt.kind == CompiledComputeStmt::kExpr) {
-        float val = evaluateNode(program.expressions, stmt.exprIndex, baseContext, 0, frameRandCache.data());
-        lastResult = val;
-      }
-    }
+  g_computeResults = computeResults.data();
   };
 
   for (size_t ci = 0; ci < program.computes.size(); ++ci) {
