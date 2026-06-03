@@ -9,22 +9,60 @@ export const starterSnippets: StarterSnippet[] = [
   {
     id: "rainbow",
     name: "Радуга",
-    description: "Плавный перелив по ширине лампы.",
-    source: `effect "rainbow"
+    description: "Две синусоиды в противофазе крутятся навстречу.",
+    source: `effect "double_rainbow"
 
-sprite dot {
+palette rainbow_pal {
+  K = rgb(255, 0, 0)
+  O = rgb(255, 127, 0)
+  G = rgb(255, 255, 0)
+  Z = rgb(0, 255, 0)
+  g = rgb(0, 255, 255)
+  S = rgb(0, 0, 255)
+  F = rgb(127, 0, 255)
+}
+
+sprite fwd_strip palette rainbow_pal {
   bitmap """
-  #
+  K
+  O
+  G
+  Z
+  g
+  S
+  F
   """
 }
 
-layer paint {
-  use dot
-  color hsv(nx * 360 + t * 70, 1, 1)
-  x = x
-  y = y
-  scale = 1
-  visible = 1
+sprite rev_strip palette rainbow_pal {
+  bitmap """
+  F
+  S
+  g
+  Z
+  G
+  O
+  K
+  """
+}
+
+for k = 0; k < 32; k = k + 1 {
+  layer wave_up {
+    use fwd_strip
+    color rgb(255, 255, 255)
+    x = k
+    y = 4 + 4 * sin(k * 0.19635 + t * 3)
+    visible = 1
+    z = 1
+  }
+  layer wave_down {
+    use rev_strip
+    color rgb(255, 255, 255)
+    x = k
+    y = 4 - 4 * sin(k * 0.19635 - t * 3)
+    visible = 1
+    z = 1
+  }
 }`,
   },
   {
