@@ -4,6 +4,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -807,6 +808,50 @@ bool Compiler::compile(const dsl::Program& program, CompiledProgram& compiledPro
     }
 
     compiled.layers.push_back(compiledLayer);
+  }
+
+  compiledProgram = compiled;
+
+  // Phase 6: Compile compute blocks
+  for (const auto& computeBlock : program.computes) {
+    CompiledComputeBlock ccb;
+    ccb.name = computeBlock.name;
+    compiled.computeNames.push_back(computeBlock.name);
+
+    // Recursive lambda to compile statements
+    std::function<void(const std::vector<dsl::Statement>&, std::vector<CompiledComputeStmt>&)> compileStmts;
+    compileStmts = [&](const std::vector<dsl::Statement>& stmts, std::vector<CompiledComputeStmt>& out) {
+      for (const auto& stmt : stmts) {
+        CompiledComputeStmt ccs;
+        if (stmt.kind == dsl::StatementKind::kLet) {
+          ccs.kind = CompiledComputeStmt::kLet;
+          ccs.varName = stmt.varName;
+          int16_t idx = -1;
+          if (!expressionCompiler.compile(stmt.expression, idx, diagnostics, 0)) return;
+          ccs.exprIndex = idx;
+        } else if (stmt.kind == dsl::StatementKind::kAssign) {
+          ccs.kind = CompiledComputeStmt::kAssign;
+          ccs.varName = stmt.varName;
+          int16_t idx = -1;
+          if (!expressionCompiler.compile(stmt.expression, idx, diagnostics, 0)) return;
+          ccs.exprIndex = idx;
+        } else if (stmt.kind == dsl::StatementKind::kWhile) {
+          ccs.kind = CompiledComputeStmt::kWhile;
+          int16_t condIdx = -1;
+          if (!expressionCompiler.compile(stmt.condition, condIdx, diagnostics, 0)) return;
+          ccs.condIndex = condIdx;
+          compileStmts(stmt.body, ccs.body);
+        } else if (stmt.kind == dsl::StatementKind::kExpr) {
+          ccs.kind = CompiledComputeStmt::kExpr;
+          int16_t idx = -1;
+          if (!expressionCompiler.compile(stmt.expression, idx, diagnostics, 0)) return;
+          ccs.exprIndex = idx;
+        }
+        out.push_back(std::move(ccs));
+      }
+    };
+    compileStmts(computeBlock.body, ccb.body);
+    compiled.computes.push_back(std::move(ccb));
   }
 
   compiledProgram = compiled;

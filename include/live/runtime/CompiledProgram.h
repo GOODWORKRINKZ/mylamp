@@ -107,11 +107,28 @@ struct CompiledLayer {
   int16_t zExpression = -1;
 };
 
+// Phase 6: Compute block — imperative per-pixel computation
+struct CompiledComputeStmt {
+  enum Kind { kLet, kAssign, kWhile, kExpr };
+  Kind kind = kExpr;
+  std::string varName;
+  int16_t exprIndex = -1;     // expression index for let/assign/expr
+  int16_t condIndex = -1;     // condition index for while
+  std::vector<CompiledComputeStmt> body;  // while body
+};
+
+struct CompiledComputeBlock {
+  std::string name;
+  std::vector<CompiledComputeStmt> body;
+};
+
 struct CompiledProgram {
   std::string effectName;
   std::vector<CompiledSprite> sprites;
   std::vector<ExpressionNode> expressions;
   std::vector<CompiledLayer> layers;
+  std::vector<CompiledComputeBlock> computes;      // Phase 6
+  std::vector<std::string> computeNames;            // Phase 6: ordered compute block names
 };
 
 }  // namespace lamp::live::runtime

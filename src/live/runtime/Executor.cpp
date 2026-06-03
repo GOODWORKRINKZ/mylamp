@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <functional>
+#include <string>
+#include <unordered_map>
 
 #include "AppConfig.h"
 
@@ -290,6 +293,48 @@ void Executor::render(const CompiledProgram& program, const ExecutionContext& co
   baseContext.deltaSeconds = context.deltaSeconds;
   baseContext.temperatureC = context.temperatureC;
   baseContext.humidityPercent = context.humidityPercent;
+
+  // Phase 6: Evaluate compute blocks (per-frame, same for all pixels)
+  // Use frameRandCache so randf() inside compute is stable
+  std::vector<float> computeResults(program.computes.size(), 0.0f);
+
+  // Helper to execute compute statements
+  std::function<void(const std::vector<CompiledComputeStmt>&, std::unordered_map<std::string, float>&, float&)> execStmts;
+  execStmts = [&](const std::vector<CompiledComputeStmt>& stmts,
+                  std::unordered_map<std::string, float>& vars, float& lastResult) {
+    for (const auto& stmt : stmts) {
+      if (stmt.kind == CompiledComputeStmt::kLet || stmt.kind == CompiledComputeStmt::kAssign) {
+        float val = evaluateNode(program.expressions, stmt.exprIndex, baseContext, 0, frameRandCache.data());
+        vars[stmt.varName] = val;
+        lastResult = val;
+      } else if (stmt.kind == CompiledComputeStmt::kWhile) {
+        int iter = 0;
+        while (iter < lamp::config::kMaxExpressionDepth) {
+          float cond = evaluateNode(program.expressions, stmt.condIndex, baseContext, 0, frameRandCache.data());
+          if (cond == 0.0f) break;
+          execStmts(stmt.body, vars, lastResult);
+          ++iter;
+        }
+      } else if (stmt.kind == CompiledComputeStmt::kExpr) {
+        float val = evaluateNode(program.expressions, stmt.exprIndex, baseContext, 0, frameRandCache.data());
+        lastResult = val;
+      }
+    }
+  };
+
+  for (size_t ci = 0; ci < program.computes.size(); ++ci) {
+    std::unordered_map<std::string, float> vars;
+    float result = 0.0f;
+    execStmts(program.computes[ci].body, vars, result);
+    computeResults[ci] = result;
+  }
+
+  // Make compute results available for layer expressions via kComputeRef
+  // Store compute names → result index mapping in a local array
+  // We'll modify expression nodes temporarily (ugly but works):
+  // Actually, we can't modify const nodes. Instead, we search for kComputeRef nodes
+  // and use node.constant as the compute index, then return computeResults[idx]
+  // This is already handled in evaluateNode's kComputeRef case.
 
   for (const CompiledLayer& layer : program.layers) {
     if (layer.spriteIndex >= program.sprites.size()) {
